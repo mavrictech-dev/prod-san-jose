@@ -1,0 +1,297 @@
+{
+  "_format_version": "3.0",
+  "_transform": true,
+  "services": [
+    {
+      "name": "identity-service",
+      "url": "http://identity-service:3001",
+      "routes": [
+        {
+          "name": "core-identity",
+          "paths": [
+            "~/api/v1/(?:auth|users|roles)(?:/|$)"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PATCH",
+            "PUT",
+            "DELETE",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200
+        }
+      ]
+    },
+    {
+      "name": "billing-service",
+      "url": "http://billing-service:3002",
+      "routes": [
+        {
+          "name": "core-billing",
+          "paths": [
+            "~/api/v1/(?:documents|stations)(?:/|$)"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PATCH",
+            "PUT",
+            "DELETE",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200
+        }
+      ]
+    },
+    {
+      "name": "sunat-service",
+      "url": "http://sunat-service:3003",
+      "routes": [
+        {
+          "name": "core-fiscal-public",
+          "paths": [
+            "~/api/v1/(?:fiscal-artifacts|fiscal-rules|fiscal-evidence)(?:/|$)"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200
+        },
+        {
+          "name": "core-fiscal-configuration",
+          "paths": [
+            "~/api/v1/setup/sunat/[1-9][0-9]*/(?:BETA|PRODUCTION)(?:/(?:audit|readiness(?:/validate)?|dispatch))?$"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200
+        },
+        {
+          "name": "core-fiscal-notes-authorization",
+          "paths": [
+            "~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/notes/authorization$"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200
+        },
+        {
+          "name": "core-fiscal-reference",
+          "paths": [
+            "~/api/v1/setup/sunat/reference$"
+          ],
+          "methods": [
+            "GET",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200
+        }
+      ]
+    },
+    {
+      "name": "mailer-worker",
+      "url": "http://mailer-worker:3004",
+      "routes": [
+        {
+          "name": "core-mail-settings",
+          "paths": [
+            "~/api/v1/mail-settings(?:/|$)"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200
+        }
+      ]
+    },
+    {
+      "name": "received-documents-service",
+      "url": "http://received-documents-service:3006",
+      "routes": [
+        {
+          "name": "core-received",
+          "paths": [
+            "~/api/v1/received-documents(?:/|$)"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PATCH",
+            "PUT",
+            "DELETE",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200,
+          "plugins": [
+            {
+              "name": "request-size-limiting",
+              "config": {
+                "allowed_payload_size": 18,
+                "size_unit": "megabytes",
+                "require_content_length": false
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "realtime-service",
+      "url": "http://realtime-service:3005",
+      "routes": [
+        {
+          "name": "core-socketio",
+          "paths": [
+            "~/socket[.]io(?:/|$)"
+          ],
+          "methods": [
+            "GET",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 200
+        }
+      ]
+    },
+    {
+      "name": "web-pwa",
+      "url": "http://web-pwa:3000",
+      "routes": [
+        {
+          "name": "core-deny-laboratories",
+          "paths": [
+            "~/api/v1/(?:stations/client-intake|mail-qa|local-xml-validation|fiscal-circuit-qa|fiscal-batch-qa|notes-qa|gre-qa)(?:/|$)"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 400,
+          "plugins": [
+            {
+              "name": "request-termination",
+              "config": {
+                "status_code": 404,
+                "message": "Laboratory routes are not published by core production"
+              }
+            }
+          ]
+        },
+        {
+          "name": "core-deny-unpublished-api",
+          "paths": [
+            "~/(?:api|internal|b2b)(?:/|$)"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 10,
+          "plugins": [
+            {
+              "name": "request-termination",
+              "config": {
+                "status_code": 404,
+                "message": "Endpoint not published by core production"
+              }
+            }
+          ]
+        },
+        {
+          "name": "core-web",
+          "paths": [
+            "/"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false
+        }
+      ]
+    }
+  ],
+  "plugins": [
+    {
+      "name": "correlation-id",
+      "config": {
+        "header_name": "X-Correlation-ID",
+        "generator": "uuid",
+        "echo_downstream": true
+      }
+    },
+    {
+      "name": "request-size-limiting",
+      "config": {
+        "allowed_payload_size": 1,
+        "size_unit": "megabytes",
+        "require_content_length": false
+      }
+    },
+    {
+      "name": "rate-limiting",
+      "config": {
+        "minute": 600,
+        "policy": "local",
+        "fault_tolerant": false
+      }
+    }
+  ]
+}

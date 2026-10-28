@@ -1,0 +1,126 @@
+# Sólo QA aislada. Usar con docker-compose.demo.yml y un project name exclusivo.
+# Imágenes, redes y volúmenes separados del demo existente. Sin salida a Internet.
+services:
+  migrate-identity:
+    image: factuez-stage2-qa/identity-service:local
+  migrate-billing:
+    image: factuez-stage2-qa/billing-service:local
+  migrate-sunat:
+    image: factuez-stage2-qa/sunat-service:local
+  identity-service:
+    image: factuez-stage2-qa/identity-service:local
+    pull_policy: never
+    environment:
+      LOCAL_BROWSER_SESSION_QA_ENABLED: "true"
+      AUTH_BROWSER_ORIGINS: "http://127.0.0.1:8091,http://localhost:8091"
+  billing-service:
+    image: factuez-stage2-qa/billing-service:local
+    pull_policy: never
+    environment:
+      WORKSPACE_LIVE_ENABLED: "true"
+      # Expediente parcial de datos empresariales, sólo lectura; no importa historial.
+      CLIENT_INTAKE_QA_ENABLED: "true"
+      # QA already initialized: a service update must not run demo seeding again.
+      FACTUEZ_DEMO_SEED: "false"
+      STATION_MASTER_CRUD_ENABLED: "true"
+  sunat-service:
+    image: factuez-stage2-qa/sunat-service:local
+    pull_policy: never
+    environment:
+      LOCAL_XML_VALIDATION_ENABLED: "true"
+      FISCAL_CIRCUIT_QA_ENABLED: "true"
+      WORKSPACE_LIVE_ENABLED: "true"
+      FISCAL_BATCH_QA_ENABLED: "true"
+      NOTES_QA_ENABLED: "true"
+      GRE_QA_ENABLED: "true"
+      SUNAT_BETA_TRANSMISSION_ENABLED: "false"
+      SUNAT_BETA_WORKFLOW_ENABLED: "false"
+  sunat-emulator:
+    image: factuez-stage2-qa/sunat-service:local
+    pull_policy: never
+    command: ["node", "services/sunat-service/dist/infrastructure/sunat/qa-emulator.js"]
+    environment:
+      FISCAL_CIRCUIT_QA_ENABLED: "true"
+      NOTES_QA_ENABLED: "true"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  web-pwa:
+    image: factuez-stage2-qa/web-pwa:local
+  mailer-worker:
+    image: factuez-stage2-qa/mailer-worker:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args: { SERVICE_NAME: "@factuez/mailer-worker", SERVICE_PATH: "services/mailer-worker" }
+    environment:
+      NODE_ENV: production
+      TZ: America/Lima
+      DB_HOST: postgres
+      DB_USER: factuez_demo_app
+      DB_NAME: factuez_mailer_qa
+      MAILER_DATABASE_NAME: factuez_mailer_qa
+      DB_PASSWORD_FILE: /run/secrets/demo_db_password
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      LOCAL_MAIL_QA_ENABLED: "true"
+      WORKSPACE_LIVE_ENABLED: "true"
+      MAIL_QA_ROOT: /data/mail-qa
+      SMTP_SETTINGS_KEY_FILE: /run/secrets/app_master_key
+      SMTP_SETTINGS_KEY_VERSION: "1"
+      SMTP_QA_USE_APP_KEY: "true"
+      # Vacía hasta que infraestructura autorice un hostname; no hay conexiones.
+      SMTP_APPROVED_HOSTS: ""
+    secrets: [demo_db_password, redis_password, app_master_key]
+    volumes: [local_mail_qa_artifacts:/data/mail-qa]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  realtime-service:
+    image: factuez-stage2-qa/realtime-service:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args: { SERVICE_NAME: "@factuez/realtime-service", SERVICE_PATH: "services/realtime-service" }
+    environment:
+      WORKSPACE_LIVE_ENABLED: "true"
+      WS_ALLOWED_ORIGINS: http://127.0.0.1:8091,http://localhost:8091
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+    secrets: [redis_password]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.31.3
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "500"
+      MP_BLOCK_REMOTE_CSS_AND_FONTS: "true"
+    volumes: [local_mail_qa_capture:/data]
+    restart: unless-stopped
+    # Sin puertos publicados ni relay SMTP. Sólo red QA interna.
+  kong:
+    environment:
+      # Docker cambia IP al recrear servicios. Evitar caché DNS de larga duración en QA.
+      KONG_DNS_VALID_TTL: "5"
+      KONG_DNS_STALE_TTL: "30"
+      KONG_ANONYMOUS_REPORTS: "off"
+    ports: !override ["127.0.0.1:8091:8000"]
+    networks: [default, qa-edge]
+    volumes: !override ["./infra/kong/kong.stage2.qa.yml:/kong/declarative/kong.yml:ro"]
+networks:
+  default:
+    internal: true
+  qa-edge:
+    driver: bridge
+volumes:
+  local_mail_qa_artifacts:
+  local_mail_qa_capture:

@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RoleCode {
+  ADMIN
+  STATION_MANAGER
+  CASHIER
+  TRACK_OPERATOR
+  AUDITOR
+}
+
+enum PermissionCode {
+  SETUP_MANAGE
+  USER_MANAGE
+  ROLE_MANAGE
+  PRODUCT_MANAGE
+  SERIES_MANAGE
+  SUNAT_CONFIGURE
+  DOCUMENT_ISSUE
+  DOCUMENT_VIEW
+  DOCUMENT_RETRY
+  DOCUMENT_EMAIL
+  SHIFT_OPEN
+  SHIFT_CLOSE
+  REPORT_VIEW
+  REPORT_EXPORT
+  AUDIT_VIEW
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique @db.VarChar(80)
+  fullName     String   @db.VarChar(160)
+  passwordHash String
+  active       Boolean  @default(true)
+  authVersion  Int      @default(1)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  roles                  UserRoleAssignment[] @relation("UserRoleAssignments")
+  roleAssignmentsGranted UserRoleAssignment[] @relation("RoleAssignmentsGranted")
+  emissionPoints         UserEmissionPoint[] @relation("UserEmissionPoints")
+  emissionPointsGranted  UserEmissionPoint[] @relation("EmissionPointAssignmentsGranted")
+  sessions               RefreshSession[]
+  auditLogs              AuditLog[]
+  branches               UserBranch[]
+  series                 UserSeries[]
+}
+
+// Identificadores externos, sin FK hacia Billing.
+model UserBranch {
+  userId   String @db.Uuid
+  branchId String @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([userId, branchId])
+}
+
+model UserSeries {
+  userId String @db.Uuid
+  series String @db.VarChar(36) // UUID externo de SeriesCounter, no etiqueta F001
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([userId, series])
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        RoleCode @unique
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(300)
+  isSystem    Boolean  @default(true)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions RolePermission[]
+  users       UserRoleAssignment[]
+}
+
+model Permission {
+  id          String         @id @default(uuid()) @db.Uuid
+  code        PermissionCode @unique
+  name        String         @db.VarChar(120)
+  description String?        @db.VarChar(300)
+  createdAt   DateTime       @default(now())
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String   @db.Uuid
+  permissionId String   @db.Uuid
+  grantedAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRoleAssignment {
+  userId           String   @db.Uuid
+  roleId           String   @db.Uuid
+  assignedByUserId String?  @db.Uuid
+  assignedAt       DateTime @default(now())
+
+  user       User  @relation("UserRoleAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  role       Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  assignedBy User? @relation("RoleAssignmentsGranted", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+// El punto de emisión pertenece a billing-service; aquí solo se guarda su UUID
+// para que identity-service pueda incluir el alcance en el access token.
+model UserEmissionPoint {
+  userId           String   @db.Uuid
+  emissionPointId  String   @db.Uuid
+  assignedByUserId String?  @db.Uuid
+  assignedAt       DateTime @default(now())
+
+  user       User  @relation("UserEmissionPoints", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy User? @relation("EmissionPointAssignmentsGranted", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@id([userId, emissionPointId])
+  @@index([emissionPointId])
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  userAgent String?
+  ipAddress String?   @db.VarChar(64)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model AuditLog {
+  id            BigInt   @id @default(autoincrement())
+  userId        String?  @db.Uuid
+  action        String   @db.VarChar(100)
+  entityType    String   @db.VarChar(80)
+  entityId      String?  @db.VarChar(120)
+  correlationId String?  @db.VarChar(80)
+  ipAddress     String?  @db.VarChar(64)
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model OutboxEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  eventType     String   @db.VarChar(120)
+  aggregateId   String   @db.VarChar(120)
+  payload       Json
+  occurredAt    DateTime @default(now())
+  publishedAt   DateTime?
+  attempts      Int      @default(0)
+  lastError     String?
+
+  @@index([publishedAt, occurredAt])
+}
+
+model InboxEvent {
+  eventId     String   @id @db.Uuid
+  eventType   String   @db.VarChar(120)
+  processedAt DateTime @default(now())
+}

@@ -1,0 +1,28 @@
+// Añadir al schema principal por integración; SQL parametrizado no depende de generar modelo.
+model GreQaGuide {
+  id String @id @db.Uuid
+  actorId String @db.Uuid
+  idempotencyKey String @db.Uuid
+  issuerRuc String @db.VarChar(11)
+  companyId Int
+  originBranchId String @db.Uuid
+  destinationBranchId String @db.Uuid
+  localIdentifier String @unique @db.VarChar(50)
+  ublNumber String @db.VarChar(20)
+  payload Json
+  inputSha256 String @db.Char(64)
+  xmlArtifact Json
+  zipArtifact Json
+  signatureVerified Boolean @default(false)
+  digestValue String? @db.VarChar(128)
+  certificateFingerprint String? @db.VarChar(128)
+  credentialRevision Int?
+  xsdEvidence Json?
+  state String @default("PREPARED_LOCAL") @db.VarChar(32)
+  simulation Json?
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+  updatedAt DateTime @default(now()) @db.Timestamp(3)
+  @@unique([actorId,idempotencyKey])
+  @@unique([issuerRuc,ublNumber])
+  @@index([companyId,createdAt(sort: Desc)])
+}

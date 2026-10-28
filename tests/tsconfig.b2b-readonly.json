@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".."
+  },
+  "include": [
+    "../packages/service-access/src/b2b-oauth-http.ts",
+    "../packages/service-access/src/b2b-readonly-*.ts",
+    "../services/b2b-api-service/src/readonly-*.ts",
+    "../services/billing-service/src/b2b/readonly-*.ts",
+    "../services/identity-service/src/b2b/readonly-*.ts",
+    "../services/sunat-service/src/b2b/readonly-*.ts"
+  ]
+}

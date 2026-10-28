@@ -1,0 +1,58 @@
+# Layer over demo + stage2, only project factuez-stage2-qa. New database/volume,
+# never migrate Billing/Identity/SUNAT. Runtime is internal, no published DB port.
+services:
+  received-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: factuez_received_qa
+      POSTGRES_USER: factuez_received_qa
+      POSTGRES_PASSWORD_FILE: /run/secrets/demo_db_password
+    secrets: [demo_db_password]
+    volumes: [factuez_received_qa:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factuez_received_qa -d factuez_received_qa"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  received-documents-service: &received-runtime
+    image: factuez-stage2-qa/received-documents-service:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args: { SERVICE_NAME: "@factuez/received-documents-service", SERVICE_PATH: "services/received-documents-service" }
+    environment:
+      NODE_ENV: production
+      TZ: America/Lima
+      PORT: "3006"
+      DB_HOST: received-postgres
+      DB_PORT: "5432"
+      DB_NAME: factuez_received_qa
+      DB_USER: factuez_received_qa
+      DB_PASSWORD_FILE: /run/secrets/demo_db_password
+      IDENTITY_INTERNAL_URL: http://identity-service:3001
+      BILLING_INTERNAL_URL: http://billing-service:3002
+      RECEIVED_SETTINGS_KEY_FILE: /run/secrets/app_master_key
+      RECEIVED_LOCAL_FIXTURE_ENABLED: "true"
+      RECEIVED_QA_USE_APP_KEY: "true"
+      RECEIVED_LIVE_READ_ALLOWED: "false"
+      RECEIVED_IMAP_APPROVED_HOSTS: ""
+      REDIS_HOST: redis
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      WORKSPACE_LIVE_ENABLED: "true"
+    secrets: [demo_db_password, app_master_key, redis_password]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  received-sync-worker:
+    <<: *received-runtime
+    command: ["node", "services/received-documents-service/dist/automation.worker.js"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3007/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  factuez_received_qa:

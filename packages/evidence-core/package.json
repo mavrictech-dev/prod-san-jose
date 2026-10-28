@@ -1,0 +1,15 @@
+{
+  "name": "@factuez/evidence-core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc -p tsconfig.json --noEmit" },
+  "dependencies": {
+    "@factuez/history-core": "workspace:*",
+    "@xmldom/xmldom": "0.9.12",
+    "xml-crypto": "6.3.2",
+    "node-forge": "1.4.0"
+  },
+  "devDependencies": { "@types/node": "20.19.9", "@types/node-forge": "1.3.11", "typescript": "5.9.2" }
+}

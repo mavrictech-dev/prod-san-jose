@@ -1,0 +1,513 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SunatEnvironment {
+  BETA
+  PRODUCTION
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum DocumentType {
+  INVOICE
+  SALES_RECEIPT
+  CREDIT_NOTE
+  DEBIT_NOTE
+  DESPATCH_ADVICE
+}
+
+enum DocumentStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum SunatStatus {
+  PENDING
+  QUEUED
+  PROCESSING
+  SUMMARY_PENDING
+  ACCEPTED
+  ACCEPTED_WITH_OBSERVATIONS
+  REJECTED
+  RETRYABLE_ERROR
+  PERMANENT_ERROR
+  VOID_PENDING
+  VOIDED
+}
+
+enum SummaryStatus {
+  DRAFT
+  QUEUED
+  SUBMITTED
+  PROCESSING
+  ACCEPTED
+  REJECTED
+  RETRYABLE_ERROR
+}
+
+model CompanySettings {
+  id                 Int              @id @default(autoincrement())
+  ruc                String           @unique @db.Char(11)
+  legalName          String           @db.VarChar(200)
+  tradeName          String?          @db.VarChar(200)
+  companyType        String           @db.VarChar(120)
+  economicActivities String[]
+  taxAddress         String           @db.VarChar(300)
+  ubigeo             String           @db.Char(6)
+  department         String?          @db.VarChar(80)
+  province           String?          @db.VarChar(80)
+  district           String?          @db.VarChar(80)
+  stationManager     String?          @db.VarChar(160)
+  phone              String?          @db.VarChar(40)
+  contactEmails      String[]
+  environment        SunatEnvironment @default(BETA)
+  active             Boolean          @default(true)
+  igvRate            Decimal          @default(18.00) @db.Decimal(5, 2)
+  setupCompletedAt   DateTime?
+  configVersion      Int              @default(1)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  emissionPoints EmissionPoint[]
+  branches       Branch[]
+  counters       SeriesCounter[]
+  documents      Document[]
+  dailySummaries DailySummary[]
+  financialLedgerStreams FinancialLedgerStream[]
+  financialLedgerCommits FinancialLedgerCommit[]
+}
+
+model Branch {
+  establishmentCode String? @db.VarChar(4)
+  id          String @id @default(uuid()) @db.Uuid
+  companyId   Int
+  code        String @unique @db.VarChar(20)
+  name        String @db.VarChar(120)
+  address     String? @db.VarChar(300)
+  active      Boolean @default(true)
+  masterRevision Int @default(1)
+  createdAt   DateTime @default(now())
+  company     CompanySettings @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  emissionPoints EmissionPoint[]
+  financialLedgerStreams FinancialLedgerStream[]
+  financialLedgerCommits FinancialLedgerCommit[]
+  @@unique([id, companyId])
+}
+
+model EmissionPoint {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   Int
+  branchId    String? @db.Uuid
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(120)
+  address     String?  @db.VarChar(300)
+  trackNumber Int?
+  active      Boolean  @default(true)
+  masterRevision Int @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company        CompanySettings @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch         Branch? @relation(fields: [branchId, companyId], references: [id, companyId], onDelete: Restrict, onUpdate: Restrict)
+  shifts         Shift[]
+  counters       SeriesCounter[]
+  documents      Document[]
+  dailySummaries DailySummary[]
+  @@unique([id, companyId])
+}
+
+model Shift {
+  id              String      @id @default(uuid()) @db.Uuid
+  emissionPointId String      @db.Uuid
+  openedByUserId  String      @db.Uuid // ID externo de identity-service
+  closedByUserId  String?     @db.Uuid
+  status          ShiftStatus @default(OPEN)
+  openingAmount   Decimal     @default(0) @db.Decimal(14, 2)
+  closingAmount   Decimal?    @db.Decimal(14, 2)
+  openedAt        DateTime    @default(now())
+  closedAt        DateTime?
+  notes           String?
+
+  emissionPoint EmissionPoint @relation(fields: [emissionPointId], references: [id], onDelete: Restrict)
+  documents     Document[]
+
+  @@index([emissionPointId, status, openedAt])
+}
+
+model SeriesCounter {
+  companyId       Int
+  id              String       @id @default(uuid()) @db.Uuid
+  emissionPointId String       @db.Uuid
+  documentType    DocumentType
+  series          String       @db.VarChar(4)
+  nextNumber      BigInt       @default(1)
+  active          Boolean      @default(true)
+  masterRevision  Int          @default(1)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  emissionPoint EmissionPoint @relation(fields: [emissionPointId, companyId], references: [id, companyId], onDelete: Restrict, onUpdate: Restrict)
+
+  company       CompanySettings @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  documents     Document[]
+
+  @@unique([id, companyId])
+  @@unique([companyId, documentType, series])
+}
+
+model FuelProduct {
+  id                 String   @id @default(uuid()) @db.Uuid
+  sku                String   @unique @db.VarChar(40)
+  sunatProductCode   String?  @db.VarChar(20)
+  description        String   @db.VarChar(250)
+  category           String   @db.VarChar(80)
+  unitCode           String   @db.VarChar(3)
+  taxAffectationCode String   @db.VarChar(2)
+  defaultUnitPrice   Decimal? @db.Decimal(18, 6)
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  items DocumentItem[]
+}
+
+model Customer {
+  id             String   @id @default(uuid()) @db.Uuid
+  identityType   String   @db.VarChar(1)
+  identityNumber String   @db.VarChar(15)
+  legalName      String   @db.VarChar(250)
+  address        String?  @db.VarChar(300)
+  email          String?  @db.VarChar(254)
+  phone          String?  @db.VarChar(40)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  documents Document[]
+
+  @@unique([identityType, identityNumber])
+}
+
+model Document {
+  companyId              Int
+  seriesCounterId        String         @db.Uuid
+  id                     String         @id @default(uuid()) @db.Uuid
+  type                   DocumentType
+  status                 DocumentStatus @default(DRAFT)
+  sunatStatus            SunatStatus    @default(PENDING) // proyección de evento SUNAT
+  series                 String         @db.VarChar(4)
+  number                 BigInt
+  fullNumber             String         @db.VarChar(32)
+  issueDate              DateTime       @db.Timestamptz(3)
+  currencyCode           String         @default("PEN") @db.Char(3)
+  operationTypeCode      String?        @db.VarChar(4)
+  emissionPointId        String         @db.Uuid
+  shiftId                String?        @db.Uuid
+  createdByUserId        String?        @db.Uuid // NULL for a genuine B2B SERVICE, never a fabricated human.
+  createdByActor         Json?          // Verified B2B actor provenance; never credentials or bearer tokens.
+  customerId             String?        @db.Uuid
+  customerIdentityType   String         @db.VarChar(1)
+  customerIdentityNumber String         @db.VarChar(15)
+  customerLegalName      String         @db.VarChar(250)
+  customerAddress        String?        @db.VarChar(300)
+  customerEmail          String?        @db.VarChar(254)
+  taxableAmount          Decimal        @db.Decimal(18, 2)
+  exemptAmount           Decimal        @default(0) @db.Decimal(18, 2)
+  unaffectedAmount       Decimal        @default(0) @db.Decimal(18, 2)
+  freeAmount             Decimal        @default(0) @db.Decimal(18, 2)
+  discountTotal          Decimal        @default(0) @db.Decimal(18, 2)
+  igvAmount              Decimal        @db.Decimal(18, 2)
+  iscAmount              Decimal        @default(0) @db.Decimal(18, 2)
+  otherTaxesAmount       Decimal        @default(0) @db.Decimal(18, 2)
+  payableAmount          Decimal        @db.Decimal(18, 2)
+  amountInWords          String?        @db.VarChar(500)
+  vehiclePlate           String?        @db.VarChar(15)
+  observations           String?
+  sunatResponseCode      String?        @db.VarChar(20)
+  sunatResponseDescription String?
+  originSystem           String?        @db.VarChar(40)
+  originId               String?        @db.VarChar(120)
+  immutableSnapshot      Json
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  emissionPoint  EmissionPoint       @relation(fields: [emissionPointId, companyId], references: [id, companyId], onDelete: Restrict, onUpdate: Restrict)
+  shift          Shift?              @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+  customer       Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items          DocumentItem[]
+  taxes          DocumentTax[]
+  referencesFrom DocumentReference[] @relation("ReferenceSource")
+  referencesTo   DocumentReference[] @relation("ReferenceTarget")
+  summaryItems   DailySummaryItem[]
+  despatch       DespatchAdviceDetails?
+  financialLedgerStream FinancialLedgerStream?
+
+  company        CompanySettings @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  seriesCounter  SeriesCounter @relation(fields: [seriesCounterId, companyId], references: [id, companyId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([companyId, type, series, number])
+  @@unique([id, companyId])
+  @@unique([companyId, originSystem, originId])
+  @@index([issueDate, type, sunatStatus])
+}
+
+// Additive candidate persistence, deliberately not a fiscal authority. The SQL
+// blueprint is NOT an applied migration. All rows remain BETA/candidateOnly.
+model FinancialLedgerCommit {
+  planId          String @id @db.Uuid
+  companyId       Int
+  branchId        String @db.Uuid
+  issuerRuc       String @db.Char(11)
+  environment     SunatEnvironment @default(BETA)
+  candidateOnly   Boolean @default(true)
+  profile         String @db.VarChar(80)
+  planSha256      String @db.Char(64)
+  inputSha256     String @db.Char(64)
+  resultSha256    String @db.Char(64)
+  planPayload     Json
+  resultPayload   Json
+  createdAt       DateTime @default(now())
+
+  company CompanySettings @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch Branch @relation(fields: [branchId, companyId], references: [id, companyId], onDelete: Restrict, onUpdate: Restrict)
+  currentStreams FinancialLedgerStream[]
+  versions FinancialLedgerVersion[]
+  entries FinancialLedgerEntry[]
+
+  @@unique([planId, companyId, branchId])
+  @@index([companyId, branchId, createdAt])
+}
+
+model FinancialLedgerStream {
+  documentId       String @id @db.Uuid
+  companyId        Int
+  branchId         String @db.Uuid
+  issuerRuc        String @db.Char(11)
+  environment      SunatEnvironment @default(BETA)
+  candidateOnly    Boolean @default(true)
+  profile          String @db.VarChar(80)
+  revision         Int
+  sequence         Int
+  versionSha256    String @db.Char(64)
+  originalSha256   String @db.Char(64)
+  historySha256    String @db.Char(64)
+  state            String @db.VarChar(16)
+  originalSnapshot Json
+  financialSnapshot Json
+  historyPayload   Json
+  currentVersion   Json
+  lastCommitId     String @db.Uuid
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  document Document @relation(fields: [documentId, companyId], references: [id, companyId], onDelete: Restrict, onUpdate: Restrict)
+  company CompanySettings @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  branch Branch @relation(fields: [branchId, companyId], references: [id, companyId], onDelete: Restrict, onUpdate: Restrict)
+  lastCommit FinancialLedgerCommit @relation(fields: [lastCommitId, companyId, branchId], references: [planId, companyId, branchId], onDelete: Restrict, onUpdate: Restrict)
+  versions FinancialLedgerVersion[]
+  entries FinancialLedgerEntry[]
+
+  @@unique([documentId, companyId])
+  @@unique([documentId, companyId, branchId])
+  @@index([companyId, branchId, state])
+}
+
+model FinancialLedgerVersion {
+  documentId       String @db.Uuid
+  companyId        Int
+  branchId         String @db.Uuid
+  revision         Int
+  versionSha256    String @db.Char(64)
+  previousSha256   String? @db.Char(64)
+  versionPayload   Json
+  candidateOnly    Boolean @default(true)
+  commitId         String @db.Uuid
+  createdAt        DateTime @default(now())
+
+  stream FinancialLedgerStream @relation(fields: [documentId, companyId, branchId], references: [documentId, companyId, branchId], onDelete: Restrict, onUpdate: Restrict)
+  commit FinancialLedgerCommit @relation(fields: [commitId, companyId, branchId], references: [planId, companyId, branchId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([documentId, revision])
+  @@unique([documentId, versionSha256])
+}
+
+model FinancialLedgerEntry {
+  documentId       String @db.Uuid
+  companyId        Int
+  branchId         String @db.Uuid
+  eventId          String @db.Uuid
+  operationId      String @db.Uuid
+  sequence         Int
+  kind             String @db.VarChar(24)
+  outcome          String @db.VarChar(24)
+  entrySha256      String @db.Char(64)
+  entryPayload     Json
+  versionSha256    String @db.Char(64)
+  revision         Int
+  candidateOnly    Boolean @default(true)
+  commitId         String @db.Uuid
+  createdAt        DateTime @default(now())
+
+  stream FinancialLedgerStream @relation(fields: [documentId, companyId, branchId], references: [documentId, companyId, branchId], onDelete: Restrict, onUpdate: Restrict)
+  commit FinancialLedgerCommit @relation(fields: [commitId, companyId, branchId], references: [planId, companyId, branchId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([documentId, eventId])
+  @@unique([documentId, sequence])
+  @@unique([documentId, operationId])
+}
+
+model DocumentItem {
+  id                    String  @id @default(uuid()) @db.Uuid
+  documentId            String  @db.Uuid
+  lineNumber            Int
+  productId             String? @db.Uuid
+  internalCode          String? @db.VarChar(40)
+  description           String  @db.VarChar(500)
+  unitCode              String  @db.VarChar(3)
+  quantity              Decimal @db.Decimal(18, 6)
+  unitValue             Decimal @db.Decimal(18, 6)
+  unitPriceWithTax      Decimal @db.Decimal(18, 6)
+  discountAmount        Decimal @default(0) @db.Decimal(18, 2)
+  lineExtensionAmount   Decimal @db.Decimal(18, 2)
+  taxAffectationCode    String  @db.VarChar(2)
+  igvRate               Decimal @db.Decimal(5, 2)
+  igvAmount             Decimal @db.Decimal(18, 2)
+  iscAmount             Decimal @default(0) @db.Decimal(18, 2)
+  totalAmount           Decimal @db.Decimal(18, 2)
+
+  document Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  product  FuelProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([documentId, lineNumber])
+}
+
+model DocumentTax {
+  id            String  @id @default(uuid()) @db.Uuid
+  documentId    String  @db.Uuid
+  taxSchemeId   String  @db.VarChar(4)
+  taxName       String  @db.VarChar(20)
+  taxableAmount Decimal @db.Decimal(18, 2)
+  taxAmount     Decimal @db.Decimal(18, 2)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model DocumentReference {
+  id               String  @id @default(uuid()) @db.Uuid
+  sourceDocumentId String  @db.Uuid
+  targetDocumentId String? @db.Uuid
+  targetTypeCode   String  @db.VarChar(2)
+  targetSeries     String  @db.VarChar(4)
+  targetNumber     BigInt
+  reasonCode       String? @db.VarChar(2)
+  reason           String? @db.VarChar(500)
+
+  sourceDocument Document  @relation("ReferenceSource", fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  targetDocument Document? @relation("ReferenceTarget", fields: [targetDocumentId], references: [id], onDelete: SetNull)
+}
+
+model DespatchAdviceDetails {
+  id                    String   @id @default(uuid()) @db.Uuid
+  documentId            String   @unique @db.Uuid
+  transferReasonCode    String   @db.VarChar(2)
+  transportModeCode     String   @db.VarChar(2)
+  transferStartDate     DateTime @db.Date
+  grossWeight           Decimal  @db.Decimal(18, 3)
+  grossWeightUnitCode   String   @db.VarChar(3)
+  originUbigeo          String   @db.Char(6)
+  originAddress         String   @db.VarChar(300)
+  destinationUbigeo     String   @db.Char(6)
+  destinationAddress    String   @db.VarChar(300)
+  carrierIdentityNumber String?  @db.VarChar(15)
+  carrierLegalName      String?  @db.VarChar(250)
+  vehiclePlate          String?  @db.VarChar(15)
+  driverIdentityNumber  String?  @db.VarChar(15)
+  driverLicenseNumber   String?  @db.VarChar(30)
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model DailySummary {
+  companyId             Int
+  id                    String        @id @default(uuid()) @db.Uuid
+  emissionPointId       String        @db.Uuid
+  createdByUserId       String        @db.Uuid
+  referenceDate         DateTime      @db.Date
+  sequence              Int
+  identifier            String        @db.VarChar(32)
+  status                SummaryStatus @default(DRAFT)
+  sunatResponseCode     String?       @db.VarChar(20)
+  sunatResponseDescription String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  emissionPoint EmissionPoint      @relation(fields: [emissionPointId, companyId], references: [id, companyId], onDelete: Restrict, onUpdate: Restrict)
+  items         DailySummaryItem[]
+
+  company CompanySettings @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, identifier])
+  @@unique([companyId, referenceDate, sequence])
+}
+
+model DailySummaryItem {
+  id             String @id @default(uuid()) @db.Uuid
+  dailySummaryId String @db.Uuid
+  documentId     String @db.Uuid
+  lineNumber     Int
+  conditionCode  String @default("1") @db.Char(1)
+
+  summary  DailySummary @relation(fields: [dailySummaryId], references: [id], onDelete: Cascade)
+  document Document     @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@unique([dailySummaryId, documentId])
+  @@unique([dailySummaryId, lineNumber])
+}
+
+model IdempotencyRecord {
+  key          String   @id @db.VarChar(160)
+  requestHash  String   @db.Char(64)
+  documentId  String?  @db.Uuid
+  responseCode Int?
+  responseBody Json?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model OutboxEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  eventType     String   @db.VarChar(120)
+  aggregateId   String   @db.VarChar(120)
+  payload       Json
+  occurredAt    DateTime @default(now())
+  publishedAt   DateTime?
+  attempts      Int      @default(0)
+  lastError     String?
+  @@index([publishedAt, occurredAt])
+}
+
+model InboxEvent {
+  eventId     String   @id @db.Uuid
+  eventType   String   @db.VarChar(120)
+  processedAt DateTime @default(now())
+}
+
+model ConfigurationAudit {
+  id        String @id @default(uuid()) @db.Uuid
+  actorId   String @db.Uuid
+  action    String @db.VarChar(100)
+  entityId  String @db.VarChar(120)
+  metadata  Json
+  createdAt DateTime @default(now())
+}

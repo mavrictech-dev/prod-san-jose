@@ -1,0 +1,5993 @@
+{
+  "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://spec.openapis.org/oas/3.1/dialect/base",
+  "info": {
+    "title": "FactuEz B2B — contrato de diseño, no operativo",
+    "version": "factuez.b2b.v1",
+    "description": "B2B-01. Primer corte 01/03 IGV 18% Beta. Ninguna ruta de este archivo está habilitada. No es el contrato readonly /integration/v1. Validación semántica y permisos dentro del propietario. WebhookEvent es esquema propuesto de callbacks, no un endpoint de recepción de FactuEz."
+  },
+  "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+  "x-audience": "factuez-b2b-v1",
+  "x-environments": [
+    "BETA"
+  ],
+  "x-runtime-enabled": false,
+  "paths": {
+    "/b2b/v1/me": {
+      "get": {
+        "operationId": "getB2bMe",
+        "summary": "getB2bMe",
+        "tags": [
+          "me"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:context:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/capabilities": {
+      "get": {
+        "operationId": "getB2bCapabilities",
+        "summary": "getB2bCapabilities",
+        "tags": [
+          "capabilities"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:context:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/issuers": {
+      "get": {
+        "operationId": "listB2bIssuers",
+        "summary": "listB2bIssuers",
+        "tags": [
+          "issuers"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuerPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/branches": {
+      "get": {
+        "operationId": "listB2bBranches",
+        "summary": "listB2bBranches",
+        "tags": [
+          "branches"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/points": {
+      "get": {
+        "operationId": "listB2bPoints",
+        "summary": "listB2bPoints",
+        "tags": [
+          "points"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PointPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/series": {
+      "get": {
+        "operationId": "listB2bSeries",
+        "summary": "listB2bSeries",
+        "tags": [
+          "series"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+            }
+          },
+          {
+            "name": "pointId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/document-drafts": {
+      "post": {
+        "operationId": "createB2bDraft",
+        "summary": "createB2bDraft",
+        "tags": [
+          "document-drafts"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:drafts:write"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,100}$"
+            },
+            "description": "Clave estable del cliente; namespace interno por cliente/actor, emisor y operación. Mismo cuerpo: misma respuesta; otro cuerpo: 409."
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "headers": {
+              "ETag": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^\"v[1-9][0-9]*\"$",
+                  "description": "ETag fuerte opaco; no derivarlo de fecha."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/document-drafts/{draftId}": {
+      "get": {
+        "operationId": "getB2bDraft",
+        "summary": "getB2bDraft",
+        "tags": [
+          "document-drafts"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:drafts:write"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "headers": {
+              "ETag": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^\"v[1-9][0-9]*\"$",
+                  "description": "ETag fuerte opaco; no derivarlo de fecha."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchB2bDraft",
+        "summary": "patchB2bDraft",
+        "tags": [
+          "document-drafts"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:drafts:write"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,100}$"
+            },
+            "description": "Clave estable del cliente; namespace interno por cliente/actor, emisor y operación. Mismo cuerpo: misma respuesta; otro cuerpo: 409."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\"v[1-9][0-9]*\"$",
+              "description": "ETag fuerte opaco; no derivarlo de fecha."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "headers": {
+              "ETag": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^\"v[1-9][0-9]*\"$",
+                  "description": "ETag fuerte opaco; no derivarlo de fecha."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftPatch"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/document-drafts/{draftId}/validate": {
+      "post": {
+        "operationId": "validateB2bDraft",
+        "summary": "validateB2bDraft",
+        "tags": [
+          "document-drafts"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:drafts:write"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,100}$"
+            },
+            "description": "Clave estable del cliente; namespace interno por cliente/actor, emisor y operación. Mismo cuerpo: misma respuesta; otro cuerpo: 409."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\"v[1-9][0-9]*\"$",
+              "description": "ETag fuerte opaco; no derivarlo de fecha."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Validation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/document-drafts/{draftId}/cancel": {
+      "post": {
+        "operationId": "cancelB2bDraft",
+        "summary": "cancelB2bDraft",
+        "tags": [
+          "document-drafts"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:drafts:write"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,100}$"
+            },
+            "description": "Clave estable del cliente; namespace interno por cliente/actor, emisor y operación. Mismo cuerpo: misma respuesta; otro cuerpo: 409."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\"v[1-9][0-9]*\"$",
+              "description": "ETag fuerte opaco; no derivarlo de fecha."
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "headers": {
+              "ETag": {
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "pattern": "^\"v[1-9][0-9]*\"$",
+                  "description": "ETag fuerte opaco; no derivarlo de fecha."
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/document-drafts/{draftId}/issue": {
+      "post": {
+        "operationId": "issueB2bDraft",
+        "summary": "issueB2bDraft",
+        "tags": [
+          "document-drafts"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:documents:issue"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,100}$"
+            },
+            "description": "Clave estable del cliente; namespace interno por cliente/actor, emisor y operación. Mismo cuerpo: misma respuesta; otro cuerpo: 409."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\"v[1-9][0-9]*\"$",
+              "description": "ETag fuerte opaco; no derivarlo de fecha."
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Comando registrado, NO aceptación de SUNAT.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyCommand"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents": {
+      "get": {
+        "operationId": "listB2bDocuments",
+        "summary": "listB2bDocuments",
+        "tags": [
+          "documents"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:documents:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/lookup": {
+      "get": {
+        "operationId": "lookupB2bDocument",
+        "summary": "lookupB2bDocument",
+        "tags": [
+          "documents"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:documents:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "series",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "number",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/{documentId}": {
+      "get": {
+        "operationId": "getB2bDocument",
+        "summary": "getB2bDocument",
+        "tags": [
+          "documents"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:documents:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/{documentId}/status": {
+      "get": {
+        "operationId": "getB2bDocumentStatus",
+        "summary": "getB2bDocumentStatus",
+        "tags": [
+          "documents"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:documents:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/{documentId}/artifacts": {
+      "get": {
+        "operationId": "listB2bDocumentArtifacts",
+        "summary": "listB2bDocumentArtifacts",
+        "tags": [
+          "documents"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:artifacts:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/batches/{batchId}/artifacts": {
+      "get": {
+        "operationId": "listB2bBatchArtifacts",
+        "summary": "listB2bBatchArtifacts",
+        "tags": [
+          "batches"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:artifacts:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/artifacts/{artifactId}/content": {
+      "get": {
+        "operationId": "downloadB2bArtifact",
+        "summary": "downloadB2bArtifact",
+        "tags": [
+          "artifacts"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:artifacts:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artifactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo privado sólo si existe y está autorizado; nunca P12 ni credenciales.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                }
+              }
+            },
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/operations/{operationId}": {
+      "get": {
+        "operationId": "getB2bOperation",
+        "summary": "getB2bOperation",
+        "tags": [
+          "operations"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:operations:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "operationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/operations/lookup": {
+      "get": {
+        "operationId": "lookupB2bOperation",
+        "summary": "lookupB2bOperation",
+        "tags": [
+          "operations"
+        ],
+        "x-implementation-state": "DESIGN_ONLY_NOT_IMPLEMENTED",
+        "x-required-scopes": [
+          "b2b:operations:read"
+        ],
+        "security": [
+          {
+            "B2bBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+            }
+          },
+          {
+            "name": "idempotencyKey",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta propuesta; esta ruta no está implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Solicitud o perfil inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credencial inválida o audiencia incorrecta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Permiso/alcance insuficiente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso inexistente o no visible.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflicto de idempotencia, estado o documento inmutable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Revisión no coincide.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Límite de uso alcanzado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operación aún no implementada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Propietario no disponible o perfil bloqueado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "UNAUTHENTICATED",
+              "AUDIENCE_INVALID",
+              "FORBIDDEN",
+              "RESOURCE_NOT_FOUND",
+              "INVALID_REQUEST",
+              "ENVIRONMENT_NOT_ALLOWED",
+              "IDEMPOTENCY_CONFLICT",
+              "REVISION_CONFLICT",
+              "DOCUMENT_IMMUTABLE",
+              "PROFILE_NOT_ENABLED",
+              "ARTIFACT_NOT_AVAILABLE",
+              "RATE_LIMITED",
+              "OWNER_UNAVAILABLE",
+              "RECONCILIATION_REQUIRED",
+              "NOT_IMPLEMENTED"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "code",
+          "message",
+          "retryable"
+        ]
+      },
+      "Context": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seriesId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          }
+        },
+        "required": [
+          "issuerId",
+          "branchId",
+          "pointId",
+          "seriesId",
+          "environment"
+        ]
+      },
+      "DraftCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seriesId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "documentType": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "PEN",
+              "USD"
+            ]
+          },
+          "paymentTerms": {
+            "type": "string",
+            "const": "CONTADO"
+          },
+          "externalReference": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "namespace": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,39}$"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "namespace",
+              "value"
+            ]
+          },
+          "customer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "identityType": {
+                "type": "string",
+                "enum": [
+                  "0",
+                  "1",
+                  "6"
+                ]
+              },
+              "identityNumber": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 15
+              },
+              "legalName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 250
+              },
+              "address": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "maxLength": 254
+              }
+            },
+            "required": [
+              "identityType",
+              "identityNumber",
+              "legalName"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "productId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "productCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "unitCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8
+                },
+                "quantity": {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$",
+                  "description": "Debe ser > 0; validación semántica del propietario."
+                },
+                "unitPriceWithTax": {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$"
+                },
+                "taxAffectationCode": {
+                  "type": "string",
+                  "const": "10"
+                },
+                "igvRate": {
+                  "type": "string",
+                  "const": "18"
+                }
+              },
+              "required": [
+                "description",
+                "unitCode",
+                "quantity",
+                "unitPriceWithTax",
+                "taxAffectationCode",
+                "igvRate"
+              ]
+            },
+            "maxItems": 100,
+            "minItems": 1
+          },
+          "issueDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "issuerId",
+          "branchId",
+          "pointId",
+          "seriesId",
+          "environment",
+          "documentType",
+          "currency",
+          "paymentTerms",
+          "externalReference",
+          "customer",
+          "lines",
+          "issueDate"
+        ]
+      },
+      "DraftPatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "customer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "identityType": {
+                "type": "string",
+                "enum": [
+                  "0",
+                  "1",
+                  "6"
+                ]
+              },
+              "identityNumber": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 15
+              },
+              "legalName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 250
+              },
+              "address": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "maxLength": 254
+              }
+            },
+            "required": [
+              "identityType",
+              "identityNumber",
+              "legalName"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "productId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "productCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "unitCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8
+                },
+                "quantity": {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$",
+                  "description": "Debe ser > 0; validación semántica del propietario."
+                },
+                "unitPriceWithTax": {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$"
+                },
+                "taxAffectationCode": {
+                  "type": "string",
+                  "const": "10"
+                },
+                "igvRate": {
+                  "type": "string",
+                  "const": "18"
+                }
+              },
+              "required": [
+                "description",
+                "unitCode",
+                "quantity",
+                "unitPriceWithTax",
+                "taxAffectationCode",
+                "igvRate"
+              ]
+            },
+            "maxItems": 100,
+            "minItems": 1
+          },
+          "issueDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [],
+        "minProperties": 1
+      },
+      "EmptyCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      },
+      "Draft": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Context"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^\"v[1-9][0-9]*\"$",
+            "description": "ETag fuerte opaco; no derivarlo de fecha."
+          },
+          "documentType": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "PEN",
+              "USD"
+            ]
+          },
+          "paymentTerms": {
+            "type": "string",
+            "const": "CONTADO"
+          },
+          "externalReference": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "namespace": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_-]{0,39}$"
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "namespace",
+              "value"
+            ]
+          },
+          "customer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "identityType": {
+                "type": "string",
+                "enum": [
+                  "0",
+                  "1",
+                  "6"
+                ]
+              },
+              "identityNumber": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 15
+              },
+              "legalName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 250
+              },
+              "address": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "maxLength": 254
+              }
+            },
+            "required": [
+              "identityType",
+              "identityNumber",
+              "legalName"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "productId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "productCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "unitCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8
+                },
+                "quantity": {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$",
+                  "description": "Debe ser > 0; validación semántica del propietario."
+                },
+                "unitPriceWithTax": {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$"
+                },
+                "taxAffectationCode": {
+                  "type": "string",
+                  "const": "10"
+                },
+                "igvRate": {
+                  "type": "string",
+                  "const": "18"
+                }
+              },
+              "required": [
+                "description",
+                "unitCode",
+                "quantity",
+                "unitPriceWithTax",
+                "taxAffectationCode",
+                "igvRate"
+              ]
+            },
+            "maxItems": 100,
+            "minItems": 1
+          },
+          "issueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "CANCELLED",
+              "ISSUED"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "id",
+          "context",
+          "revision",
+          "documentType",
+          "currency",
+          "paymentTerms",
+          "externalReference",
+          "customer",
+          "lines",
+          "issueDate",
+          "state"
+        ]
+      },
+      "Validation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "draftId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^\"v[1-9][0-9]*\"$",
+            "description": "ETag fuerte opaco; no derivarlo de fecha."
+          },
+          "profile": {
+            "type": "string",
+            "const": "BETA_01_03_TAXABLE18_V1"
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "field": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "message": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "code",
+                "field",
+                "message"
+              ]
+            },
+            "maxItems": 100
+          },
+          "fiscalActivation": {
+            "type": "boolean",
+            "const": false
+          }
+        },
+        "required": [
+          "draftId",
+          "revision",
+          "profile",
+          "valid",
+          "issues",
+          "fiscalActivation"
+        ]
+      },
+      "Operation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "operationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "commandId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "RECEIVED",
+              "VALIDATING",
+              "COMMITTED",
+              "WAITING_EXTERNAL",
+              "SUCCEEDED",
+              "FAILED",
+              "UNKNOWN_REQUIRES_RECONCILIATION"
+            ]
+          },
+          "fiscalAcceptance": {
+            "type": "string",
+            "const": "NOT_ASSERTED"
+          },
+          "resourceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "operationId",
+          "commandId",
+          "requestId",
+          "environment",
+          "state",
+          "fiscalAcceptance",
+          "resourceId"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "clientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "SERVICE"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "USER"
+                  },
+                  "subjectId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "subjectId"
+                ]
+              }
+            ]
+          },
+          "effectiveScopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "maxItems": 100
+          },
+          "grantRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "clientId",
+          "actor",
+          "effectiveScopes",
+          "grantRevision"
+        ]
+      },
+      "Capabilities": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "ENABLED",
+                    "DISABLED",
+                    "NOT_IMPLEMENTED",
+                    "BLOCKED_BY_PROFILE"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "id",
+                "state",
+                "reason"
+              ]
+            },
+            "maxItems": 100
+          },
+          "fiscalActivation": {
+            "type": "boolean",
+            "const": false
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "environment",
+          "features",
+          "fiscalActivation"
+        ]
+      },
+      "Issuer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+          },
+          "ruc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "legalName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          }
+        },
+        "required": [
+          "id",
+          "ruc",
+          "legalName",
+          "environment"
+        ]
+      },
+      "Branch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "id",
+          "issuerId",
+          "code",
+          "name"
+        ]
+      },
+      "Point": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "id",
+          "issuerId",
+          "branchId",
+          "code",
+          "name"
+        ]
+      },
+      "Series": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Identificador numérico canónico de CompanySettings en Billing, no UUID."
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "pattern": "^[FB][A-Z0-9]{3}$"
+          }
+        },
+        "required": [
+          "id",
+          "issuerId",
+          "branchId",
+          "pointId",
+          "type",
+          "label"
+        ]
+      },
+      "Document": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Context"
+          },
+          "documentType": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03"
+            ]
+          },
+          "fullNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "resourceVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "issuer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ruc": {
+                "type": "string",
+                "pattern": "^[0-9]{11}$"
+              },
+              "legalName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "address": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            },
+            "required": [
+              "ruc",
+              "legalName",
+              "address"
+            ]
+          },
+          "customer": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "identityType": {
+                "type": "string",
+                "enum": [
+                  "0",
+                  "1",
+                  "6"
+                ]
+              },
+              "identityNumber": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 15
+              },
+              "legalName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 250
+              },
+              "address": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "maxLength": 254
+              }
+            },
+            "required": [
+              "identityType",
+              "identityNumber",
+              "legalName"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "productId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "productCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "description": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500
+                },
+                "unitCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 8
+                },
+                "quantity": {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$",
+                  "description": "Debe ser > 0; validación semántica del propietario."
+                },
+                "unitPriceWithTax": {
+                  "type": "string",
+                  "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$"
+                },
+                "taxAffectationCode": {
+                  "type": "string",
+                  "const": "10"
+                },
+                "igvRate": {
+                  "type": "string",
+                  "const": "18"
+                }
+              },
+              "required": [
+                "description",
+                "unitCode",
+                "quantity",
+                "unitPriceWithTax",
+                "taxAffectationCode",
+                "igvRate"
+              ]
+            },
+            "maxItems": 100,
+            "minItems": 1
+          },
+          "issueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "issueTime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{2}:[0-9]{2}:[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "PEN",
+              "USD"
+            ]
+          },
+          "paymentTerms": {
+            "type": "string",
+            "const": "CONTADO"
+          },
+          "totals": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "taxableAmount": {
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]{2}$"
+              },
+              "igvAmount": {
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]{2}$"
+              },
+              "payableAmount": {
+                "type": "string",
+                "pattern": "^[0-9]+\\.[0-9]{2}$"
+              }
+            },
+            "required": [
+              "taxableAmount",
+              "igvAmount",
+              "payableAmount"
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/DocumentStatus"
+          }
+        },
+        "required": [
+          "id",
+          "context",
+          "documentType",
+          "fullNumber",
+          "resourceVersion",
+          "issuer",
+          "customer",
+          "lines",
+          "issueDate",
+          "issueTime",
+          "currency",
+          "paymentTerms",
+          "totals",
+          "state"
+        ]
+      },
+      "DocumentStatus": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "documentId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "local": {
+                "type": "string",
+                "enum": [
+                  "ISSUED",
+                  "CANCELLED"
+                ]
+              },
+              "transport": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "QUEUED",
+                  "PROCESSING",
+                  "COMPLETED",
+                  "FAILED",
+                  "UNKNOWN"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "fiscal": {
+                "type": "string",
+                "const": "NOT_VERIFIED"
+              },
+              "provenance": {
+                "type": "string",
+                "enum": [
+                  "LOCAL",
+                  "LOCAL_SIMULATOR",
+                  "SUNAT_BETA"
+                ]
+              }
+            },
+            "required": [
+              "documentId",
+              "local",
+              "transport",
+              "updatedAt",
+              "fiscal",
+              "provenance"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "documentId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "local": {
+                "type": "string",
+                "enum": [
+                  "ISSUED",
+                  "CANCELLED"
+                ]
+              },
+              "transport": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "QUEUED",
+                  "PROCESSING",
+                  "COMPLETED",
+                  "FAILED",
+                  "UNKNOWN"
+                ]
+              },
+              "updatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "fiscal": {
+                "type": "string",
+                "enum": [
+                  "ACCEPTED_VERIFIED",
+                  "REJECTED_VERIFIED"
+                ]
+              },
+              "provenance": {
+                "type": "string",
+                "const": "SUNAT_BETA"
+              },
+              "evidence": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "artifactId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "signature": {
+                    "type": "string",
+                    "const": "VERIFIED"
+                  },
+                  "trust": {
+                    "type": "string",
+                    "const": "VERIFIED"
+                  },
+                  "identity": {
+                    "type": "string",
+                    "const": "MATCHED"
+                  },
+                  "binding": {
+                    "type": "string",
+                    "const": "VERIFIED"
+                  },
+                  "checkedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "artifactId",
+                  "signature",
+                  "trust",
+                  "identity",
+                  "binding",
+                  "checkedAt"
+                ]
+              }
+            },
+            "required": [
+              "documentId",
+              "local",
+              "transport",
+              "updatedAt",
+              "fiscal",
+              "provenance",
+              "evidence"
+            ]
+          }
+        ]
+      },
+      "Artifact": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "SIGNED_XML",
+              "CDR_XML",
+              "SUBMISSION_ZIP",
+              "PDF_A4",
+              "PDF_TICKET"
+            ]
+          },
+          "representation": {
+            "type": "string",
+            "enum": [
+              "ORIGINAL",
+              "CURRENT"
+            ]
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "MISSING",
+              "PENDING",
+              "NOT_SUPPORTED"
+            ]
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "LOCAL",
+              "LOCAL_SIMULATOR",
+              "SUNAT_BETA"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "representation",
+          "availability",
+          "sha256",
+          "provenance"
+        ]
+      },
+      "WebhookEvent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "document.created.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "document.issued-locally.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "document.tax-transport-updated.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "document.tax-acceptance-verified.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "evidence": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "artifactId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "provenance": {
+                        "type": "string",
+                        "const": "SUNAT_BETA"
+                      },
+                      "signature": {
+                        "type": "string",
+                        "const": "VERIFIED"
+                      },
+                      "trust": {
+                        "type": "string",
+                        "const": "VERIFIED"
+                      },
+                      "identity": {
+                        "type": "string",
+                        "const": "MATCHED"
+                      },
+                      "binding": {
+                        "type": "string",
+                        "const": "VERIFIED"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "const": "ACCEPTED"
+                      },
+                      "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "artifactId",
+                      "provenance",
+                      "signature",
+                      "trust",
+                      "identity",
+                      "binding",
+                      "outcome",
+                      "checkedAt"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "evidence"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "document.tax-rejection-verified.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "evidence": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "artifactId": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "provenance": {
+                        "type": "string",
+                        "const": "SUNAT_BETA"
+                      },
+                      "signature": {
+                        "type": "string",
+                        "const": "VERIFIED"
+                      },
+                      "trust": {
+                        "type": "string",
+                        "const": "VERIFIED"
+                      },
+                      "identity": {
+                        "type": "string",
+                        "const": "MATCHED"
+                      },
+                      "binding": {
+                        "type": "string",
+                        "const": "VERIFIED"
+                      },
+                      "outcome": {
+                        "type": "string",
+                        "const": "REJECTED"
+                      },
+                      "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "artifactId",
+                      "provenance",
+                      "signature",
+                      "trust",
+                      "identity",
+                      "binding",
+                      "outcome",
+                      "checkedAt"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "evidence"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "document.artifact-available.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  },
+                  "artifactId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "artifactKind": {
+                    "type": "string",
+                    "enum": [
+                      "SIGNED_XML",
+                      "CDR_XML",
+                      "SUBMISSION_ZIP",
+                      "PDF_A4",
+                      "PDF_TICKET"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance",
+                  "artifactId",
+                  "artifactKind"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "credit-note.updated.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "debit-note.updated.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "guide.updated.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "GUIDE"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "export.ready.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "EXPORT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "email.delivery-updated.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "EMAIL_DELIVERY"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.webhook.v1"
+              },
+              "eventId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "eventName": {
+                "type": "string",
+                "const": "received-document.imported.v1"
+              },
+              "occurredAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "issuerId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "correlationId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "payload": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "resource": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "RECEIVED_DOCUMENT"
+                        ]
+                      },
+                      "id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "version": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "id",
+                      "version"
+                    ]
+                  },
+                  "provenance": {
+                    "type": "string",
+                    "enum": [
+                      "LOCAL",
+                      "LOCAL_SIMULATOR",
+                      "SUNAT_BETA"
+                    ]
+                  }
+                },
+                "required": [
+                  "resource",
+                  "provenance"
+                ]
+              }
+            },
+            "required": [
+              "schemaVersion",
+              "eventId",
+              "eventName",
+              "occurredAt",
+              "issuerId",
+              "environment",
+              "correlationId",
+              "payload"
+            ]
+          }
+        ]
+      },
+      "IssuerPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issuer"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "complete"
+        ]
+      },
+      "BranchPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Branch"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "complete"
+        ]
+      },
+      "PointPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "complete"
+        ]
+      },
+      "SeriesPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Series"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "complete"
+        ]
+      },
+      "DocumentPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Document"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "complete"
+        ]
+      },
+      "ArtifactPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            },
+            "maxItems": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "complete"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "B2bBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Audiencia factuez-b2b-v1, autenticación y permisos vigentes verificados por Identity/propietarios. Emisor OIDC y flujo en B2B-02; no acepta tokens de extracción ni cookies PWA."
+      }
+    }
+  }
+}

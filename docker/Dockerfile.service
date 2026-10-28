@@ -1,0 +1,30 @@
+# Imagen reutilizable para cada microservicio NestJS. El nombre y la ruta se
+# proporcionan al construir; cada servicio conserva su propio schema Prisma.
+ARG NODE_BASE_IMAGE=node:22-bookworm-slim
+FROM ${NODE_BASE_IMAGE}
+
+WORKDIR /workspace
+RUN corepack enable
+ARG SERVICE_NAME
+ARG SERVICE_PATH
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl $(if [ "$SERVICE_NAME" = "@factuez/sunat-service" ]; then echo libxml2-utils; fi) \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY services ./services
+
+RUN pnpm install --frozen-lockfile
+
+ENV SERVICE_PATH=${SERVICE_PATH}
+
+# Prisma sólo necesita una URL sintácticamente válida para generar el cliente;
+# no establece conexión durante el build de la imagen.
+RUN export DATABASE_URL=postgresql://build:build@localhost:5432/build; \
+    pnpm --filter "${SERVICE_NAME}^..." --recursive --if-present run build && \
+    pnpm --filter "${SERVICE_NAME}" --if-present run db:generate && \
+    pnpm --filter "${SERVICE_NAME}" build
+
+CMD ["sh", "-c", "node \"$SERVICE_PATH/dist/main.js\""]

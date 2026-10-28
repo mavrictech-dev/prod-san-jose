@@ -1,0 +1,11 @@
+# These fictitious byte-integrity fixtures have pinned SHA-256 and lengths.
+# Do not change line endings on checkout (including on Windows).
+migration/fixtures/history-bundle/** -text
+
+# Keep Linux container entrypoints usable after a Windows checkout.
+* text=auto eol=lf
+*.zip binary
+*.xlsx binary
+*.png binary
+*.webp binary
+*.ico binary

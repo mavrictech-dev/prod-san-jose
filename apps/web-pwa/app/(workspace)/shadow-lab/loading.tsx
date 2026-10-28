@@ -1,0 +1,2 @@
+import {Skeleton} from '@factuez/ui/components/skeleton';
+export default function LoadingShadowLab(){return <div role="status" aria-label="Cargando laboratorio de modo sombra" className="space-y-6"><Skeleton className="h-12 w-60 motion-reduce:animate-none"/><Skeleton className="h-20 w-full motion-reduce:animate-none"/><div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[1,2,3,4].map(n=><Skeleton key={n} className="h-28 motion-reduce:animate-none"/>)}</div><Skeleton className="h-72 w-full motion-reduce:animate-none"/></div>;}

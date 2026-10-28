@@ -1,0 +1,40 @@
+# Recompilación QA sin red sobre dependencias YA instaladas y lock idéntico.
+# No sustituye el build limpio habitual; no instala, migra ni lee datos runtime.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG SERVICE_NAME
+ARG SERVICE_PATH
+WORKDIR /workspace
+COPY pnpm-lock.yaml /tmp/factuez-build-guard/pnpm-lock.yaml
+COPY services/billing-service/prisma/schema.prisma /tmp/factuez-build-guard/billing.prisma
+COPY services/sunat-service/prisma/schema.prisma /tmp/factuez-build-guard/sunat.prisma
+COPY services/received-documents-service/prisma/schema.prisma /tmp/factuez-build-guard/received.prisma
+COPY services/identity-service/prisma/schema.prisma /tmp/factuez-build-guard/identity.prisma
+COPY services/mailer-worker/prisma/schema.prisma /tmp/factuez-build-guard/mailer.prisma
+RUN cmp pnpm-lock.yaml /tmp/factuez-build-guard/pnpm-lock.yaml && \
+    case "$SERVICE_NAME:$SERVICE_PATH" in \
+      @factuez/billing-service:services/billing-service) cmp services/billing-service/prisma/schema.prisma /tmp/factuez-build-guard/billing.prisma ;; \
+      @factuez/sunat-service:services/sunat-service) cmp services/sunat-service/prisma/schema.prisma /tmp/factuez-build-guard/sunat.prisma ;; \
+      @factuez/web-pwa:apps/web-pwa) true ;; \
+      @factuez/received-documents-service:services/received-documents-service) cmp services/received-documents-service/prisma/schema.prisma /tmp/factuez-build-guard/received.prisma ;; \
+      @factuez/identity-service:services/identity-service) cmp services/identity-service/prisma/schema.prisma /tmp/factuez-build-guard/identity.prisma ;; \
+      @factuez/mailer-worker:services/mailer-worker) cmp services/mailer-worker/prisma/schema.prisma /tmp/factuez-build-guard/mailer.prisma ;; \
+      *) echo 'Sólo targets QA explícitos'; exit 1 ;; \
+    esac
+COPY apps ./apps
+COPY packages ./packages
+COPY services ./services
+ENV NEXT_PUBLIC_API_BASE_URL=""
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm --filter @factuez/contracts build && \
+    pnpm --filter @factuez/service-access build && \
+    pnpm --filter @factuez/sunat-core build && \
+    pnpm --filter @factuez/pdf-renderer build && \
+    (if [ "$SERVICE_NAME" = "@factuez/received-documents-service" ]; then pnpm --filter @factuez/received-core build; fi) && \
+    if [ "$SERVICE_NAME" = "@factuez/web-pwa" ]; then \
+      pnpm --filter @factuez/shadow-core... build && pnpm --filter @factuez/web-pwa build; \
+    else pnpm --filter "$SERVICE_NAME" build; fi
+ENV SERVICE_PATH=${SERVICE_PATH}
+WORKDIR /workspace
+# Conserva los comandos de arranque y el usuario del mismo servicio base.
+CMD ["sh", "-c", "if [ \"$SERVICE_PATH\" = 'apps/web-pwa' ]; then cd /workspace/apps/web-pwa && exec pnpm start; else exec node \"$SERVICE_PATH/dist/main.js\"; fi"]

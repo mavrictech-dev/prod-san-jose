@@ -1,0 +1,33 @@
+# Explicit update of existing local QA only. No migrations/seeds or fiscal transmission.
+services:
+  billing-service:
+    image: factuez-stage2-qa/billing-service:prepared-v3-20261028
+    pull_policy: never
+    environment:
+      FACTUEZ_DEMO_SEED: "false"
+      BILLING_PRODUCTION_ISSUANCE_ENABLED: "false"
+      BILLING_PRODUCTION_NOTES_ENABLED: "false"
+  sunat-service:
+    image: factuez-stage2-qa/sunat-service:prepared-v4-20261028
+    pull_policy: never
+    environment:
+      SUNAT_PRODUCTION_WORKFLOW_ENABLED: "false"
+      SUNAT_PRODUCTION_NOTES_ENABLED: "false"
+      SUNAT_BETA_TRANSMISSION_ENABLED: "false"
+      SUNAT_BETA_WORKFLOW_ENABLED: "false"
+  web-pwa:
+    image: factuez-stage2-qa/web-pwa:prepared-v4-20261028
+    pull_policy: never
+  identity-service:
+    image: factuez-stage2-qa/identity-service:prepared-v2-20261028
+    pull_policy: never
+    environment:
+      B2B_ONPREM_ADMIN_ENABLED: "false"
+  mailer-worker:
+    image: factuez-stage2-qa/mailer-worker:prepared-v4-20261028
+    pull_policy: never
+    environment:
+      MAILER_DATABASE_NAME: factuez_mailer_qa
+      SERVER_SMTP_ENABLED: "false"
+      SERVER_SMTP_DOCUMENTS_ENABLED: "false"
+      SMTP_CONNECTION_DIAGNOSTICS_ENABLED: "false"

@@ -1,0 +1,6 @@
+{
+  "name": "@factuez/history-service", "version": "0.1.0", "private": true,
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc -p tsconfig.json --noEmit", "db:generate": "prisma generate", "db:validate": "prisma validate" },
+  "dependencies": { "@factuez/service-access":"workspace:*", "@factuez/history-core": "workspace:*", "@factuez/contracts": "workspace:*", "@nestjs/common": "11.1.21", "@nestjs/core": "11.1.21", "@nestjs/platform-express": "11.1.21", "reflect-metadata": "0.1.14", "rxjs": "7.8.2", "@prisma/adapter-pg": "7.8.0", "@prisma/client": "7.8.0", "pg": "8.16.3" },
+  "devDependencies": { "@types/node": "20.19.9", "prisma": "7.8.0", "typescript": "5.9.2" }
+}

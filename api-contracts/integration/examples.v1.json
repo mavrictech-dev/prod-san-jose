@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "factuez.integration.examples.v1",
+  "fixtureOnly": true,
+  "runtimeRecordsCreated": false,
+  "invoice": {
+    "schemaVersion": "factuez.integration.v1",
+    "id": "10000000-0000-4000-8000-000000000001",
+    "issuerRuc": "00000000101", "environment": "BETA", "dataset": "ISSUED_BUSINESS", "type": "01",
+    "branchId": "20000000-0000-4000-8000-000000000001",
+    "pointId": "30000000-0000-4000-8000-000000000001",
+    "seriesCounterId": "40000000-0000-4000-8000-000000000001",
+    "series": "FQ01", "number": "00000001", "fullNumber": "FQ01-00000001",
+    "resourceVersion": "fixture-v1", "observedAt": "2026-10-09T15:00:00Z", "snapshotSha256": null,
+    "issuerName": "EMISOR FICTICIO DE CONTRATO",
+    "issueDate": "2026-10-09", "issueTime": "10:00:00", "issuedAt": "2026-10-09T10:00:00-05:00", "currency": "PEN",
+    "customer": { "identityType": "6", "identityNumber": "00000000202", "legalName": "CLIENTE FICTICIO", "address": null, "ubigeo": null, "establishmentCode": null },
+    "payableAmount": "118.00",
+    "state": { "local": "ISSUED", "fiscal": "NOT_CHECKED", "transport": null, "provenance": "LOCAL", "verifiedAt": null, "responseCode": null },
+    "source": { "system": "BILLING", "originSystem": null, "originId": null },
+    "warnings": ["FIXTURE_ONLY_NOT_A_FISCAL_DOCUMENT"],
+    "detail": {
+      "kind": "SALE",
+      "issuer": { "identityType": "6", "identityNumber": "00000000101", "legalName": "EMISOR FICTICIO DE CONTRATO", "address": "DIRECCION FICTICIA", "ubigeo": "000000", "establishmentCode": "0000" },
+      "customer": { "identityType": "6", "identityNumber": "00000000202", "legalName": "CLIENTE FICTICIO", "address": null, "ubigeo": null, "establishmentCode": null },
+      "operationTypeCode": "0101",
+      "items": [{
+        "lineId": "1", "productCode": "ITEM-QA", "description": "ITEM FICTICIO", "unitCode": "NIU", "quantity": "2.000000",
+        "unitValue": "50.000000", "unitPriceWithTax": "59.000000", "lineExtensionAmount": "100.00",
+        "taxes": [{ "schemeId": "1000", "name": "IGV", "taxableAmount": "100.00", "amount": "18.00", "percent": "18.00", "affectationCode": "10" }], "allowances": []
+      }],
+      "taxes": [{ "schemeId": "1000", "name": "IGV", "taxableAmount": "100.00", "amount": "18.00", "percent": "18.00", "affectationCode": "10" }],
+      "allowances": [],
+      "totals": {
+        "lineExtensionAmount": "100.00", "taxableAmount": "100.00", "exemptAmount": null, "unaffectedAmount": null,
+        "freeAmount": null, "igvAmount": "18.00", "iscAmount": null, "otherTaxesAmount": null,
+        "allowanceTotalAmount": null, "chargeTotalAmount": null, "prepaidAmount": null, "payableAmount": "118.00"
+      },
+      "paymentTerms": { "type": "CONTADO", "pendingAmount": null, "installments": [] },
+      "references": [], "observations": null, "additionalInformation": []
+    }
+  },
+  "batchCdr": {
+    "id": "50000000-0000-4000-8000-000000000001", "kind": "CDR_XML",
+    "owner": { "kind": "BATCH", "id": "60000000-0000-4000-8000-000000000001" },
+    "fileName": "R-FIXTURE-RC-20261009-1.xml", "mediaType": "application/xml",
+    "byteLength": null, "sha256": null, "availability": "MISSING",
+    "representation": "ORIGINAL", "provenance": "LOCAL",
+    "verification": { "integrity": "UNVERIFIED", "signature": "UNVERIFIED", "trust": "UNVERIFIED", "identity": "UNVERIFIED", "checkedAt": null },
+    "rendererVersion": null, "profileRevision": null, "generatedAt": null
+  },
+  "exportRequest": {
+    "filters": { "issuerRuc": "00000000101", "environment": "BETA", "dataset": "ISSUED_BUSINESS", "from": "2026-10-01", "to": "2026-10-09", "types": ["01", "03", "07", "08"] },
+    "artifactKinds": ["SIGNED_XML", "CDR_XML", "CDR_ZIP"], "missingArtifacts": "REPORT", "dataFormat": "JSONL"
+  },
+  "unavailableError": {
+    "schemaVersion": "factuez.integration.v1", "requestId": "70000000-0000-4000-8000-000000000001",
+    "error": { "code": "ARTIFACT_UNAVAILABLE", "message": "Archivo solicitado no disponible.", "retryable": false }
+  }
+}

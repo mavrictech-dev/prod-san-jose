@@ -1,0 +1,16 @@
+import {describe,it,expect,vi,afterEach} from 'vitest';
+import {createRequire} from 'node:module';
+const state=vi.hoisted(()=>({admin:true,calls:vi.fn()}));
+vi.mock('../apps/web-pwa/features/workspace/provider',()=>({useWorkspace:()=>({user:{scope:{kind:state.admin?'GLOBAL':'ASSIGNED'},roles:state.admin?['ADMIN']:['CASHIER']},can:()=>true,api:state.calls}),useResource:()=>({data:{companyId:1,recipientRuc:'00000000001',revision:2,ready:false,activated:false,checks:{database:true,encryption:true,externalReadAllowed:false},reviewVersion:'RECEIVED_READ_ONLY_V1',validation:null},reload:vi.fn()})}));
+import {ReceivedProductionActivation,receivedActivationCommand,receivedActivationMatches} from '../apps/web-pwa/features/workspace/received-production-activation';
+const req=createRequire(new URL('../apps/web-pwa/package.json',import.meta.url)),React=req('react'),render=req('react-dom/server').renderToStaticMarkup;
+const ruc='00000000001',id='20000000-0000-4000-8000-000000000001';
+const status=()=>({companyId:1,recipientRuc:ruc,revision:2,ready:true,activated:false,checks:{database:true,encryption:true,externalReadAllowed:true},reviewVersion:'RECEIVED_READ_ONLY_V1',validation:null});
+afterEach(()=>{state.admin=true;state.calls.mockClear();});
+describe('explicit receipt activation by issuer/revision',()=>{
+ it('render cannot validate or activate connections automatically',()=>{vi.stubGlobal('React',React);const text=render(React.createElement(ReceivedProductionActivation,{companyId:1,ruc}));expect(text).toContain('Validar conexiones guardadas');expect(text).toContain('Autorizar lectura automática');expect(text).toContain('deshabilitada');expect(state.calls).not.toHaveBeenCalled();});
+ it('does not mount controls for an assigned cashier',()=>{vi.stubGlobal('React',React);state.admin=false;expect(render(React.createElement(ReceivedProductionActivation,{companyId:1,ruc}))).toBe('');expect(state.calls).not.toHaveBeenCalled();});
+ it('requires exact RUC/company and workflow version',()=>{expect(receivedActivationMatches(status(),1,ruc)).toBe(true);expect(receivedActivationMatches(status(),2,ruc)).toBe(false);expect(receivedActivationMatches({...status(),reviewVersion:'other'},1,ruc)).toBe(false);expect(receivedActivationMatches(status(),1,'00000000002')).toBe(false);});
+ it('command contains confirmed current metadata only, never credentials',()=>{const v={validationId:id,revision:2,recipientRuc:ruc,ready:true,expiresAt:new Date(Date.now()+10000).toISOString(),mail:'VALID',sire:'DISABLED'};expect(receivedActivationCommand(status(),ruc,v,ruc)).toEqual({expectedRevision:2,recipientRuc:ruc,validationId:id,confirmation:ruc,reviewVersion:'RECEIVED_READ_ONLY_V1'});});
+ it.each(['expired','revision','ruc','not-ready','confirmation','server'])('rejects %s before POST',kind=>{const s=status(),v={validationId:id,revision:2,recipientRuc:ruc,ready:true,expiresAt:new Date(Date.now()+10000).toISOString(),mail:'VALID',sire:'DISABLED'};if(kind==='expired')v.expiresAt=new Date(Date.now()-1).toISOString();if(kind==='revision')v.revision=1;if(kind==='ruc')v.recipientRuc='00000000002';if(kind==='not-ready')v.ready=false;if(kind==='server')s.ready=false;expect(()=>receivedActivationCommand(s,ruc,v,kind==='confirmation'?'':ruc)).toThrow();});
+});

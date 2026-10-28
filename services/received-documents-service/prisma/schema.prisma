@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+// Owned by reception only. No foreign keys into Billing/Identity; no Outbox or series counters.
+model ReceivedDocument {
+  id             String @id @default(uuid()) @db.Uuid
+  companyId      Int
+  recipientRuc   String @db.VarChar(11)
+  branchId       String? @db.Uuid
+  supplierRuc    String @db.VarChar(11)
+  supplierName   String?
+  documentType   String @db.VarChar(2)
+  fullNumber     String @db.VarChar(32)
+  series         String @db.VarChar(4)
+  number         String @db.VarChar(8)
+  issueDate      DateTime @db.Date
+  currencyCode   String? @db.VarChar(3)
+  payableAmount  String?
+  projection     Json
+  xmlSha256      String @db.VarChar(64)
+  receivedAt     DateTime @default(now())
+  registeredAt   DateTime?
+  erpReference   String?
+  items          ReceivedItemRecord[]
+  artifacts      ReceivedArtifact[]
+  audits         ReceivedAudit[]
+  @@unique([recipientRuc, supplierRuc, documentType, series, number])
+  @@index([companyId, branchId, issueDate])
+}
+model ReceivedItemRecord {
+  id            String @id @default(uuid()) @db.Uuid
+  documentId    String @db.Uuid
+  ordinal       Int
+  supplierCode  String?
+  sunatCode     String?
+  description   String
+  quantity      String?
+  unitCode      String?
+  unitValue     String?
+  unitPrice     String?
+  amount        String?
+  detail        Json
+  document      ReceivedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  @@unique([documentId, ordinal])
+}
+model ReceivedArtifact {
+  id         String @id @default(uuid()) @db.Uuid
+  documentId String @db.Uuid
+  kind       String @db.VarChar(20)
+  fileName   String @db.VarChar(150)
+  sha256     String @db.VarChar(64)
+  byteLength Int
+  bytes      Bytes
+  createdAt  DateTime @default(now())
+  document   ReceivedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  @@unique([documentId, kind, sha256])
+}
+model ReceivedAudit {
+  id         String @id @default(uuid()) @db.Uuid
+  documentId String @db.Uuid
+  actorId    String @db.Uuid
+  action     String @db.VarChar(40)
+  detail     Json
+  createdAt  DateTime @default(now())
+  document   ReceivedDocument @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  @@index([documentId, createdAt])
+}
+
+// Separate reception aggregate. No emission counters, fiscal Outbox or Billing writes.
+model ReceptionConnection {
+  companyId Int @id
+  recipientRuc String @unique @db.VarChar(11)
+  revision Int @default(1)
+  enabled Boolean @default(false)
+  mode String @db.VarChar(20)
+  settings Json
+  encryptedCredentials String?
+  configuredBy String @db.Uuid
+  updatedAt DateTime @updatedAt
+}
+model ReceptionConnectionAudit {
+  id String @id @default(uuid()) @db.Uuid
+  companyId Int
+  actorId String @db.Uuid
+  action String @db.VarChar(40)
+  revision Int
+  detail Json
+  createdAt DateTime @default(now())
+  @@index([companyId, createdAt])
+}
+model ReceptionSyncRun {
+  id String @id @default(uuid()) @db.Uuid
+  companyId Int
+  recipientRuc String @db.VarChar(11)
+  revision Int
+  source String @db.VarChar(10)
+  status String @db.VarChar(20)
+  activeKey String? @unique
+  startedAt DateTime?
+  finishedAt DateTime?
+  counters Json
+  errorCode String? @db.VarChar(50)
+  createdAt DateTime @default(now())
+  @@index([companyId, createdAt])
+}
+model ReceptionMailboxCheckpoint {
+  companyId Int @id
+  fingerprint String @db.VarChar(64)
+  uidValidity String @db.VarChar(20)
+  lastUid BigInt @default(0)
+  updatedAt DateTime @updatedAt
+}
+model ReceptionMessageReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  companyId Int
+  fingerprint String @db.VarChar(64)
+  uidValidity String @db.VarChar(20)
+  uid BigInt
+  status String @db.VarChar(20)
+  counts Json
+  createdAt DateTime @default(now())
+  @@unique([companyId, fingerprint, uidValidity, uid])
+}
+model ReceptionSirePurchase {
+  id String @id @default(uuid()) @db.Uuid
+  companyId Int
+  recipientRuc String @db.VarChar(11)
+  period String @db.VarChar(6)
+  supplierRuc String @db.VarChar(11)
+  supplierName String?
+  documentType String @db.VarChar(2)
+  series String @db.VarChar(20)
+  number String @db.VarChar(20)
+  fullNumber String @db.VarChar(41)
+  issueDate DateTime @db.Date
+  currencyCode String? @db.VarChar(3)
+  amount String?
+  rawRecord Json
+  xmlStatus String @db.VarChar(20)
+  documentId String? @db.Uuid
+  observedAt DateTime @default(now())
+  observedRunId String @db.Uuid
+  @@unique([recipientRuc, supplierRuc, documentType, series, number, period])
+  @@index([companyId, xmlStatus, period])
+}
+model ReceptionSireIncident {
+  id String @id @default(uuid()) @db.Uuid
+  companyId Int
+  recipientRuc String @db.VarChar(11)
+  period String @db.VarChar(6)
+  ordinal Int
+  code String @db.VarChar(50)
+  recordHash String @db.VarChar(64)
+  rawRecord Json
+  active Boolean @default(true)
+  observedAt DateTime @default(now())
+  observedRunId String @db.Uuid
+  @@unique([companyId, period, recordHash])
+  @@index([companyId, active, observedAt])
+}

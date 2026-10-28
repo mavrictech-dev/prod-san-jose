@@ -1,0 +1,113 @@
+@import "tailwindcss";
+@source "../../../packages/ui/src";
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: #fff;
+  --color-secondary: var(--muted);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--muted);
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: #b91c1c;
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: #d42430;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --color-sidebar: #101827;
+  --color-sidebar-foreground: #e2e8f0;
+  --color-sidebar-primary: #d42430;
+  --color-sidebar-primary-foreground: #fff;
+  --color-sidebar-accent: #233044;
+  --color-sidebar-accent-foreground: #fff;
+  --color-sidebar-border: #2c384b;
+  --color-sidebar-ring: #d42430;
+}
+:root {
+  --background: #f5f7fa;
+  --foreground: #172033;
+  --card: #fff;
+  --primary: #c8202c;
+  --muted: #eef2f6;
+  --muted-foreground: #5e6b7d;
+  --border: #e3e8ef;
+  --surface: #f8fafc;
+  --brand: #c8202c;
+}
+.dark {
+  --background: #111827;
+  --foreground: #eef2f6;
+  --card: #192233;
+  --primary: #d82b39;
+  --muted: #263247;
+  --muted-foreground: #a9b5c7;
+  --border: #344054;
+  --surface: #1e293b;
+}
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: "Inter Variable", Arial, sans-serif;
+    font-size: 14px;
+  }
+  button:not(:disabled),
+  [role="button"] {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid #c8202c;
+    outline-offset: 3px;
+  }
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+.brand-dark {
+  display: none;
+}
+.dark .brand-light {
+  display: none;
+}
+.dark .brand-dark {
+  display: block;
+}
+[data-sidebar="menu-button"][data-active="true"] {
+  background: #c8202c;
+  color: white;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* The guide is printable as an A4 PDF using the browser's print dialog. */
+@media print {
+  body:has(.ti-guide-print) { background: white !important; color: #111827 !important; }
+  body:has(.ti-guide-print) * { visibility: hidden !important; }
+  body:has(.ti-guide-print) .ti-guide-print,
+  body:has(.ti-guide-print) .ti-guide-print * { visibility: visible !important; }
+  body:has(.ti-guide-print) .ti-guide-print { position: absolute; inset: 0 auto auto 0; width: 100%; max-width: none; color: #111827; background: white; font-size: 10pt; }
+  body:has(.ti-guide-print) .ti-guide-no-print { display: none !important; }
+  body:has(.ti-guide-print) .ti-guide-section { break-inside: avoid; box-shadow: none !important; }
+  body:has(.ti-guide-print) .ti-guide-print a { color: #111827 !important; text-decoration: none; }
+}

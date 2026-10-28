@@ -1,0 +1,40 @@
+import 'reflect-metadata';
+import { randomBytes } from 'node:crypto';
+import { vi } from 'vitest';
+import { B2bExtractionScopes } from '../packages/contracts/src/b2b-security';
+import { deny } from '../packages/service-access/src/integration';
+import { fixture,basic,ctx } from './b2b-identity.fixture';
+import { invoiceBinding,receiptBinding } from './b2b-read.fixture';
+import { changesFixture,FixtureChangeStore } from './integration-changes.fixture';
+import { FixtureExportStore } from './integration-export.fixture';
+import { B2bExtraction } from '../services/integration-export-service/src/b2b/core';
+import { ExportVault } from '../services/integration-export-service/src/vault';
+import { B2bBillingExtraction } from '../services/billing-service/src/b2b/extraction';
+import { B2bBillingReads } from '../services/billing-service/src/b2b/read';
+import { B2bSunatReads } from '../services/sunat-service/src/b2b/read';
+import { secondId } from './integration-read.fixture';
+export async function b2bExtractionFixture(){
+  const old=changesFixture(),auth=fixture(null,B2bExtractionScopes);old.rows.get(secondId)!.seriesCounter.id=receiptBinding.seriesId;
+  const made=await auth.core.create('human-step-up',{label:'Synthetic B2B extraction',kind:'SERVICE',scopes:[...B2bExtractionScopes],bindings:[invoiceBinding,receiptBinding]},ctx());
+  const token=(await auth.core.token(basic(made.client.id,made.clientSecret!),{grant_type:'client_credentials',scope:B2bExtractionScopes.join(' ')},ctx())).access_token!;
+  const identity={authenticate:vi.fn((t:string,s:any[],k:'SERVICE'|'USER')=>auth.core.authenticate(t,s,ctx(),k))};
+  const journal=(source:'BILLING'|'SUNAT')=>({read:vi.fn(async(_r:string,after:any,limit=500)=>{
+    const s=old.journals[source];if(after&&(after.epoch!==s.epoch||BigInt(after.sequence)<s.floor||BigInt(after.sequence)>s.head))return deny(410,'CURSOR_EXPIRED');
+    const events=after?s.events.filter(e=>BigInt(e.sequence)>BigInt(after.sequence)).slice(0,limit):[];
+    return {epoch:s.epoch,head:s.head.toString(),floor:s.floor.toString(),position:{epoch:s.epoch,sequence:events.at(-1)?.sequence??after?.sequence??s.head.toString()},events};
+  })});
+  const capture={capture:vi.fn(async(filters:any)=>{const rows:any=structuredClone([...old.rows.values()].filter(r=>filters.types.includes(r.immutableSnapshot.documentTypeCode)));
+    rows.snapshotAt=new Date(old.now()).toISOString();rows.changeBarrier={epoch:old.journals.BILLING.epoch,sequence:old.journals.BILLING.head.toString()};return rows;}),reauthorize:vi.fn(async(_r:string,ids:string[])=>structuredClone(ids.map(id=>old.rows.get(id)).filter(Boolean)))};
+  const billingRepository={...old.billingRepo,contexts:vi.fn(async()=>[]),products:vi.fn(async()=>[]),capture:vi.fn(async()=>[])};
+  const extraction=new B2bBillingExtraction(old.billingRepo,capture,journal('BILLING'),identity);
+  const billing=new B2bBillingReads(billingRepository,identity,null,extraction),billingPort={execute:vi.fn((t:string,k:any,a:string,args:any)=>billing.execute(t,k,a,args))};
+  const storage={read:vi.fn(async()=>Buffer.from(old.bytes))};
+  const audit={record:vi.fn(async()=>{})},sunat=new B2bSunatReads(old.sunatRepo,identity,billingPort,storage,{b2bDocument:vi.fn()} as any,audit,journal('SUNAT'));
+  const fiscal={execute:vi.fn((t:string,k:any,a:string,args:any)=>sunat.execute(t,k,a,args)),file:vi.fn((t:string,k:any,a:string,args:any)=>sunat.execute(t,k,a,args) as Promise<any>)};
+  const persistence={domain:'B2B_BETA_ISOLATED' as const,exports:new FixtureExportStore(old.now),changes:new FixtureChangeStore(),vault:new ExportVault(randomBytes(32))};
+  const core=new B2bExtraction(persistence,identity,billingPort,fiscal,old.now);
+  const query={issuerId:'1',environment:'BETA'},cutQuery={...query,from:'2026-01-01',to:'2026-01-01',types:'01,03',limit:'1'};
+  const args=(q:any=query,id:string|null=null,body:any=null,key:string|null=null)=>({query:q,id,body,key});
+  const request={filters:{from:'2026-01-01',to:'2026-01-01',types:['01']},artifactKinds:['SIGNED_XML'],missingArtifacts:'FAIL',dataFormat:'JSONL'};
+  return {old,auth,made,token,identity,capture,billing,billingPort,sunat,fiscal,audit,persistence,core,query,cutQuery,args,request};
+}

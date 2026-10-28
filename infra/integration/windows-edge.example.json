@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "factuez.windows-edge.v1",
+  "environment": "BETA",
+  "deployment": "WINDOWS_DESKTOP_TCP_LOOPBACK",
+  "vpn": { "interface": "wg-factuez", "address": "10.44.0.1", "clientCidrs": ["10.44.0.2/32"], "privateDnsName": "api.factuez.test" },
+  "listenPort": 9443,
+  "kongLoopbackPort": 19443,
+  "upstreamPorts": { "identity": 3108, "read": 3112 },
+  "rateLimits": { "tokenPerMinute": 20, "readPerMinute": 120, "exportPerMinute": 4, "changesPerMinute": 30 },
+  "relay": { "maxConnections": 16, "maxPerPeer": 4, "newConnectionsPerMinute": 30, "idleTimeoutMs": 300000, "maxLifetimeMs": 600000 }
+}

@@ -1,0 +1,5 @@
+# Sólo visor/documentación web. No publica listeners de integración ni ejecuta migradores.
+services:
+  web-pwa:
+    image: factuez-stage2-qa/web-pwa:swagger-docs-20261019
+    pull_policy: never

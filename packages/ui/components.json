@@ -1,0 +1,6 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json", "style": "new-york", "rsc": true, "tsx": true,
+  "tailwind": { "config": "", "css": "src/styles/globals.css", "baseColor": "slate", "cssVariables": true },
+  "iconLibrary": "lucide",
+  "aliases": { "components": "@factuez/ui/components", "ui": "@factuez/ui/components", "utils": "@factuez/ui/lib/utils", "lib": "@factuez/ui/lib", "hooks": "@factuez/ui/hooks" }
+}

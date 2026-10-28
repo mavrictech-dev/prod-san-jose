@@ -1,0 +1,11 @@
+{
+  "name": "@factuez/received-documents-service", "version": "0.1.0", "private": true,
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc -p tsconfig.json --noEmit", "db:generate": "prisma generate", "db:validate": "prisma validate", "db:migrate": "prisma migrate deploy" },
+  "dependencies": {
+    "@factuez/contracts": "workspace:*", "@factuez/received-core": "workspace:*", "@factuez/service-access": "workspace:*", "@factuez/pdf-renderer": "workspace:*",
+    "@nestjs/common": "11.1.21", "@nestjs/core": "11.1.21", "@nestjs/platform-express": "11.1.21",
+    "@prisma/adapter-pg": "7.8.0", "@prisma/client": "7.8.0", "pg": "8.16.3", "reflect-metadata": "0.1.14", "rxjs": "7.8.2",
+    "pdfkit": "0.20.2", "exceljs": "4.4.0", "bullmq": "5.65.1", "imapflow": "2.2.6", "mailparser": "3.9.36"
+  },
+  "devDependencies": { "@types/node": "20.19.9", "@types/pdfkit": "0.17.6", "@types/mailparser": "3.4.6", "prisma": "7.8.0", "typescript": "5.9.2" }
+}

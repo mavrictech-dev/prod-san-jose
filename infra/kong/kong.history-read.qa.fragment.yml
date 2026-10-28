@@ -1,0 +1,11 @@
+# Candidate fragment ONLY. Not included in active Kong/Compose configuration.
+# Merge/deploy only with a separately approved isolated BETA+SYNTHETIC reader.
+_format_version: "3.0"
+services:
+  - name: history-read-service
+    url: http://history-read-service:3006
+    routes:
+      - name: history-read-qa
+        paths: [/api/v1/history]
+        methods: [GET]
+        strip_path: false

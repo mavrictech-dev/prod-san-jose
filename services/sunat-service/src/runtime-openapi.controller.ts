@@ -1,0 +1,33 @@
+import {nativeRuntimeOpenApiPaths,nativeRuntimeOpenApiSecuritySchemes} from './runtime-native-openapi';
+import {administrationOpenApiPaths} from './runtime-administration-openapi';
+import { Controller, Get, Header, UseGuards } from '@nestjs/common';
+import { ConfigurationGuard } from './auth/configuration.guard';
+export function fiscalRuntimeOpenApi(){
+ const id={name:'companyId',in:'path',required:true,schema:{type:'integer',minimum:1}},document={name:'documentId',in:'path',required:true,schema:{type:'string',format:'uuid'}};
+ const env={name:'environment',in:'path',required:true,schema:{type:'string',enum:['BETA','PRODUCTION']}};
+ const security=[{HumanSessionBearer:[]}];
+ const response=(description:string)=>({description,content:{'application/json':{schema:{type:'object'}}}});
+ const op=(operationId:string,summary:string,parameters:unknown[],description:string)=>({operationId,summary,description,parameters,tags:['Administración fiscal'],security,
+  responses:{200:response('Resultado autorizado'),400:response('Entrada inválida'),401:response('Sesión requerida'),403:response('Permiso o alcance insuficiente'),409:response('Revisión, perfil o evidencia incompatible'),503:response('Servicio o preparación no disponible')}});
+ const post=(operationId:string,summary:string,parameters:unknown[],description:string,properties:Record<string,unknown>,required=Object.keys(properties))=>({...op(operationId,summary,parameters,description),requestBody:{required:true,content:{'application/json':{schema:{type:'object',additionalProperties:false,properties,required}}}},responses:{201:response('Operación registrada'),400:response('Entrada inválida'),401:response('Sesión requerida'),403:response('Permiso insuficiente'),409:response('Revisión o evidencia incompatible'),503:response('Servicio no disponible')}});
+ const integer={type:'integer',minimum:0},boolean={type:'boolean'},base='/api/v1/setup/sunat/{companyId}/{environment}';
+ const snapshot={type:'object',description:'Snapshot fiscal íntegro 01/03: identificación, sede, serie, fecha, cliente, ítems, impuestos y totales. Se valida contra el emisor autorizado. No es un borrador editable ni un resumen de totales.'};
+ return {openapi:'3.1.0',info:{title:'FactuEz · Administración y circuito fiscal',version:'1.0.0',description:'Sesión humana vigente. Las credenciales fiscales no se entregan a aplicaciones consumidoras. La presencia de una operación en este contrato no prueba que el servidor tenga activados sus requisitos.'},servers:[{url:'/'}],
+  components:{securitySchemes:{...nativeRuntimeOpenApiSecuritySchemes(),HumanSessionBearer:{type:'http',scheme:'bearer',bearerFormat:'JWT'}}},paths:{...nativeRuntimeOpenApiPaths(),...administrationOpenApiPaths(),
+   [base]:{get:op('readFiscalConfiguration','Consultar configuración por RUC y ambiente',[id,env],'Sólo administrador general con sunat.configure. Devuelve metadatos y presencia de credenciales; nunca contraseñas, certificado privado ni tokens.'),post:post('saveFiscalConfiguration','Guardar o retirar certificado, SOL o GRE',[id,env],'Los grupos omitidos conservan su configuración. Guardar no activa envíos. expectedRevision protege de cambios concurrentes.',{expectedRevision:integer,certificate:{type:'object',description:'fileName .p12/.pfx, base64 y password write-only. Máximo 512 KB.'},sol:{type:'object',description:'username secundario sin prefijo RUC; password write-only.'},gre:{type:'object',description:'clientId/clientSecret write-only, independiente de SOAP.'},remove:{type:'array',items:{type:'string',enum:['certificate','sol','gre']},uniqueItems:true}},['expectedRevision'])},
+   [base+'/audit']:{get:op('listFiscalConfigurationAudit','Historial de configuración',[id,env],'Cambios por emisor/ambiente sin valores secretos. Paginación mediante page.')},
+   [base+'/readiness']:{get:op('readFiscalReadiness','Revisar habilitación del emisor',[id,env],'Comprueba bóveda, certificado/RUC, cadena/CRL, XSD, confianza CDR, revisión y autorización vigente. No envía comprobantes.')},
+   [base+'/readiness/validate']:{post:post('validateFiscalSnapshot','Validar snapshot sin emisión',[id,env],'No firma, guarda comprobantes ni reserva numeración.',{snapshot})},
+   '/api/v1/setup/sunat/{companyId}/PRODUCTION/dispatch':{get:op('readProductionDispatch','Consultar autorización de envío real',[id],'Sólo metadatos. Las autorizaciones están ligadas al RUC, revisión y certificado; no se comparten con otros emisores.'),post:post('configureProductionDispatch','Autorizar o suspender envíos reales',[id],'Sólo administrador general. Requiere infraestructura configurada y confirmación explícita. Suspender no deshace envíos ya realizados. Extender a boletas exige una nueva elección de perfil; no se amplían autorizaciones anteriores.',{enabled:boolean,expectedRevision:integer,expectedVersion:integer,registrationConfirmed:boolean,confirmation:{type:'string',const:'ACTIVAR ENVÍOS REALES A SUNAT'},authorizedDocumentTypes:{type:'array',items:{type:'string',enum:['01','03']},uniqueItems:true}},['enabled','expectedRevision','expectedVersion'])},
+   '/api/v1/fiscal-artifacts/{documentId}/{format}':{get:{...op('downloadCurrentFiscalPdf','PDF A4 o ticket bajo demanda',[document,{name:'format',in:'path',required:true,schema:{type:'string',enum:['a4','ticket']}}],'Revalida permiso, snapshot y evidencia antes de caché. Producción usa XML firmado, material público archivado y CDR verificado para estados finales. Beta conserva su advertencia de prueba.'),responses:{200:{description:'PDF protegido',content:{'application/pdf':{schema:{type:'string',format:'binary'}}}},401:response('Sesión requerida'),409:response('Archivo o evidencia aún no disponible')}}},
+   '/api/v1/fiscal-artifacts/{documentId}/original/{kind}':{get:{...op('downloadFiscalOriginal','Descargar XML/CDR/ZIP original',[document,{name:'kind',in:'path',required:true,schema:{type:'string',enum:['xml','cdr-xml','cdr-zip','submission-zip']}}],'Archivos originales inmutables después de validar acceso y vinculación. Para boleta, el CDR es el del RC vinculado; no se inventa un CDR individual. Descargar un original no constituye aceptación fiscal.'),responses:{200:{description:'Original almacenado',content:{'application/xml':{schema:{type:'string',format:'binary'}},'application/zip':{schema:{type:'string',format:'binary'}}}},401:response('Sesión requerida'),409:response('Original pendiente o vinculación inconsistente')}}},
+  }};
+}
+@Controller('api/v1/setup/sunat')
+@UseGuards(ConfigurationGuard)
+export class FiscalRuntimeOpenApiController {
+ @Get('reference')
+ @Header('Cache-Control','private, no-store')
+ @Header('X-Content-Type-Options','nosniff')
+ specification(){return fiscalRuntimeOpenApi();}
+}

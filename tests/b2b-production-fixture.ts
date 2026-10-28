@@ -1,0 +1,20 @@
+import {spawn,spawnSync} from 'node:child_process';
+import {Duplex} from 'node:stream';
+import {randomBytes,randomUUID} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {resolve} from 'node:path';
+import {readFileSync} from 'node:fs';
+import {ProductionPostgresStore,type ProductionStore,type ProductionTx} from '../packages/service-access/src/b2b-production-contract';
+export class ProductionMemoryStore implements ProductionStore {
+ rows=new Map<string,unknown>();private tail=Promise.resolve();
+ async transaction<T>(_keys:string[],work:(tx:ProductionTx)=>Promise<T>){const old=this.tail;let release!:()=>void;this.tail=new Promise<void>(r=>release=r);await old;const copy=structuredClone(this.rows);try{const result=await work({get:async<T>(n:string,id:string)=>structuredClone(copy.get(n+':'+id)??null) as T|null,put:async(n,id,v)=>{copy.set(n+':'+id,structuredClone(v));},list:async<T>(n:string)=>[...copy].filter(([k])=>k.startsWith(n+':')).map(([k,value])=>({id:k.slice(n.length+1),value:structuredClone(value) as T}))});this.rows=copy;return result;}finally{release();}}
+}
+/** Synthetic throwaway PostgreSQL, no network/host ports/customer data or credentials. */
+export async function productionTestDatabase(){const run=randomUUID(),name='factuez-production-test-'+run.slice(0,8),local=createRequire(resolve('services/billing-service/package.json')),Pool=local('pg').Pool;let container='';let pool:any;
+ const docker=(args:string[],input='')=>{const r=spawnSync('docker',args,{input,encoding:'utf8',windowsHide:true,timeout:30000,maxBuffer:4*1024*1024});if(r.status!==0)throw Error('SYNTHETIC_POSTGRES_FAILED:'+r.stderr);return r.stdout.trim();};
+ const close=async()=>{await pool?.end();if(container){const labels=JSON.parse(docker(['inspect','--format','{{json .Config.Labels}}',container]));if(labels['factuez.production.test']!==run)throw Error('TEST_CONTAINER_OWNERSHIP_REQUIRED');docker(['stop','--time','1',container]);container='';}};
+ try{container=docker(['run','--pull','never','--rm','-d','--name',name,'--label','factuez.production.test='+run,'--network','none','--memory','256m','--cpus','1','--tmpfs','/var/lib/postgresql/data:rw','-e','POSTGRES_PASSWORD='+randomBytes(24).toString('hex'),'postgres:17-alpine']);if(!/^[a-f0-9]{64}$/.test(container))throw Error('OWNED_CONTAINER_REQUIRED');let ready=false;for(let i=0;i<100;i++){const r=spawnSync('docker',['exec',container,'pg_isready','-U','postgres'],{stdio:'ignore',windowsHide:true,timeout:3000});if(r.status===0){ready=true;break;}await new Promise(r=>setTimeout(r,100));}if(!ready)throw Error('POSTGRES_NOT_READY');docker(['exec','-i',container,'psql','-X','-U','postgres','-v','ON_ERROR_STOP=1'],readFileSync('services/identity-service/src/b2b/production-schema.sql','utf8'));
+ class Stream extends Duplex {child:any;constructor(){super({allowHalfOpen:false});}setNoDelay(){return this;}setKeepAlive(){return this;}ref(){return this;}unref(){return this;}connect(port:number,host:string){if(port!==5432||host!=='127.0.0.1'||!container)throw Error('LOCAL_SYNTHETIC_ONLY');this.child=spawn('docker',['exec','-i',container,'nc','127.0.0.1','5432'],{windowsHide:true,stdio:['pipe','pipe','ignore']});this.child.stdout.on('data',(b:Buffer)=>{if(!this.push(b))this.child.stdout.pause();});this.child.stdout.on('end',()=>this.push(null));this.child.on('error',()=>this.destroy(Error('PG_STREAM_ERROR')));this.child.stdin.on('error',()=>this.destroy(Error('PG_STREAM_ERROR')));this.child.once('spawn',()=>this.emit('connect'));return this;}_read(){this.child?.stdout.resume();}_write(b:any,_e:any,cb:any){this.child.stdin.write(b,cb);}_final(cb:any){if(this.child?.stdin.writable&&!this.child.stdin.destroyed)this.child.stdin.end();cb();}_destroy(e:any,cb:any){this.child?.stdin.destroy();this.child?.kill();cb(e);}}
+ pool=new Pool({host:'127.0.0.1',port:5432,user:'postgres',database:'postgres',stream:()=>new Stream(),max:4,connectionTimeoutMillis:5000});await pool.query('SELECT 1');return {pool,store:new ProductionPostgresStore(pool),close};}catch(e){await close();throw e;}
+}
+

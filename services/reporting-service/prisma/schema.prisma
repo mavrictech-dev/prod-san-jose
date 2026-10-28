@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+model SalesDocumentProjection {
+  documentId       String   @id @db.Uuid
+  documentType     String   @db.VarChar(2)
+  series           String   @db.VarChar(4)
+  number           BigInt
+  issueDate        DateTime @db.Timestamptz(3)
+  emissionPointId  String   @db.Uuid
+  shiftId          String?  @db.Uuid
+  operatorUserId   String   @db.Uuid
+  customerIdentity String   @db.VarChar(15)
+  customerName     String   @db.VarChar(250)
+  currencyCode     String   @db.Char(3)
+  taxableAmount    Decimal  @db.Decimal(18, 2)
+  igvAmount        Decimal  @db.Decimal(18, 2)
+  payableAmount    Decimal  @db.Decimal(18, 2)
+  sunatStatus      String   @db.VarChar(40)
+  updatedAt        DateTime @updatedAt
+
+  @@unique([documentType, series, number])
+  @@index([issueDate, emissionPointId, sunatStatus])
+}
+
+model DailyMetric {
+  id               String   @id @default(uuid()) @db.Uuid
+  metricDate       DateTime @db.Date
+  emissionPointId  String   @db.Uuid
+  documentType     String   @db.VarChar(2)
+  documentCount    Int
+  taxableAmount    Decimal  @db.Decimal(18, 2)
+  igvAmount        Decimal  @db.Decimal(18, 2)
+  payableAmount    Decimal  @db.Decimal(18, 2)
+  updatedAt        DateTime @updatedAt
+
+  @@unique([metricDate, emissionPointId, documentType])
+}
+
+model InboxEvent {
+  eventId     String   @id @db.Uuid
+  eventType   String   @db.VarChar(120)
+  processedAt DateTime @default(now())
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "sourceMap": false,
+    "allowJs": true,
+    "checkJs": false,
+    "paths": {
+      "@factuez/service-access/dist/integration": ["../packages/service-access/src/integration.ts"],
+      "@factuez/service-access/dist/integration-http": ["../packages/service-access/src/integration-http.ts"],
+      "@factuez/service-access/dist/integration-owner-changes": ["../packages/service-access/src/integration-owner-changes.ts"],
+      "@factuez/service-access/dist/integration-journal": ["../packages/service-access/src/integration-journal.ts"]
+    }
+  },
+  "files": ["integration-pilot.spec.ts", "integration-windows-readiness.spec.ts", "integration-windows-edge.spec.ts", "integration-synthetic-recovery.spec.ts"]
+}

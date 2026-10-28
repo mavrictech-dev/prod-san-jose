@@ -1,0 +1,57 @@
+{
+  "status": "BLOCKED",
+  "activationAllowed": false,
+  "coordinatorSource": "packages/service-access/src/b2b-deployment-maintenance.ts",
+  "nodeSource": "packages/service-access/src/b2b-maintenance-node.ts",
+  "facadeSource": "services/b2b-api-service/src/runtime-assembly.ts",
+  "facadeBootstrapSource": "services/b2b-api-service/src/main.ts",
+  "phases": [
+    "ADMISSION",
+    "PRODUCERS",
+    "WORKERS",
+    "STORAGE"
+  ],
+  "managedServices": {
+    "KONG": "kong",
+    "WEB_PWA": "web-pwa",
+    "B2B_API": "b2b-api-service",
+    "INTEGRATION_API": "integration-service",
+    "RECEIVED_SYNC": "received-sync-worker",
+    "WEBHOOKS": "webhook-service",
+    "SUNAT": "sunat-service",
+    "MAILER": "mailer-worker",
+    "BILLING": "billing-service",
+    "IDENTITY": "identity-service",
+    "RECEIVED": "received-documents-service",
+    "HISTORY": "history-service",
+    "REALTIME": "realtime-service",
+    "EXPORTS": "integration-export-service"
+  },
+  "infrastructureOnly": [
+    "postgres",
+    "redis"
+  ],
+  "metadataOnly": [
+    "operations",
+    "backup-tools"
+  ],
+  "facadeOwners": [
+    "identity",
+    "billing",
+    "fiscal",
+    "webhooks",
+    "received",
+    "history",
+    "exports",
+    "mailer"
+  ],
+  "operatorIngress": "SEPARATE_HTTPS_MTLS_DISABLED_NO_KONG_ROUTE_NO_HOST_PORT",
+  "pending": [
+    "owner bootstraps and real storage readiness",
+    "instanceId/bootId inventory across all services",
+    "real four-phase hooks across all services",
+    "offline writer verifier",
+    "operator PKI and peers",
+    "full backup implementation"
+  ]
+}

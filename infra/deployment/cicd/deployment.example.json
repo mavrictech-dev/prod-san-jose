@@ -1,0 +1,13 @@
+{
+  "format": "factuez.core.delivery-config.v1",
+  "project": "factuez-production",
+  "registryPrefix": "ghcr.io/maczz09/fatuez-grifo-san-jos",
+  "directory": "/srv/factuez-delivery",
+  "composeFile": "/srv/factuez-delivery/core/docker-compose.yml",
+  "kongFile": "/srv/factuez-delivery/core/kong.yml",
+  "publicEnv": "/srv/factuez-delivery/core-public.env",
+  "currentImages": "/srv/factuez-delivery/current-images.env",
+  "schemaSha256": "REPLACE_WITH_REVIEWED_INSTALLED_SCHEMA_HASH",
+  "composeSha256": "REPLACE_WITH_REVIEWED_INSTALLED_COMPOSE_HASH",
+  "kongSha256": "REPLACE_WITH_REVIEWED_INSTALLED_KONG_HASH"
+}

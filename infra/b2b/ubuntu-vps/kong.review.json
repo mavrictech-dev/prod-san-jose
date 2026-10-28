@@ -1,0 +1,124 @@
+{
+  "_format_version": "3.0",
+  "_transform": true,
+  "services": [
+    {
+      "name": "identity-service",
+      "url": "http://identity-service:3001",
+      "routes": [
+        {
+          "name": "identity-service-review",
+          "paths": [
+            "/api/v1/auth",
+            "/api/v1/users",
+            "/api/v1/roles"
+          ],
+          "strip_path": false,
+          "protocols": [
+            "http"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "billing-service",
+      "url": "http://billing-service:3002",
+      "routes": [
+        {
+          "name": "billing-service-review",
+          "paths": [
+            "/api/v1/setup/company",
+            "/api/v1/emission-points",
+            "/api/v1/shifts",
+            "/api/v1/products",
+            "/api/v1/customers",
+            "/api/v1/documents",
+            "/api/v1/stations",
+            "/api/v1/daily-summaries"
+          ],
+          "strip_path": false,
+          "protocols": [
+            "http"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "sunat-service",
+      "url": "http://sunat-service:3003",
+      "routes": [
+        {
+          "name": "sunat-service-review",
+          "paths": [
+            "/api/v1/setup/certificate",
+            "/api/v1/setup/sunat",
+            "/api/v1/fiscal-artifacts",
+            "/api/v1/local-xml-validation",
+            "/api/v1/fiscal-rules"
+          ],
+          "strip_path": false,
+          "protocols": [
+            "http"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "received-documents-service",
+      "url": "http://received-documents-service:3006",
+      "routes": [
+        {
+          "name": "received-documents-service-review",
+          "paths": [
+            "/api/v1/received-documents"
+          ],
+          "strip_path": false,
+          "protocols": [
+            "http"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "realtime-service",
+      "url": "http://realtime-service:3006",
+      "routes": [
+        {
+          "name": "realtime-service-review",
+          "paths": [
+            "/socket.io"
+          ],
+          "strip_path": false,
+          "protocols": [
+            "http"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "web-pwa",
+      "url": "http://web-pwa:3000",
+      "routes": [
+        {
+          "name": "web-pwa-review",
+          "paths": [
+            "/"
+          ],
+          "strip_path": false,
+          "protocols": [
+            "http"
+          ]
+        }
+      ]
+    }
+  ],
+  "plugins": [
+    {
+      "name": "request-size-limiting",
+      "config": {
+        "allowed_payload_size": 18,
+        "size_unit": "megabytes"
+      }
+    }
+  ]
+}

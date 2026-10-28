@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "factuez.private-edge.v1",
+  "environment": "BETA",
+  "deployment": "LINUX_HOST_LOOPBACK",
+  "vpn": {
+    "interface": "wg-factuez",
+    "address": "10.44.0.1",
+    "clientCidrs": ["10.44.0.0/24"],
+    "privateDnsName": "api.factuez.test"
+  },
+  "listenPort": 9443,
+  "upstreamPorts": { "identity": 3108, "read": 3112 },
+  "rateLimits": { "tokenPerMinute": 20, "readPerMinute": 120, "exportPerMinute": 4, "changesPerMinute": 30 }
+}

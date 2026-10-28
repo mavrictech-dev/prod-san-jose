@@ -1,0 +1,36 @@
+// Fragmento para integrar MANUALMENTE en schema.prisma; no habilita ni migra nada.
+// NotesQaRepository utiliza SQL parametrizado y no requiere cliente Prisma regenerado.
+// Las FK y el índice parcial un crédito/original están definidos en notes-qa-expand.sql.
+model NotesQa {
+  id String @id @db.Uuid
+  originalDocumentId String @db.Uuid
+  originalCircuitId String @db.Uuid
+  actorId String @db.Uuid
+  idempotencyKey String @db.Uuid
+  requestSha256 String @db.Char(64)
+  originalSha256 String @db.Char(64)
+  credentialRevision Int
+  certificateFingerprint String @db.Char(64)
+  issuerRuc String @db.Char(11)
+  documentTypeCode String @db.Char(2)
+  series String @db.Char(4)
+  number Int
+  snapshot Json
+  state String @default("QUEUED") @db.VarChar(30)
+  attempts Int @default(0)
+  claimedAt DateTime? @db.Timestamp(3)
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+  digestValue String? @db.VarChar(128)
+  xmlArtifact Json?
+  zipArtifact Json?
+  xsdEvidence Json?
+  description String? @db.VarChar(2048)
+  @@unique([originalDocumentId,actorId,idempotencyKey], map: "NotesQa_request_key")
+  @@unique([issuerRuc,documentTypeCode,series,number], map: "NotesQa_number_key")
+  @@index([state,createdAt])
+  @@index([originalDocumentId,createdAt])
+}
+model NotesQaCounter {
+  id String @id @db.VarChar(40)
+  lastNumber Int @default(0)
+}

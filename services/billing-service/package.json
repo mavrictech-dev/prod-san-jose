@@ -1,0 +1,34 @@
+{
+  "name": "@factuez/billing-service",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@factuez/contracts": "workspace:*",
+    "@factuez/pdf-renderer": "workspace:*",
+    "@factuez/service-access": "workspace:*",
+    "@factuez/sunat-core": "workspace:*",
+    "@prisma/adapter-pg": "7.8.0",
+    "@prisma/client": "7.8.0",
+    "@nestjs/common": "11.1.21",
+    "@nestjs/core": "11.1.21",
+    "@nestjs/platform-express": "11.1.21",
+    "@nestjs/schedule": "6.1.3",
+    "bullmq": "5.58.5",
+    "pg": "8.16.3",
+    "reflect-metadata": "0.1.14",
+    "rxjs": "7.8.2",
+    "sharp": "0.34.5"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.9",
+    "prisma": "7.8.0",
+    "typescript": "5.9.2"
+  }
+}

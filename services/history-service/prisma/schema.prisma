@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+model HistorySandbox {
+  id           Int    @id
+  markerId     String @db.Uuid
+  schemaVersion String @db.VarChar(40)
+  environment  String @db.VarChar(4)
+  datasetClass String @db.VarChar(12)
+}
+model HistoryIssuer {
+  companyId Int @id
+  issuerRuc String @unique @db.Char(11)
+  mappings HistoryOwnerMapping[]
+  @@unique([companyId, issuerRuc])
+}
+model HistoryOwnerMapping {
+  mappingId String @id @db.Uuid
+  issuerRuc String @db.Char(11)
+  companyId Int
+  branchId String @db.Uuid
+  emissionPointId String @db.Uuid
+  seriesCounterId String @db.Uuid
+  documentTypeCode String @db.Char(2)
+  series String @db.VarChar(4)
+  mappingSha256 String @db.Char(64)
+  issuer HistoryIssuer @relation(fields: [companyId,issuerRuc], references: [companyId,issuerRuc], onDelete: Restrict, onUpdate: Restrict)
+  records HistoryRecord[]
+  @@unique([companyId,documentTypeCode,series])
+  @@unique([mappingId,issuerRuc,companyId,branchId,emissionPointId,seriesCounterId,documentTypeCode,series])
+}
+model HistoryImportJob {
+  jobId String @id @db.Uuid
+  inputSha256 String @db.Char(64)
+  planSha256 String @db.Char(64)
+  mappingSha256 String @db.Char(64)
+  expectedRows Int
+  batchSize Int
+  completedBatches Int @default(0)
+  actorId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  receipts HistoryBatchReceipt[]
+}
+model HistoryBatchReceipt {
+  jobId String @db.Uuid
+  batchIndex Int
+  recordsSha256 String @db.Char(64)
+  rowCount Int
+  insertedCount Int
+  actorId String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  job HistoryImportJob @relation(fields:[jobId], references:[jobId], onDelete: Restrict, onUpdate: Restrict)
+  links HistoryRecordImportLink[]
+  @@id([jobId,batchIndex])
+}
+model HistoryRecord {
+  recordId String @id @db.Char(64)
+  mappingId String @db.Uuid
+  issuerRuc String @db.Char(11)
+  companyId Int
+  branchId String @db.Uuid
+  emissionPointId String @db.Uuid
+  seriesCounterId String @db.Uuid
+  documentTypeCode String @db.Char(2)
+  series String @db.VarChar(4)
+  number BigInt
+  originSystem String @db.VarChar(20)
+  originId String @db.VarChar(120)
+  issueDate DateTime @db.Timestamptz(3)
+  currencyCode String @db.Char(3)
+  taxableAmount Decimal @db.Decimal(18,2)
+  igvAmount Decimal @db.Decimal(18,2)
+  payableAmount Decimal @db.Decimal(18,2)
+  snapshotSha256 String @db.Char(64)
+  snapshot Json
+  artifactKeys Json
+  candidateOnly Boolean @default(true)
+  disposition String @default("QUARANTINED") @db.VarChar(16)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  mapping HistoryOwnerMapping @relation(fields:[mappingId,issuerRuc,companyId,branchId,emissionPointId,seriesCounterId,documentTypeCode,series], references:[mappingId,issuerRuc,companyId,branchId,emissionPointId,seriesCounterId,documentTypeCode,series], onDelete: Restrict, onUpdate: Restrict)
+  links HistoryRecordImportLink[]
+  @@unique([issuerRuc,documentTypeCode,series,number])
+  @@unique([companyId,originSystem,originId])
+  @@index([companyId,branchId,issueDate])
+}
+model HistoryRecordImportLink {
+  jobId String @db.Uuid
+  batchIndex Int
+  rowOrdinal Int
+  recordId String @db.Char(64)
+  snapshotSha256 String @db.Char(64)
+  receipt HistoryBatchReceipt @relation(fields:[jobId,batchIndex], references:[jobId,batchIndex], onDelete: Restrict, onUpdate: Restrict)
+  record HistoryRecord @relation(fields:[recordId], references:[recordId], onDelete: Restrict, onUpdate: Restrict)
+  @@id([jobId,rowOrdinal])
+  @@index([jobId,batchIndex])
+}

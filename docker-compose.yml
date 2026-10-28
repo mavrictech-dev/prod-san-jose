@@ -1,0 +1,501 @@
+name: factuez-grifo-san-jose
+
+x-runtime-environment: &runtime-environment
+  NODE_ENV: production
+  TZ: America/Lima
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD_FILE: /run/secrets/redis_password
+  IDENTITY_JWKS_URL: http://identity-service:3001/.well-known/jwks.json
+  JWT_ISSUER: factuez-identity
+  JWT_AUDIENCE: factuez-services
+
+x-service-common: &service-common
+  restart: unless-stopped
+  networks: [factuez-internal]
+  secrets:
+    - redis_password
+    - jwt_public_key
+    - internal_service_token
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: factuez_admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_admin_password
+      TZ: America/Lima
+    secrets:
+      - postgres_admin_password
+      - identity_db_password
+      - billing_db_password
+      - sunat_db_password
+      - mailer_db_password
+      - reporting_db_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factuez_admin -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [factuez-internal]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      - sh
+      - -ec
+      - exec redis-server --appendonly yes --appendfsync everysec --requirepass "$$(cat /run/secrets/redis_password)"
+    secrets: [redis_password]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$(cat /run/secrets/redis_password)\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks: [factuez-internal]
+
+  migrate-identity:
+    <<: *service-common
+    image: ${FACTUEZ_IDENTITY_IMAGE:-factuez/identity-service:local}
+    restart: "no"
+    command: ["pnpm", "prisma", "migrate", "deploy"]
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_identity
+      DB_USER: factuez_identity
+      DB_PASSWORD_FILE: /run/secrets/identity_db_password
+    secrets: [identity_db_password]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  migrate-billing:
+    <<: *service-common
+    image: ${FACTUEZ_BILLING_IMAGE:-factuez/billing-service:local}
+    restart: "no"
+    command: ["pnpm", "prisma", "migrate", "deploy"]
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_billing
+      DB_USER: factuez_billing
+      DB_PASSWORD_FILE: /run/secrets/billing_db_password
+    secrets: [billing_db_password]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  migrate-sunat:
+    <<: *service-common
+    image: ${FACTUEZ_SUNAT_IMAGE:-factuez/sunat-service:local}
+    restart: "no"
+    command: ["pnpm", "prisma", "migrate", "deploy"]
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_sunat
+      DB_USER: factuez_sunat
+      DB_PASSWORD_FILE: /run/secrets/sunat_db_password
+    secrets: [sunat_db_password]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  migrate-mailer:
+    <<: *service-common
+    image: ${FACTUEZ_MAILER_IMAGE:-factuez/mailer-worker:local}
+    restart: "no"
+    command: ["pnpm", "prisma", "migrate", "deploy"]
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_mailer
+      MAILER_DATABASE_NAME: factuez_mailer
+      SMTP_SETTINGS_KEY_FILE: /run/secrets/smtp_settings_key
+      SMTP_SETTINGS_KEY_VERSION: "1"
+      SERVER_SMTP_ENABLED: ${SERVER_SMTP_ENABLED:-false}
+      SERVER_SMTP_DOCUMENTS_ENABLED: ${SERVER_SMTP_DOCUMENTS_ENABLED:-false}
+      SMTP_CONNECTION_DIAGNOSTICS_ENABLED: ${SMTP_CONNECTION_DIAGNOSTICS_ENABLED:-false}
+      SMTP_APPROVED_HOSTS: ${SMTP_APPROVED_HOSTS:-}
+      DB_USER: factuez_mailer
+      DB_PASSWORD_FILE: /run/secrets/mailer_db_password
+    secrets: [mailer_db_password]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  migrate-reporting:
+    <<: *service-common
+    image: ${FACTUEZ_REPORTING_IMAGE:-factuez/reporting-service:local}
+    restart: "no"
+    command: ["pnpm", "prisma", "migrate", "deploy"]
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_reporting
+      DB_USER: factuez_reporting
+      DB_PASSWORD_FILE: /run/secrets/reporting_db_password
+    secrets: [reporting_db_password]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  identity-service:
+    <<: *service-common
+    image: ${FACTUEZ_IDENTITY_IMAGE:-factuez/identity-service:local}
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_identity
+      DB_USER: factuez_identity
+      DB_PASSWORD_FILE: /run/secrets/identity_db_password
+      PORT: "3001"
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
+      JWT_ISSUER: factuez-identity
+      JWT_AUDIENCE: factuez-services
+      JWT_ACCESS_TOKEN_TTL_SECONDS: ${JWT_ACCESS_TOKEN_TTL_SECONDS:-900}
+      INITIAL_ADMIN_USERNAME: ${FACTUEZ_INITIAL_ADMIN_USERNAME:-}
+      INITIAL_ADMIN_FULL_NAME: ${FACTUEZ_INITIAL_ADMIN_FULL_NAME:-Administrador FactuEz}
+      INITIAL_ADMIN_PASSWORD_FILE: /run/secrets/initial_admin_password
+    secrets:
+      - identity_db_password
+      - redis_password
+      - jwt_private_key
+      - jwt_public_key
+      - initial_admin_password
+      - internal_service_token
+    depends_on:
+      migrate-identity: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs", "http://127.0.0.1:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  billing-service:
+    <<: *service-common
+    image: ${FACTUEZ_BILLING_IMAGE:-factuez/billing-service:local}
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_billing
+      DB_USER: factuez_billing
+      DB_PASSWORD_FILE: /run/secrets/billing_db_password
+      PORT: "3002"
+      PRINT_SETTINGS_ENABLED: "true"
+      PRINT_BRANDING_ROOT: /data/print-branding
+    volumes:
+      - print_branding_data:/data/print-branding
+    depends_on:
+      migrate-billing: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs", "http://127.0.0.1:3002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    secrets:
+      - billing_db_password
+      - redis_password
+      - jwt_public_key
+      - internal_service_token
+
+  sunat-service:
+    <<: *service-common
+    image: ${FACTUEZ_SUNAT_IMAGE:-factuez/sunat-service:local}
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_sunat
+      DB_USER: factuez_sunat
+      DB_PASSWORD_FILE: /run/secrets/sunat_db_password
+      PORT: "3003"
+      APP_MASTER_KEY_FILE: /run/secrets/app_master_key
+      INTERNAL_SERVICE_TOKEN_FILE: /run/secrets/internal_service_token
+      ARTIFACTS_ROOT: /data/artifacts
+      PRINT_SETTINGS_ENABLED: "true"
+      PRIVATE_STORAGE_ROOT: /data/private
+      BILLING_INTERNAL_URL: http://billing-service:3002
+      IDENTITY_INTERNAL_URL: http://identity-service:3001
+      BULLMQ_CONCURRENCY: ${SUNAT_WORKER_CONCURRENCY:-3}
+      SUNAT_SOAP_BETA_WSDL: ${SUNAT_SOAP_BETA_WSDL:-https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService?wsdl}
+      SUNAT_SOAP_PRODUCTION_WSDL: ${SUNAT_SOAP_PRODUCTION_WSDL:-https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService?wsdl}
+      SUNAT_GRE_TOKEN_URL_TEMPLATE: ${SUNAT_GRE_TOKEN_URL_TEMPLATE:-https://api-seguridad.sunat.gob.pe/v1/clientessol/{clientId}/oauth2/token/}
+      SUNAT_GRE_SCOPE: ${SUNAT_GRE_SCOPE:-https://api-cpe.sunat.gob.pe}
+      SUNAT_GRE_SUBMIT_URL_BETA: ${SUNAT_GRE_SUBMIT_URL_BETA:?Defina URL GRE beta validada}
+      SUNAT_GRE_STATUS_URL_BETA_TEMPLATE: ${SUNAT_GRE_STATUS_URL_BETA_TEMPLATE:?Defina consulta GRE beta}
+      SUNAT_GRE_SUBMIT_URL_PRODUCTION: ${SUNAT_GRE_SUBMIT_URL_PRODUCTION:?Defina URL GRE productiva validada}
+      SUNAT_GRE_STATUS_URL_PRODUCTION_TEMPLATE: ${SUNAT_GRE_STATUS_URL_PRODUCTION_TEMPLATE:?Defina consulta GRE productiva}
+    secrets:
+      - sunat_db_password
+      - redis_password
+      - jwt_public_key
+      - app_master_key
+      - internal_service_token
+    volumes:
+      - artifacts_data:/data/artifacts
+      - private_data:/data/private
+    depends_on:
+      migrate-sunat: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs", "http://127.0.0.1:3003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mailer-worker:
+    <<: *service-common
+    image: ${FACTUEZ_MAILER_IMAGE:-factuez/mailer-worker:local}
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_mailer
+      MAILER_DATABASE_NAME: factuez_mailer
+      SMTP_SETTINGS_KEY_FILE: /run/secrets/smtp_settings_key
+      SMTP_SETTINGS_KEY_VERSION: "1"
+      SERVER_SMTP_ENABLED: ${SERVER_SMTP_ENABLED:-false}
+      SERVER_SMTP_DOCUMENTS_ENABLED: ${SERVER_SMTP_DOCUMENTS_ENABLED:-false}
+      SMTP_CONNECTION_DIAGNOSTICS_ENABLED: ${SMTP_CONNECTION_DIAGNOSTICS_ENABLED:-false}
+      SMTP_APPROVED_HOSTS: ${SMTP_APPROVED_HOSTS:-}
+      DB_USER: factuez_mailer
+      DB_PASSWORD_FILE: /run/secrets/mailer_db_password
+      PORT: "3004"
+      APP_MASTER_KEY_FILE: /run/secrets/app_master_key
+      INTERNAL_SERVICE_TOKEN_FILE: /run/secrets/internal_service_token
+      SUNAT_INTERNAL_URL: http://sunat-service:3003
+      MAIL_CONCURRENCY: ${MAIL_CONCURRENCY:-2}
+    secrets:
+      - mailer_db_password
+      - smtp_settings_key
+      - redis_password
+      - jwt_public_key
+      - app_master_key
+      - internal_service_token
+    depends_on:
+      migrate-mailer: { condition: service_completed_successfully }
+      sunat-service: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs", "http://127.0.0.1:3004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  reporting-service:
+    <<: *service-common
+    image: ${FACTUEZ_REPORTING_IMAGE:-factuez/reporting-service:local}
+    environment:
+      <<: *runtime-environment
+      DB_NAME: factuez_reporting
+      DB_USER: factuez_reporting
+      DB_PASSWORD_FILE: /run/secrets/reporting_db_password
+      PORT: "3005"
+    depends_on:
+      migrate-reporting: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs", "http://127.0.0.1:3005/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    secrets:
+      - reporting_db_password
+      - redis_password
+      - jwt_public_key
+      - internal_service_token
+
+  # Reception owns a separate DB; no Billing/SUNAT schema, Outbox or counters.
+  received-postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: factuez_received
+      POSTGRES_USER: factuez_received
+      POSTGRES_PASSWORD_FILE: /run/secrets/received_db_password
+      TZ: America/Lima
+    secrets: [received_db_password]
+    volumes: [received_data:/var/lib/postgresql/data]
+    networks: [factuez-internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factuez_received -d factuez_received"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  received-documents-service: &received-onprem-runtime
+    image: ${FACTUEZ_RECEIVED_IMAGE:-factuez/received-documents-service:local}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args: { SERVICE_NAME: "@factuez/received-documents-service", SERVICE_PATH: "services/received-documents-service" }
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TZ: America/Lima
+      PORT: "3006"
+      DB_HOST: received-postgres
+      DB_PORT: "5432"
+      DB_NAME: factuez_received
+      DB_USER: factuez_received
+      DB_PASSWORD_FILE: /run/secrets/received_db_password
+      IDENTITY_INTERNAL_URL: http://identity-service:3001
+      BILLING_INTERNAL_URL: http://billing-service:3002
+      REDIS_HOST: redis
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      WORKSPACE_LIVE_ENABLED: "true"
+      RECEIVED_SETTINGS_KEY_FILE: /run/secrets/reception_settings_key
+      RECEIVED_LOCAL_FIXTURE_ENABLED: "false"
+      RECEIVED_QA_USE_APP_KEY: "false"
+      RECEIVED_LIVE_READ_ALLOWED: "false"
+      RECEIVED_IMAP_APPROVED_HOSTS: ""
+    secrets: [received_db_password, reception_settings_key, redis_password]
+    networks: [factuez-internal]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  received-sync-worker:
+    <<: *received-onprem-runtime
+    command: ["node", "services/received-documents-service/dist/automation.worker.js"]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3007/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  realtime-service:
+    restart: unless-stopped
+    image: ${FACTUEZ_REALTIME_IMAGE:-factuez/realtime-service:local}
+    environment:
+      NODE_ENV: production
+      TZ: America/Lima
+      PORT: "3006"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      IDENTITY_JWKS_URL: http://identity-service:3001/.well-known/jwks.json
+      IDENTITY_INTERNAL_URL: http://identity-service:3001
+      BILLING_INTERNAL_URL: http://billing-service:3002
+      RECEIVED_INTERNAL_URL: http://received-documents-service:3006
+      WORKSPACE_LIVE_ENABLED: "true"
+      WS_ALLOWED_ORIGINS: ${FACTUEZ_WS_ALLOWED_ORIGINS:-https://factuez.grifosanjose.lan}
+    secrets: [redis_password, jwt_public_key]
+    depends_on:
+      identity-service: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [factuez-internal]
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs", "http://127.0.0.1:3006/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web-pwa:
+    image: ${FACTUEZ_WEB_IMAGE:-factuez/web-pwa:local}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TZ: America/Lima
+      PORT: "3000"
+      NEXT_PUBLIC_API_BASE_URL: /api
+      NEXT_PUBLIC_SOCKET_PATH: /socket.io
+    networks: [factuez-internal]
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs", "http://127.0.0.1:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  kong:
+    image: ${KONG_IMAGE:-kong:3.9.3}
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_ADMIN_LISTEN: "off"
+      KONG_STATUS_LISTEN: 0.0.0.0:8100
+      KONG_PROXY_LISTEN: 0.0.0.0:8000, 0.0.0.0:8443 ssl http2
+      KONG_SSL_CERT: /run/secrets/tls_cert
+      KONG_SSL_CERT_KEY: /run/secrets/tls_key
+      KONG_NGINX_WORKER_PROCESSES: "2"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+    secrets: [tls_cert, tls_key]
+    ports:
+      - "${FACTUEZ_HTTP_PORT:-80}:8000"
+      - "${FACTUEZ_HTTPS_PORT:-443}:8443"
+    volumes:
+      - ./infra/kong/kong.yml:/kong/declarative/kong.yml:ro
+    depends_on:
+      identity-service: { condition: service_healthy }
+      billing-service: { condition: service_healthy }
+      sunat-service: { condition: service_healthy }
+      reporting-service: { condition: service_healthy }
+      realtime-service: { condition: service_healthy }
+      web-pwa: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks: [factuez-internal]
+
+networks:
+  factuez-internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  artifacts_data:
+  private_data:
+  print_branding_data:
+  received_data:
+
+secrets:
+  received_db_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/received_db_password.txt
+  reception_settings_key:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/reception_settings_key.txt
+  postgres_admin_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/postgres_admin_password.txt
+  identity_db_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/identity_db_password.txt
+  billing_db_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/billing_db_password.txt
+  sunat_db_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/sunat_db_password.txt
+  smtp_settings_key:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/smtp_settings_key.txt
+  mailer_db_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/mailer_db_password.txt
+  reporting_db_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/reporting_db_password.txt
+  redis_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/redis_password.txt
+  app_master_key:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/app_master_key.txt
+  jwt_private_key:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/jwt_private_key.pem
+  jwt_public_key:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/jwt_public_key.pem
+  internal_service_token:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/internal_service_token.txt
+  initial_admin_password:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/initial_admin_password.txt
+  tls_cert:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/tls_cert.pem
+  tls_key:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/tls_key.pem

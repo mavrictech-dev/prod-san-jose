@@ -1,0 +1,6246 @@
+{
+  "openapi": "3.1.1",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "info": {
+    "title": "FactuEz · API privada de extracción",
+    "version": "1.0.0",
+    "description": "Contrato de fase 2, NO IMPLEMENTADO. Sólo lectura de emitidos BUSINESS en BETA. Acceso remoto privado pendiente de fase 7. Host .invalid de ejemplo; sin configuración SUNAT ni producción."
+  },
+  "servers": [
+    {
+      "url": "https://factuez.invalid",
+      "description": "Ejemplo no resoluble; TI sustituirá por DNS privado HTTPS dentro de VPN."
+    }
+  ],
+  "x-contract-version": "factuez.integration.v1",
+  "x-delivery-state": "CONTRACT_ONLY",
+  "x-environment": "BETA",
+  "x-access-design": {
+    "network": "PRIVATE_VPN_AND_HTTPS",
+    "tokenAudience": "factuez-integration-v1",
+    "humanSessionsAccepted": false,
+    "grants": "TUPLES_RUC_BRANCH_POINT_SERIES_TYPE",
+    "dataDomain": "ISSUED_BUSINESS"
+  },
+  "security": [
+    {
+      "IntegrationOAuth": [
+        "integration:documents:read"
+      ]
+    }
+  ],
+  "tags": [
+    {
+      "name": "Identidad"
+    },
+    {
+      "name": "Lectura"
+    },
+    {
+      "name": "Exportaciones"
+    },
+    {
+      "name": "Cambios"
+    }
+  ],
+  "paths": {
+    "/integration/oauth/token": {
+      "post": {
+        "operationId": "createIntegrationToken",
+        "summary": "Identidad M2M independiente; no usuario SOL ni cuenta de caja",
+        "tags": [
+          "Identidad"
+        ],
+        "x-implementation-phase": 3,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationClientBasic": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token corto, sin refresh token",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              },
+              "WWW-Authenticate": {
+                "schema": {
+                  "type": "string",
+                  "const": "Basic"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/integration/v1/capabilities": {
+      "get": {
+        "operationId": "getCapabilities",
+        "summary": "Cobertura real para el cliente y RUC; no promesas por existencia de enum",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:catalog:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/issuers": {
+      "get": {
+        "operationId": "listIssuers",
+        "summary": "Sólo emisores autorizados, incluidos inactivos históricos",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:catalog:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+            },
+            "description": "Token opaco autenticado ligado a cliente, grants, filtros y corte; no offset ni timestamp arbitrario."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuerPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/branches": {
+      "get": {
+        "operationId": "listBranches",
+        "summary": "Sólo sedes autorizadas para el RUC",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:catalog:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+            },
+            "description": "Token opaco autenticado ligado a cliente, grants, filtros y corte; no offset ni timestamp arbitrario."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/points": {
+      "get": {
+        "operationId": "listPoints",
+        "summary": "Puntos y series autorizados; no contadores ni permisos de edición",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:catalog:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+            },
+            "description": "Token opaco autenticado ligado a cliente, grants, filtros y corte; no offset ni timestamp arbitrario."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PointPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/documents": {
+      "get": {
+        "operationId": "listDocuments",
+        "summary": "Listado estable al corte; cobertura explícita por tipo",
+        "tags": [
+          "Exportaciones"
+        ],
+        "x-implementation-phase": 5,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          },
+          {
+            "name": "dataset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "ISSUED_BUSINESS",
+              "default": "ISSUED_BUSINESS"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+            }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "01",
+                  "03",
+                  "07",
+                  "08",
+                  "09",
+                  "31"
+                ]
+              },
+              "maxItems": 6,
+              "minItems": 1,
+              "uniqueItems": true,
+              "default": [
+                "01",
+                "03",
+                "07",
+                "08",
+                "09",
+                "31"
+              ]
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "pointId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "series",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z0-9]{4}$"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PEN",
+                "USD"
+              ]
+            }
+          },
+          {
+            "name": "fiscalStatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NOT_CHECKED",
+                "PENDING",
+                "QUEUED",
+                "BUILDING",
+                "SIGNED",
+                "SUBMITTED",
+                "PROCESSING",
+                "SUMMARY_PENDING",
+                "ACCEPTED",
+                "ACCEPTED_WITH_OBSERVATIONS",
+                "REJECTED",
+                "RETRYABLE_ERROR",
+                "PERMANENT_ERROR",
+                "VOID_PENDING",
+                "VOIDED"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+            },
+            "description": "Token opaco autenticado ligado a cliente, grants, filtros y corte; no offset ni timestamp arbitrario."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/documents/lookup": {
+      "get": {
+        "operationId": "lookupDocument",
+        "summary": "Consulta exacta por RUC, ambiente, tipo, serie y número; sin periodo obligatorio",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "01",
+                "03",
+                "07",
+                "08",
+                "09",
+                "31"
+              ]
+            }
+          },
+          {
+            "name": "series",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Z0-9]{4}$"
+            }
+          },
+          {
+            "name": "number",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{1,20}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/documents/{documentId}": {
+      "get": {
+        "operationId": "getDocument",
+        "summary": "Cabecera, cliente, ítems, impuestos, totales o traslado congelados",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          },
+          {
+            "name": "snapshotId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            },
+            "description": "Consulta en el corte vigente; sin este campo devuelve versión actual con estados a ese instante."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/documents/{documentId}/artifacts": {
+      "get": {
+        "operationId": "listDocumentArtifacts",
+        "summary": "Inventario autorizado; CDR de lote sólo si todos sus miembros son visibles",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read",
+              "integration:artifacts:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/batches/{batchId}": {
+      "get": {
+        "operationId": "getBatch",
+        "summary": "RC/RA con pertenencia íntegra autorizada; nunca revela miembros fuera del scope",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Batch"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/batches/{batchId}/artifacts": {
+      "get": {
+        "operationId": "listBatchArtifacts",
+        "summary": "Inventario de originales de lote tras autorización completa",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read",
+              "integration:artifacts:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "batchId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/artifacts/{artifactId}/content": {
+      "get": {
+        "operationId": "downloadArtifact",
+        "summary": "Descargar bytes íntegros, previa reautorización e integridad",
+        "tags": [
+          "Lectura"
+        ],
+        "x-implementation-phase": 4,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read",
+              "integration:artifacts:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "artifactId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bytes completos. No redirección pública; no base64 ni sustitución silenciosa.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "X-Content-SHA256": {
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "const": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/xml": {},
+              "application/zip": {},
+              "application/pdf": {}
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    },
+    "/integration/v1/exports": {
+      "post": {
+        "operationId": "createExport",
+        "summary": "Preparar exportación temporal de lectura; no emite comprobantes",
+        "tags": [
+          "Exportaciones"
+        ],
+        "x-implementation-phase": 5,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read",
+              "integration:exports:create"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Trabajo aceptado, no exportación finalizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          }
+        },
+        "x-conditional-scopes": {
+          "nonEmptyArtifactKinds": [
+            "integration:artifacts:read"
+          ]
+        }
+      }
+    },
+    "/integration/v1/exports/{exportId}": {
+      "get": {
+        "operationId": "getExport",
+        "summary": "Consultar trabajo sólo del cliente creador",
+        "tags": [
+          "Exportaciones"
+        ],
+        "x-implementation-phase": 5,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read",
+              "integration:exports:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "exportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "x-conditional-scopes": {
+          "jobContainsArtifacts": [
+            "integration:artifacts:read"
+          ]
+        }
+      }
+    },
+    "/integration/v1/exports/{exportId}/manifest": {
+      "get": {
+        "operationId": "getExportManifest",
+        "summary": "Consultar manifiesto del trabajo antes de descargar el paquete",
+        "tags": [
+          "Exportaciones"
+        ],
+        "x-implementation-phase": 5,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read",
+              "integration:exports:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "exportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportManifest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "x-conditional-scopes": {
+          "jobContainsArtifacts": [
+            "integration:artifacts:read"
+          ]
+        }
+      }
+    },
+    "/integration/v1/exports/{exportId}/content": {
+      "get": {
+        "operationId": "downloadExport",
+        "summary": "Descargar bytes íntegros, previa reautorización e integridad",
+        "tags": [
+          "Exportaciones"
+        ],
+        "x-implementation-phase": 5,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read",
+              "integration:exports:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "exportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bytes completos. No redirección pública; no base64 ni sustitución silenciosa.",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "X-Content-SHA256": {
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "X-Content-Type-Options": {
+                "schema": {
+                  "type": "string",
+                  "const": "nosniff"
+                }
+              }
+            },
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        },
+        "x-conditional-scopes": {
+          "jobContainsArtifacts": [
+            "integration:artifacts:read"
+          ]
+        }
+      }
+    },
+    "/integration/v1/changes": {
+      "get": {
+        "operationId": "listChanges",
+        "summary": "Feed durable al menos una vez; checkpoint ligado a cliente y permisos",
+        "tags": [
+          "Cambios"
+        ],
+        "x-implementation-phase": 6,
+        "x-implemented": false,
+        "security": [
+          {
+            "IntegrationOAuth": [
+              "integration:documents:read",
+              "integration:changes:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "issuerRuc",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{11}$"
+            },
+            "description": "Un RUC autorizado por petición; no comodines."
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "const": "BETA",
+              "default": "BETA"
+            }
+          },
+          {
+            "name": "checkpoint",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-store"
+                },
+                "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error400"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error401"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error403"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error404"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error409"
+          },
+          "410": {
+            "$ref": "#/components/responses/Error410"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error422"
+          },
+          "429": {
+            "$ref": "#/components/responses/Error429"
+          },
+          "503": {
+            "$ref": "#/components/responses/Error503"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "IntegrationOAuth": {
+        "type": "oauth2",
+        "description": "Confidential client, no sesión PWA. Bearer sólo en Authorization sobre HTTPS. Issuer/audience/algoritmo/tipo y revocación se verifican en fase 3.",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://factuez.invalid/integration/oauth/token",
+            "scopes": {
+              "integration:catalog:read": "integration:catalog:read",
+              "integration:documents:read": "integration:documents:read",
+              "integration:artifacts:read": "integration:artifacts:read",
+              "integration:exports:create": "integration:exports:create",
+              "integration:exports:read": "integration:exports:read",
+              "integration:changes:read": "integration:changes:read"
+            }
+          }
+        }
+      },
+      "IntegrationClientBasic": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "ID/secreto propios de integración, exclusivamente para token endpoint sobre HTTPS/VPN. Nunca SOL, P12 ni secretos SUNAT."
+      }
+    },
+    "schemas": {
+      "Party": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "identityType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "identityNumber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "legalName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ubigeo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "establishmentCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "identityType",
+          "identityNumber",
+          "legalName",
+          "address",
+          "ubigeo",
+          "establishmentCode"
+        ]
+      },
+      "Tax": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemeId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxableAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "affectationCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schemeId",
+          "name",
+          "taxableAmount",
+          "amount",
+          "percent",
+          "affectationCode"
+        ]
+      },
+      "Allowance": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "charge": {
+            "type": "boolean"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "charge",
+          "amount",
+          "baseAmount",
+          "percent",
+          "reasonCode",
+          "reason"
+        ]
+      },
+      "Item": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "productCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "unitCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unitValue": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unitPriceWithTax": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lineExtensionAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tax"
+            },
+            "maxItems": 50
+          },
+          "allowances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allowance"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "lineId",
+          "productCode",
+          "description",
+          "unitCode",
+          "quantity",
+          "unitValue",
+          "unitPriceWithTax",
+          "lineExtensionAmount",
+          "taxes",
+          "allowances"
+        ]
+      },
+      "Totals": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lineExtensionAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxableAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exemptAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unaffectedAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freeAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "igvAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "iscAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "otherTaxesAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowanceTotalAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chargeTotalAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prepaidAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payableAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "lineExtensionAmount",
+          "taxableAmount",
+          "exemptAmount",
+          "unaffectedAmount",
+          "freeAmount",
+          "igvAmount",
+          "iscAmount",
+          "otherTaxesAmount",
+          "allowanceTotalAmount",
+          "chargeTotalAmount",
+          "prepaidAmount",
+          "payableAmount"
+        ]
+      },
+      "Reference": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "documentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "01",
+                  "03",
+                  "07",
+                  "08",
+                  "09",
+                  "31"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fullNumber": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "documentId",
+          "type",
+          "fullNumber",
+          "kind",
+          "reasonCode",
+          "reason"
+        ]
+      },
+      "PaymentTerms": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "CONTADO",
+                  "CREDITO"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pendingAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "string",
+                  "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$"
+                },
+                "dueDate": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+                }
+              },
+              "required": [
+                "amount",
+                "dueDate"
+              ]
+            },
+            "maxItems": 999
+          }
+        },
+        "required": [
+          "type",
+          "pendingAmount",
+          "installments"
+        ]
+      },
+      "Sale": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "SALE"
+          },
+          "issuer": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "operationTypeCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "maxItems": 10000
+          },
+          "taxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tax"
+            },
+            "maxItems": 50
+          },
+          "allowances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allowance"
+            },
+            "maxItems": 50
+          },
+          "totals": {
+            "$ref": "#/components/schemas/Totals"
+          },
+          "paymentTerms": {
+            "$ref": "#/components/schemas/PaymentTerms"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "maxItems": 100
+          },
+          "observations": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "additionalInformation": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "name",
+                "value"
+              ]
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "kind",
+          "issuer",
+          "customer",
+          "operationTypeCode",
+          "items",
+          "taxes",
+          "allowances",
+          "totals",
+          "paymentTerms",
+          "references",
+          "observations",
+          "additionalInformation"
+        ]
+      },
+      "Guide": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "GUIDE"
+          },
+          "issuer": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "sender": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Party"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Party"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "carrier": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Party"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "maxItems": 10000
+          },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transferDate": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date",
+                "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "origin": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "grossWeight": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weightUnit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "packageCount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{1,20}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "modeCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vehicles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "plate": {
+                  "type": "string",
+                  "maxLength": 30
+                },
+                "authorization": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "plate",
+                "authorization"
+              ]
+            },
+            "maxItems": 100
+          },
+          "drivers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "identityType": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "identityNumber": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "firstNames": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "lastNames": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "license": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "identityType",
+                "identityNumber",
+                "firstNames",
+                "lastNames",
+                "license"
+              ]
+            },
+            "maxItems": 100
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "maxItems": 100
+          },
+          "observations": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "issuer",
+          "sender",
+          "recipient",
+          "carrier",
+          "items",
+          "reasonCode",
+          "reason",
+          "transferDate",
+          "origin",
+          "destination",
+          "grossWeight",
+          "weightUnit",
+          "packageCount",
+          "modeCode",
+          "vehicles",
+          "drivers",
+          "references",
+          "observations"
+        ]
+      },
+      "DocumentState": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "local": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "ISSUED",
+                  "CANCELLED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fiscal": {
+            "type": "string",
+            "enum": [
+              "NOT_CHECKED",
+              "PENDING",
+              "QUEUED",
+              "BUILDING",
+              "SIGNED",
+              "SUBMITTED",
+              "PROCESSING",
+              "SUMMARY_PENDING",
+              "ACCEPTED",
+              "ACCEPTED_WITH_OBSERVATIONS",
+              "REJECTED",
+              "RETRYABLE_ERROR",
+              "PERMANENT_ERROR",
+              "VOID_PENDING",
+              "VOIDED"
+            ]
+          },
+          "transport": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "NOT_CHECKED",
+                  "PENDING",
+                  "QUEUED",
+                  "BUILDING",
+                  "SIGNED",
+                  "SUBMITTED",
+                  "PROCESSING",
+                  "SUMMARY_PENDING",
+                  "ACCEPTED",
+                  "ACCEPTED_WITH_OBSERVATIONS",
+                  "REJECTED",
+                  "RETRYABLE_ERROR",
+                  "PERMANENT_ERROR",
+                  "VOID_PENDING",
+                  "VOIDED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "LOCAL",
+              "SUNAT_BETA",
+              "HISTORICAL"
+            ]
+          },
+          "verifiedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "responseCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "local",
+          "fiscal",
+          "transport",
+          "provenance",
+          "verifiedAt",
+          "responseCode"
+        ]
+      },
+      "DocumentSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "system": {
+            "type": "string",
+            "enum": [
+              "BILLING",
+              "AUTHORIZED_HISTORY"
+            ]
+          },
+          "originSystem": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "originId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "system",
+          "originSystem",
+          "originId"
+        ]
+      },
+      "DocumentRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "issuerRuc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "dataset": {
+            "type": "string",
+            "const": "ISSUED_BUSINESS"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03",
+              "07",
+              "08",
+              "09",
+              "31"
+            ]
+          },
+          "branchId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pointId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seriesCounterId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "series": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{4}$"
+          },
+          "number": {
+            "type": "string",
+            "pattern": "^[0-9]{1,20}$"
+          },
+          "fullNumber": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "resourceVersion": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "snapshotSha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuerName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issueDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+          },
+          "issueTime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PEN",
+                  "USD"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Party"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payableAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/DocumentState"
+          },
+          "source": {
+            "$ref": "#/components/schemas/DocumentSource"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "issuerRuc",
+          "environment",
+          "dataset",
+          "type",
+          "branchId",
+          "pointId",
+          "seriesCounterId",
+          "schemaVersion",
+          "id",
+          "series",
+          "number",
+          "fullNumber",
+          "resourceVersion",
+          "observedAt",
+          "snapshotSha256",
+          "issuerName",
+          "issueDate",
+          "issueTime",
+          "issuedAt",
+          "currency",
+          "customer",
+          "payableAmount",
+          "state",
+          "source",
+          "warnings"
+        ]
+      },
+      "DocumentDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "issuerRuc": {
+                "type": "string",
+                "pattern": "^[0-9]{11}$"
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "dataset": {
+                "type": "string",
+                "const": "ISSUED_BUSINESS"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "01",
+                  "03"
+                ]
+              },
+              "branchId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pointId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "seriesCounterId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.integration.v1"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              "series": {
+                "type": "string",
+                "pattern": "^[A-Z0-9]{4}$"
+              },
+              "number": {
+                "type": "string",
+                "pattern": "^[0-9]{1,20}$"
+              },
+              "fullNumber": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "resourceVersion": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "observedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "snapshotSha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issuerName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issueDate": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+              },
+              "issueTime": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issuedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "PEN",
+                      "USD"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customer": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Party"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "payableAmount": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                    "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "state": {
+                "$ref": "#/components/schemas/DocumentState"
+              },
+              "source": {
+                "$ref": "#/components/schemas/DocumentSource"
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "maxItems": 100
+              },
+              "detail": {
+                "$ref": "#/components/schemas/Sale"
+              }
+            },
+            "required": [
+              "issuerRuc",
+              "environment",
+              "dataset",
+              "type",
+              "branchId",
+              "pointId",
+              "seriesCounterId",
+              "schemaVersion",
+              "id",
+              "series",
+              "number",
+              "fullNumber",
+              "resourceVersion",
+              "observedAt",
+              "snapshotSha256",
+              "issuerName",
+              "issueDate",
+              "issueTime",
+              "issuedAt",
+              "currency",
+              "customer",
+              "payableAmount",
+              "state",
+              "source",
+              "warnings",
+              "detail"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "issuerRuc": {
+                "type": "string",
+                "pattern": "^[0-9]{11}$"
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "dataset": {
+                "type": "string",
+                "const": "ISSUED_BUSINESS"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "07",
+                  "08"
+                ]
+              },
+              "branchId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pointId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "seriesCounterId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.integration.v1"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              "series": {
+                "type": "string",
+                "pattern": "^[A-Z0-9]{4}$"
+              },
+              "number": {
+                "type": "string",
+                "pattern": "^[0-9]{1,20}$"
+              },
+              "fullNumber": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "resourceVersion": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "observedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "snapshotSha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issuerName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issueDate": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+              },
+              "issueTime": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issuedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "PEN",
+                      "USD"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customer": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Party"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "payableAmount": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                    "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "state": {
+                "$ref": "#/components/schemas/DocumentState"
+              },
+              "source": {
+                "$ref": "#/components/schemas/DocumentSource"
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "maxItems": 100
+              },
+              "detail": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Sale"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "references": {
+                        "type": "array",
+                        "minItems": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "required": [
+              "issuerRuc",
+              "environment",
+              "dataset",
+              "type",
+              "branchId",
+              "pointId",
+              "seriesCounterId",
+              "schemaVersion",
+              "id",
+              "series",
+              "number",
+              "fullNumber",
+              "resourceVersion",
+              "observedAt",
+              "snapshotSha256",
+              "issuerName",
+              "issueDate",
+              "issueTime",
+              "issuedAt",
+              "currency",
+              "customer",
+              "payableAmount",
+              "state",
+              "source",
+              "warnings",
+              "detail"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "issuerRuc": {
+                "type": "string",
+                "pattern": "^[0-9]{11}$"
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "dataset": {
+                "type": "string",
+                "const": "ISSUED_BUSINESS"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "09",
+                  "31"
+                ]
+              },
+              "branchId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pointId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "seriesCounterId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "schemaVersion": {
+                "type": "string",
+                "const": "factuez.integration.v1"
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              "series": {
+                "type": "string",
+                "pattern": "^[A-Z0-9]{4}$"
+              },
+              "number": {
+                "type": "string",
+                "pattern": "^[0-9]{1,20}$"
+              },
+              "fullNumber": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "resourceVersion": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "observedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "snapshotSha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issuerName": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issueDate": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+              },
+              "issueTime": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "issuedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "PEN",
+                      "USD"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customer": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Party"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "payableAmount": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                    "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "state": {
+                "$ref": "#/components/schemas/DocumentState"
+              },
+              "source": {
+                "$ref": "#/components/schemas/DocumentSource"
+              },
+              "warnings": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "maxItems": 100
+              },
+              "detail": {
+                "$ref": "#/components/schemas/Guide"
+              }
+            },
+            "required": [
+              "issuerRuc",
+              "environment",
+              "dataset",
+              "type",
+              "branchId",
+              "pointId",
+              "seriesCounterId",
+              "schemaVersion",
+              "id",
+              "series",
+              "number",
+              "fullNumber",
+              "resourceVersion",
+              "observedAt",
+              "snapshotSha256",
+              "issuerName",
+              "issueDate",
+              "issueTime",
+              "issuedAt",
+              "currency",
+              "customer",
+              "payableAmount",
+              "state",
+              "source",
+              "warnings",
+              "detail"
+            ]
+          }
+        ]
+      },
+      "PageInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "snapshotAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "changeCheckpoint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "limit",
+          "nextCursor",
+          "snapshotId",
+          "snapshotAt",
+          "expiresAt",
+          "hasMore",
+          "changeCheckpoint"
+        ]
+      },
+      "Coverage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "01",
+                    "03",
+                    "07",
+                    "08",
+                    "09",
+                    "31"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "READY",
+                    "UNSUPPORTED",
+                    "UNAVAILABLE"
+                  ]
+                },
+                "reasonCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "state",
+                "reasonCode"
+              ]
+            },
+            "maxItems": 6
+          },
+          "complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "types",
+          "complete"
+        ]
+      },
+      "DocumentPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentRow"
+            },
+            "maxItems": 500
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "Verification": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "integrity": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "UNVERIFIED",
+              "FAILED"
+            ]
+          },
+          "signature": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "UNVERIFIED",
+              "FAILED",
+              "NOT_APPLICABLE"
+            ]
+          },
+          "trust": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "UNVERIFIED",
+              "FAILED",
+              "NOT_APPLICABLE"
+            ]
+          },
+          "identity": {
+            "type": "string",
+            "enum": [
+              "MATCHED",
+              "UNVERIFIED",
+              "MISMATCH"
+            ]
+          },
+          "checkedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "integrity",
+          "signature",
+          "trust",
+          "identity",
+          "checkedAt"
+        ]
+      },
+      "Artifact": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "UNSIGNED_XML",
+              "SIGNED_XML",
+              "SUBMISSION_ZIP",
+              "CDR_XML",
+              "CDR_ZIP",
+              "ORIGINAL_PDF",
+              "CURRENT_PDF_A4",
+              "CURRENT_PDF_TICKET"
+            ]
+          },
+          "owner": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "DOCUMENT",
+                  "BATCH"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 150,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,149}$"
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "application/xml",
+              "application/zip",
+              "application/pdf"
+            ]
+          },
+          "byteLength": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "AVAILABLE",
+              "MISSING",
+              "PENDING",
+              "NOT_SUPPORTED",
+              "INCONSISTENT"
+            ]
+          },
+          "representation": {
+            "type": "string",
+            "enum": [
+              "ORIGINAL",
+              "CURRENT"
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "LOCAL",
+              "SUNAT_BETA",
+              "HISTORICAL"
+            ]
+          },
+          "verification": {
+            "$ref": "#/components/schemas/Verification"
+          },
+          "rendererVersion": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "profileRevision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generatedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "owner",
+          "fileName",
+          "mediaType",
+          "byteLength",
+          "sha256",
+          "availability",
+          "representation",
+          "provenance",
+          "verification",
+          "rendererVersion",
+          "profileRevision",
+          "generatedAt"
+        ]
+      },
+      "ArtifactList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            },
+            "maxItems": 100
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "warnings"
+        ]
+      },
+      "Batch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "issuerRuc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "RC",
+              "RA"
+            ]
+          },
+          "identifier": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "state": {
+            "$ref": "#/components/schemas/DocumentState"
+          },
+          "membersComplete": {
+            "type": "boolean",
+            "const": true
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "documentId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "01",
+                    "03",
+                    "07",
+                    "08",
+                    "09",
+                    "31"
+                  ]
+                },
+                "fullNumber": {
+                  "type": "string",
+                  "maxLength": 32
+                },
+                "conditionCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "documentVersion": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "documentId",
+                "type",
+                "fullNumber",
+                "conditionCode",
+                "documentVersion"
+              ]
+            },
+            "maxItems": 10000,
+            "minItems": 1
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "id",
+          "issuerRuc",
+          "environment",
+          "kind",
+          "identifier",
+          "state",
+          "membersComplete",
+          "members"
+        ]
+      },
+      "Issuer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "issuerRuc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "legalName": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "issuerRuc",
+          "legalName",
+          "environment",
+          "active"
+        ]
+      },
+      "Branch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "issuerRuc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "establishmentCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "issuerRuc",
+          "code",
+          "name",
+          "active",
+          "address",
+          "establishmentCode"
+        ]
+      },
+      "Point": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "issuerRuc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "01",
+                    "03",
+                    "07",
+                    "08",
+                    "09",
+                    "31"
+                  ]
+                },
+                "label": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9]{4}$"
+                },
+                "active": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "label",
+                "active"
+              ]
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "id",
+          "branchId",
+          "issuerRuc",
+          "code",
+          "name",
+          "active",
+          "series"
+        ]
+      },
+      "IssuerPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issuer"
+            },
+            "maxItems": 500
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "BranchPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Branch"
+            },
+            "maxItems": 500
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "PointPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            },
+            "maxItems": 500
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "Capabilities": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "dataset": {
+            "type": "string",
+            "const": "ISSUED_BUSINESS"
+          },
+          "apiState": {
+            "type": "string",
+            "enum": [
+              "DISABLED",
+              "ENABLED"
+            ]
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "01",
+                    "03",
+                    "07",
+                    "08",
+                    "09",
+                    "31"
+                  ]
+                },
+                "readState": {
+                  "type": "string",
+                  "enum": [
+                    "READY",
+                    "PREPARED_BLOCKED",
+                    "LAB_ONLY",
+                    "DIAGNOSTIC_ONLY",
+                    "UNSUPPORTED"
+                  ]
+                },
+                "originalArtifacts": {
+                  "type": "boolean"
+                },
+                "reasonCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 300
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "readState",
+                "originalArtifacts",
+                "reasonCode"
+              ]
+            },
+            "maxItems": 6
+          },
+          "consistency": {
+            "type": "string",
+            "enum": [
+              "SNAPSHOT_READY",
+              "NOT_READY"
+            ]
+          },
+          "changes": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "NOT_READY"
+            ]
+          },
+          "limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "defaultPageSize": {
+                "type": "integer",
+                "const": 100
+              },
+              "maxPageSize": {
+                "type": "integer",
+                "const": 500
+              },
+              "maxPeriodDays": {
+                "type": "integer",
+                "const": 366
+              },
+              "cursorTtlSeconds": {
+                "type": "integer",
+                "const": 900
+              },
+              "tokenMaxTtlSeconds": {
+                "type": "integer",
+                "const": 300
+              },
+              "exportTtlSeconds": {
+                "type": "integer",
+                "const": 86400
+              },
+              "maxExportBytes": {
+                "type": "integer",
+                "const": 2147483648
+              },
+              "maxBatchMembers": {
+                "type": "integer",
+                "const": 10000
+              }
+            },
+            "required": [
+              "defaultPageSize",
+              "maxPageSize",
+              "maxPeriodDays",
+              "cursorTtlSeconds",
+              "tokenMaxTtlSeconds",
+              "exportTtlSeconds",
+              "maxExportBytes",
+              "maxBatchMembers"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "environment",
+          "dataset",
+          "apiState",
+          "types",
+          "consistency",
+          "changes",
+          "limits"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "INVALID_QUERY",
+                  "INVALID_REQUEST",
+                  "UNAUTHENTICATED",
+                  "INSUFFICIENT_SCOPE",
+                  "RESOURCE_NOT_FOUND",
+                  "CURSOR_CONTEXT_CHANGED",
+                  "CURSOR_EXPIRED",
+                  "SNAPSHOT_EXPIRED",
+                  "EVIDENCE_INCONSISTENT",
+                  "INCOMPLETE_BINDING",
+                  "IDEMPOTENCY_CONFLICT",
+                  "ARTIFACT_UNAVAILABLE",
+                  "EXPORT_EXPIRED",
+                  "SOURCE_NOT_SUPPORTED",
+                  "CONSISTENT_READ_UNAVAILABLE",
+                  "CHANGE_FEED_NOT_READY",
+                  "EXPORT_TOO_LARGE",
+                  "RATE_LIMITED",
+                  "UPSTREAM_UNAVAILABLE",
+                  "INTEGRITY_FAILED"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "retryable": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "retryable"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "error"
+        ]
+      },
+      "ExportFilters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "issuerRuc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA",
+            "default": "BETA"
+          },
+          "dataset": {
+            "type": "string",
+            "const": "ISSUED_BUSINESS",
+            "default": "ISSUED_BUSINESS"
+          },
+          "from": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+          },
+          "to": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+          },
+          "types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "01",
+                "03",
+                "07",
+                "08",
+                "09",
+                "31"
+              ]
+            },
+            "maxItems": 6,
+            "minItems": 1,
+            "uniqueItems": true,
+            "default": [
+              "01",
+              "03",
+              "07",
+              "08",
+              "09",
+              "31"
+            ]
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "pointId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "series": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{4}$"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "PEN",
+              "USD"
+            ]
+          },
+          "fiscalStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_CHECKED",
+              "PENDING",
+              "QUEUED",
+              "BUILDING",
+              "SIGNED",
+              "SUBMITTED",
+              "PROCESSING",
+              "SUMMARY_PENDING",
+              "ACCEPTED",
+              "ACCEPTED_WITH_OBSERVATIONS",
+              "REJECTED",
+              "RETRYABLE_ERROR",
+              "PERMANENT_ERROR",
+              "VOID_PENDING",
+              "VOIDED"
+            ]
+          }
+        },
+        "required": [
+          "issuerRuc",
+          "from",
+          "to"
+        ]
+      },
+      "ExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/ExportFilters"
+          },
+          "artifactKinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "UNSIGNED_XML",
+                "SIGNED_XML",
+                "SUBMISSION_ZIP",
+                "CDR_XML",
+                "CDR_ZIP",
+                "ORIGINAL_PDF",
+                "CURRENT_PDF_A4",
+                "CURRENT_PDF_TICKET"
+              ]
+            },
+            "maxItems": 8,
+            "uniqueItems": true
+          },
+          "missingArtifacts": {
+            "type": "string",
+            "enum": [
+              "FAIL",
+              "REPORT"
+            ]
+          },
+          "dataFormat": {
+            "type": "string",
+            "const": "JSONL"
+          }
+        },
+        "required": [
+          "filters",
+          "artifactKinds",
+          "missingArtifacts",
+          "dataFormat"
+        ]
+      },
+      "ExportJob": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "READY",
+              "FAILED",
+              "EXPIRED"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshotId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshotAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "changeCheckpoint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "documentCount": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "failureCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "INVALID_QUERY",
+                  "INVALID_REQUEST",
+                  "UNAUTHENTICATED",
+                  "INSUFFICIENT_SCOPE",
+                  "RESOURCE_NOT_FOUND",
+                  "CURSOR_CONTEXT_CHANGED",
+                  "CURSOR_EXPIRED",
+                  "SNAPSHOT_EXPIRED",
+                  "EVIDENCE_INCONSISTENT",
+                  "INCOMPLETE_BINDING",
+                  "IDEMPOTENCY_CONFLICT",
+                  "ARTIFACT_UNAVAILABLE",
+                  "EXPORT_EXPIRED",
+                  "SOURCE_NOT_SUPPORTED",
+                  "CONSISTENT_READ_UNAVAILABLE",
+                  "CHANGE_FEED_NOT_READY",
+                  "EXPORT_TOO_LARGE",
+                  "RATE_LIMITED",
+                  "UPSTREAM_UNAVAILABLE",
+                  "INTEGRITY_FAILED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "manifestSha256": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "id",
+          "state",
+          "createdAt",
+          "expiresAt",
+          "snapshotId",
+          "snapshotAt",
+          "changeCheckpoint",
+          "documentCount",
+          "complete",
+          "failureCode",
+          "manifestSha256"
+        ]
+      },
+      "ExportManifest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.export-manifest.v1"
+          },
+          "exportId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "dataset": {
+            "type": "string",
+            "const": "ISSUED_BUSINESS"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ExportFilters"
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "snapshotAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "changeCheckpoint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "documentCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "requestedArtifactKinds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "UNSIGNED_XML",
+                "SIGNED_XML",
+                "SUBMISSION_ZIP",
+                "CDR_XML",
+                "CDR_ZIP",
+                "ORIGINAL_PDF",
+                "CURRENT_PDF_A4",
+                "CURRENT_PDF_TICKET"
+              ]
+            },
+            "maxItems": 8,
+            "uniqueItems": true
+          },
+          "missingArtifactsPolicy": {
+            "type": "string",
+            "enum": [
+              "FAIL",
+              "REPORT"
+            ]
+          },
+          "complete": {
+            "type": "boolean"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^(?:documents\\.jsonl|artifacts/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\\.(?:xml|zip|pdf))$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "byteLength": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "artifactId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "owner": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "DOCUMENT",
+                            "BATCH"
+                          ]
+                        },
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "id"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "documentIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  "maxItems": 10000
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "byteLength",
+                "artifactId",
+                "owner",
+                "documentIds"
+              ]
+            },
+            "maxItems": 100000
+          },
+          "missingArtifacts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "documentId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "UNSIGNED_XML",
+                    "SIGNED_XML",
+                    "SUBMISSION_ZIP",
+                    "CDR_XML",
+                    "CDR_ZIP",
+                    "ORIGINAL_PDF",
+                    "CURRENT_PDF_A4",
+                    "CURRENT_PDF_TICKET"
+                  ]
+                },
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "ARTIFACT_UNAVAILABLE",
+                    "SOURCE_NOT_SUPPORTED",
+                    "INTEGRITY_FAILED",
+                    "INCOMPLETE_BINDING"
+                  ]
+                }
+              },
+              "required": [
+                "documentId",
+                "kind",
+                "code"
+              ]
+            },
+            "maxItems": 100000
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "exportId",
+          "environment",
+          "dataset",
+          "filters",
+          "snapshotId",
+          "snapshotAt",
+          "changeCheckpoint",
+          "createdAt",
+          "expiresAt",
+          "documentCount",
+          "requestedArtifactKinds",
+          "missingArtifactsPolicy",
+          "complete",
+          "coverage",
+          "files",
+          "missingArtifacts"
+        ]
+      },
+      "Change": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03",
+              "07",
+              "08",
+              "09",
+              "31"
+            ]
+          },
+          "issuerRuc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "sequence": {
+            "type": "string",
+            "pattern": "^[0-9]{1,26}$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "DOCUMENT_CREATED",
+              "DOCUMENT_STATE_CHANGED",
+              "ARTIFACT_ADDED",
+              "DOCUMENT_RECONCILED"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "resource": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "issuerRuc": {
+                "type": "string",
+                "pattern": "^[0-9]{11}$"
+              },
+              "environment": {
+                "type": "string",
+                "const": "BETA"
+              },
+              "dataset": {
+                "type": "string",
+                "const": "ISSUED_BUSINESS"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "01",
+                  "03",
+                  "07",
+                  "08",
+                  "09",
+                  "31"
+                ]
+              },
+              "branchId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pointId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "seriesCounterId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "issuerRuc",
+              "environment",
+              "dataset",
+              "type",
+              "branchId",
+              "pointId",
+              "seriesCounterId"
+            ]
+          }
+        },
+        "required": [
+          "eventId",
+          "documentId",
+          "type",
+          "issuerRuc",
+          "environment",
+          "sequence",
+          "kind",
+          "occurredAt",
+          "version",
+          "resource"
+        ]
+      },
+      "ChangePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.integration.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Change"
+            },
+            "maxItems": 500
+          },
+          "nextCheckpoint": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{16,4096}$"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "nextCheckpoint",
+          "hasMore",
+          "expiresAt"
+        ]
+      },
+      "TokenRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "const": "client_credentials"
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Scopes de IntegrationScopes separados por un espacio, sin duplicados. No acepta permisos humanos/SUNAT."
+          }
+        },
+        "required": [
+          "grant_type",
+          "scope"
+        ]
+      },
+      "Token": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "maxLength": 8192
+          },
+          "token_type": {
+            "type": "string",
+            "const": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300
+          },
+          "scope": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in",
+          "scope"
+        ]
+      },
+      "OAuthError": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid_request",
+              "invalid_client",
+              "invalid_scope",
+              "unsupported_grant_type",
+              "temporarily_unavailable"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      }
+    },
+    "responses": {
+      "Error400": {
+        "description": "Error 400; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error401": {
+        "description": "Error 401; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          "WWW-Authenticate": {
+            "schema": {
+              "type": "string",
+              "maxLength": 300
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error403": {
+        "description": "Error 403; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          "WWW-Authenticate": {
+            "schema": {
+              "type": "string",
+              "maxLength": 300
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error404": {
+        "description": "Error 404; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error409": {
+        "description": "Error 409; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error410": {
+        "description": "Error 410; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error422": {
+        "description": "Error 422; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error429": {
+        "description": "Error 429; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Error503": {
+        "description": "Error 503; sin datos de recursos ajenos ni rutas internas.",
+        "headers": {
+          "Cache-Control": {
+            "schema": {
+              "type": "string",
+              "const": "private, no-store"
+            },
+            "description": "No caché de proxy/navegador. Caché interna privada siempre reautoriza."
+          },
+          "X-Request-Id": {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+            }
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

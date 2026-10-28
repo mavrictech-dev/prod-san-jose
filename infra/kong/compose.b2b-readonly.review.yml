@@ -1,0 +1,146 @@
+# Standalone synthetic review fragment. Do not merge into an active stack.
+# Required image/root substitutions are deliberate; no mounted folder is created.
+name: factuez-b2b-readonly-review
+x-owner: &owner
+  image: ${B2B_READONLY_REVIEW_IMAGE:?Set a locally built reviewed image}
+  pull_policy: never
+  init: true
+  read_only: true
+  user: "1000:1000"
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp]
+  networks: [b2b-readonly-review]
+  environment: &owner-env
+    B2B_PRIVATE_ACCESS: "true"
+    B2B_READONLY_OWNER_ENABLED: "true"
+    B2B_READONLY_OWNER_CONFIG_ROOT: /run/b2b
+  healthcheck: &owner-health
+    test:
+      - CMD
+      - node
+      - -e
+      - >-
+        const fs=require('fs'),https=require('https'),c=JSON.parse(fs.readFileSync('/run/b2b/readonly-owner.json','utf8'));
+        const r=https.request({hostname:'127.0.0.1',port:c.listen.port,path:'/internal/b2b/runtime-status',method:'POST',
+        ca:fs.readFileSync('/run/b2b/ca.pem'),cert:fs.readFileSync('/run/b2b/resource.crt'),key:fs.readFileSync('/run/b2b/resource.key'),
+        rejectUnauthorized:true,timeout:3000,headers:{'Content-Type':'application/json','Content-Length':'2'}},
+        s=>{s.resume();s.on('end',()=>process.exit(s.statusCode===200?0:1));});
+        r.on('error',()=>process.exit(1));r.on('timeout',()=>r.destroy());r.end('{}');
+    interval: 10s
+    timeout: 5s
+    retries: 6
+    start_period: 15s
+services:
+  review-db:
+    image: ${B2B_READONLY_POSTGRES_IMAGE:?Set a locally available reviewed PostgreSQL image}
+    pull_policy: never
+    networks: [b2b-readonly-review]
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/postgres/password.bin
+    command: ["postgres", "-c", "ssl=on", "-c", "ssl_cert_file=/run/postgres/server.crt", "-c", "ssl_key_file=/run/postgres/server.key"]
+    tmpfs: [/var/lib/postgresql/data]
+    volumes:
+      - type: bind
+        source: ${B2B_READONLY_REVIEW_ROOT:?Set a NEW synthetic review root}/postgres
+        target: /run/postgres
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${B2B_READONLY_REVIEW_ROOT:?Set a NEW synthetic review root}/init
+        target: /docker-entrypoint-initdb.d
+        read_only: true
+        bind: {create_host_path: false}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  identity-readonly:
+    <<: *owner
+    command: ["node", "services/identity-service/dist/b2b/readonly-host.js"]
+    depends_on: {review-db: {condition: service_healthy}}
+    volumes:
+      - type: bind
+        source: ${B2B_READONLY_REVIEW_ROOT:?Set a NEW synthetic review root}/identity
+        target: /run/b2b
+        read_only: true
+        bind: {create_host_path: false}
+  billing-readonly:
+    <<: *owner
+    command: ["node", "services/billing-service/dist/b2b/readonly-host.js"]
+    depends_on: {review-db: {condition: service_healthy}}
+    volumes:
+      - type: bind
+        source: ${B2B_READONLY_REVIEW_ROOT:?Set a NEW synthetic review root}/billing
+        target: /run/b2b
+        read_only: true
+        bind: {create_host_path: false}
+  fiscal-readonly:
+    <<: *owner
+    command: ["node", "services/sunat-service/dist/b2b/readonly-host.js"]
+    depends_on: {review-db: {condition: service_healthy}}
+    volumes:
+      - type: bind
+        source: ${B2B_READONLY_REVIEW_ROOT:?Set a NEW synthetic review root}/fiscal
+        target: /run/b2b
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${B2B_READONLY_REVIEW_ROOT:?Set a NEW synthetic review root}/originals
+        target: /data/b2b-originals
+        read_only: true
+        bind: {create_host_path: false}
+  webhooks-readonly:
+    <<: *owner
+    command: ["node", "services/webhook-service/dist/main.js"]
+    environment:
+      B2B_WEBHOOKS_ENABLED: "true"
+      B2B_WEBHOOKS_CONFIG_ROOT: /run/b2b
+      B2B_PRIVATE_ACCESS: "true"
+    depends_on: {review-db: {condition: service_healthy}}
+    healthcheck:
+      <<: *owner-health
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const fs=require('fs'),https=require('https'),c=JSON.parse(fs.readFileSync('/run/b2b/runtime.json','utf8'));
+          const r=https.request({hostname:'127.0.0.1',port:c.port,path:'/internal/b2b/runtime-status',method:'POST',
+          ca:fs.readFileSync('/run/b2b/ca.pem'),cert:fs.readFileSync('/run/b2b/resource.crt'),key:fs.readFileSync('/run/b2b/resource.key'),
+          rejectUnauthorized:true,timeout:3000,headers:{'Content-Type':'application/json','Content-Length':'2'}},
+          s=>{s.resume();s.on('end',()=>process.exit(s.statusCode===200?0:1));});
+          r.on('error',()=>process.exit(1));r.on('timeout',()=>r.destroy());r.end('{}');
+    volumes:
+      - type: bind
+        source: ${B2B_READONLY_REVIEW_ROOT:?Set a NEW synthetic review root}/webhooks
+        target: /run/b2b
+        read_only: true
+        bind: {create_host_path: false}
+  api-readonly:
+    <<: *owner
+    command: ["node", "services/b2b-api-service/dist/readonly-main.js"]
+    healthcheck: {disable: true}
+    environment:
+      B2B_PRIVATE_ACCESS: "true"
+      B2B_READONLY_API_ENABLED: "true"
+      B2B_READONLY_CONFIG_ROOT: /run/b2b
+    depends_on:
+      identity-readonly: {condition: service_healthy}
+      billing-readonly: {condition: service_healthy}
+      fiscal-readonly: {condition: service_healthy}
+      webhooks-readonly: {condition: service_healthy}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - type: bind
+        source: ${B2B_READONLY_REVIEW_ROOT:?Set a NEW synthetic review root}/api
+        target: /run/b2b
+        read_only: true
+        bind: {create_host_path: false}
+networks:
+  b2b-readonly-review:
+    internal: true

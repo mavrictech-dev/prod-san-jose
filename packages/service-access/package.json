@@ -1,0 +1,7 @@
+{
+  "name": "@factuez/service-access", "version": "0.1.0", "private": true,
+  "main": "dist/index.js", "types": "dist/index.d.ts",
+  "scripts": { "build": "tsc -p tsconfig.json", "typecheck": "tsc -p tsconfig.json --noEmit" },
+  "dependencies": { "@factuez/contracts": "workspace:*", "@nestjs/common": "11.1.21", "bullmq": "5.58.5", "rxjs": "7.8.2" },
+  "devDependencies": { "typescript": "5.9.2", "@types/node": "20.19.9" }
+}

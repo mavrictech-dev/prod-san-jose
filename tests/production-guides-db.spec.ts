@@ -1,0 +1,67 @@
+import { describe,expect,it,vi } from 'vitest';
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { snapshot09,seals,uuid,now } from './production-guides.fixture';
+import { productionGuidesHash as hash,productionGuidesBytesHash as bytesHash,PRODUCTION_GUIDES_XSD_SHA256 } from '../packages/sunat-core/src/production-guides';
+import { ProductionGuidesOwner } from '../services/billing-service/src/production-guides-owner';
+import { ProductionGuidesBillingRuntime } from '../services/billing-service/src/production-guides-runtime';
+import { ProductionGuidesStore } from '../services/sunat-service/src/production-guides-store';
+import { ProductionGuidesService } from '../services/sunat-service/src/production-guides-service';
+import { ProductionGuidesSunatRuntime } from '../services/sunat-service/src/production-guides-runtime';
+import { signLocalGuideXml } from '../services/sunat-service/src/infrastructure/crypto/guide-artifact-crypto';
+import { createGuideSidecarPki,guideSidecarCdrXml,guideSidecarPackCdr } from './helpers/guide-sidecar-ephemeral-pki.fixture';
+import { renderProductionGuidesPdf } from '../services/sunat-service/src/production-guides-pdf';
+const local=createRequire(import.meta.url),{withCorrectionDatabase}=local('./helpers/correction-reservation-db.cjs');
+/** Every row below belongs to a new network-none/tmpfs PostgreSQL container owned by the existing helper. */
+describe('native production GRE transaction and dispatch on NEW synthetic PostgreSQL',()=>{
+ it('assembles reservation, Outbox, signatures, immutable originals, statuses, UNKNOWN and protected PDF end-to-end',async()=>{
+  await withCorrectionDatabase(async({pool,client}:any)=>{
+   for(const p of ['../services/billing-service/prisma/production-guides.sql','../services/sunat-service/prisma/production-guides.sql'])await pool.query(readFileSync(fileURLToPath(new URL(p,import.meta.url)),'utf8'));
+   const seed=snapshot09(),b=seed.body as any,keys=seals(),actor={userId:seed.actorId,scope:{kind:'GLOBAL' as const}},pki=createGuideSidecarPki(seed.issuer.ruc);
+   await pool.query(`INSERT INTO "CompanySettings" ("id","ruc","legalName","companyType","economicActivities","taxAddress","ubigeo","contactEmails","environment","updatedAt") VALUES (1,$1,$2,'SYNTHETIC',ARRAY[]::text[],'DIRECCION FICTICIA','150101',ARRAY[]::text[],'PRODUCTION',now())`,[seed.issuer.ruc,seed.issuer.legalName]);
+   await pool.query(`INSERT INTO "Branch" ("id","companyId","code","name","establishmentCode") VALUES ($1,1,'SYNTHETIC','SEDE FICTICIA','0001')`,[seed.scope.branchId]);
+   await pool.query(`INSERT INTO "EmissionPoint" ("id","companyId","branchId","code","name","updatedAt") VALUES ($1,1,$2,'SYNTHETIC','PUNTO FICTICIO',now())`,[seed.scope.pointId,seed.scope.branchId]);
+   await pool.query(`INSERT INTO "SeriesCounter" ("id","companyId","emissionPointId","documentType","series","updatedAt") VALUES ($1,1,$2,'DESPATCH_ADVICE','T991',now())`,[seed.scope.seriesCounterId,seed.scope.pointId]);
+   let enabled=true,active=true,admissionFails=false,throwPost=false,failCdr=false;
+   const evidence={credentialRevision:1,certificateFingerprint:pki.issuer.fingerprint,rulesSha256:'b'.repeat(64),xsdSha256:PRODUCTION_GUIDES_XSD_SHA256};
+   const grantEvidence=vi.fn(async()=>evidence),ready=vi.fn(async()=>{if(admissionFails)throw Error('SYNTHETIC_ADMISSION_FAILURE');}),sign=vi.fn(async(s:any,g:any,xml:string)=>{const a=signLocalGuideXml({issuerRuc:s.issuer.ruc,documentType:s.documentType,fullNumber:`${s.series}-${s.number}`,unsignedXml:xml},pki.issuer.pkcs12,pki.password);return {xml:Buffer.from(a.xml),zip:a.zip,xmlSha256:a.xmlSha256,zipSha256:a.zipSha256,fingerprint:a.certificateFingerprintSha256,digest:a.digestValue};});
+   const crypto={ready,sign};const submit=vi.fn(async()=>{if(throwPost)throw Error('SYNTHETIC_CONNECTION_LOST_AFTER_POST');return {ticket:uuid(1000+Number(lastSnapshot.number))};});
+   let lastSnapshot:any;
+   const transport={source:'LOCAL_SYNTHETIC' as const,submit,ticket:vi.fn(async()=>{const s=lastSnapshot;const expected={issuerRuc:s.issuer.ruc,documentType:s.documentType,fullNumber:`${s.series}-${s.number}`,requestXmlSha256:'a'.repeat(64),requestZipSha256:'b'.repeat(64),issuedAt:b.issueDate,receivedAt:now};return {state:'CDR' as const,cdrZip:guideSidecarPackCdr(pki.signCdr(guideSidecarCdrXml(expected)),expected)};})};
+   const store=new ProductionGuidesStore(client,keys.statusSigner,'LOCAL_SYNTHETIC');let service:ProductionGuidesService;
+   const owner=new ProductionGuidesOwner(client,{enabled:()=>enabled,signer:keys.ownerSigner,ownerVerifier:keys.verifier,statusVerifier:keys.verifier,actorCurrent:async()=>({scope:actor.scope,active,canIssue:true}),sunat:{grantEvidence,admit:(s,g)=>service.admit(s,g),status:e=>service.status(e),artifact:(e,k)=>service.artifact(e,k),pdf:e=>service.pdf(e)},now:()=>now});
+   service=new ProductionGuidesService(store,{enabled:()=>enabled,owner:{current:e=>owner.current(e),reference09:async()=>{throw Error('UNUSED_REFERENCE');}},referenceOwner:s=>owner.referenceOwner(s),ownerVerifier:keys.verifier,crypto,transport,cdr:{verify:async bytes=>!failCdr&&pki.cdrVerifier.verify(bytes)},pdf:renderProductionGuidesPdf,now:()=>now});
+   const created=await owner.createSeries({pointId:seed.scope.pointId,series:'V992',expectedPointRevision:1},actor);expect(created).toMatchObject({documentType:'DESPATCH_ADVICE',guideType:'31',series:'V992',nextNumber:'1'});expect((await owner.series(seed.scope.pointId,actor)).series.map(v=>v.series)).toEqual(['T991','V992']);
+   const request={seriesCounterId:seed.scope.seriesCounterId,profile:seed.profile,body:b};
+   await expect(owner.issue(request,uuid(100),actor)).rejects.toThrow('Concesión');
+   await expect(owner.configure(seed.scope.seriesCounterId,{expectedVersion:0,grant:evidence},actor)).rejects.toThrow();expect(grantEvidence).not.toHaveBeenCalled();
+   const grantInput={expectedVersion:0,actorId:actor.userId,enabled:true,profiles:[seed.profile],expectedCredentialRevision:1,expiresAt:'2026-10-24T16:00:00.000Z'};
+   const granted=await owner.configure(seed.scope.seriesCounterId,grantInput,actor);expect(granted.certificateFingerprint).toBe(pki.issuer.fingerprint);expect(grantEvidence).toHaveBeenCalledTimes(1);
+   await expect(owner.configure(seed.scope.seriesCounterId,grantInput,actor)).rejects.toThrow('Concesión cambió');
+   admissionFails=true;await expect(owner.issue(request,uuid(100),actor)).rejects.toThrow('SYNTHETIC_ADMISSION_FAILURE');
+   expect((await pool.query('SELECT count(*)::int AS n FROM "ProductionGuidesReservation"')).rows[0].n).toBe(0);expect((await pool.query(`SELECT "nextNumber" FROM "SeriesCounter" WHERE "series"='T991'`)).rows[0].nextNumber).toBe('1');admissionFails=false;
+   const many=await Promise.all(Array.from({length:10},()=>owner.issue(request,uuid(100),actor)));expect(new Set(many.map(v=>v.documentId)).size).toBe(1);expect(many.filter(v=>!v.deduplicated)).toHaveLength(1);expect((await pool.query(`SELECT "nextNumber" FROM "SeriesCounter" WHERE "series"='T991'`)).rows[0].nextNumber).toBe('2');
+   await expect(owner.issue({...request,body:{...b,grossWeight:'2'}},uuid(100),actor)).rejects.toThrow('Idempotencia');
+   const issued=await owner.event(many[0].documentId,actor);lastSnapshot=issued.snapshot;
+   await expect(owner.event(issued.snapshot.documentId,{...actor,scope:{kind:'ASSIGNED',branchIds:[],emissionPointIds:[],series:[]}})).rejects.toThrow('alcance');
+   await expect(service.ingest({...issued,snapshot:{...issued.snapshot,number:'9'}})).rejects.toThrow('Firma');
+   const billingRuntime=new ProductionGuidesBillingRuntime(client,owner,service,()=>true);expect(await billingRuntime.flush()).toBe(1);expect(await billingRuntime.flush()).toBe(0);
+   const outputs=await Promise.all(Array.from({length:4},()=>service.process(issued.snapshot.documentId)));expect(submit).toHaveBeenCalledTimes(1);expect(sign).toHaveBeenCalledTimes(1);
+   const result=await owner.status(issued.snapshot.documentId,actor);expect(result).toMatchObject({state:'ACCEPTED',source:'LOCAL_SYNTHETIC',officialCdrVerified:false,authorizedForTransfer:false});
+   const artifact=await owner.artifact(issued.snapshot.documentId,'signed-xml',actor);expect(bytesHash(artifact.bytes)).toBe(result.xmlSha256);
+   const signBefore=sign.mock.calls.length;const pdf=await owner.pdf(issued.snapshot.documentId,actor);expect(pdf.subarray(0,5).toString()).toBe('%PDF-');await service.status(issued);await owner.artifact(issued.snapshot.documentId,'cdr-zip',actor);expect(sign).toHaveBeenCalledTimes(signBefore);
+   await expect(pool.query('UPDATE "ProductionGuidesArtifact" SET "bytes"=$1 WHERE "documentId"=$2',[Buffer.from('TAMPER'),issued.snapshot.documentId])).rejects.toThrow('append-only');
+   await expect(pool.query('UPDATE "ProductionGuidesGrant" SET "payload"=$1',[JSON.stringify({enabled:false})])).rejects.toThrow('append-only');
+   const sunatRuntime=new ProductionGuidesSunatRuntime(service,store,e=>owner.applyStatus(e),()=>true);await sunatRuntime.runOnce();
+   expect((await pool.query('SELECT "state","revision" FROM "ProductionGuidesReservation" WHERE "documentId"=$1',[issued.snapshot.documentId])).rows[0]).toEqual({state:'ACCEPTED',revision:4});
+   const statusEvent=(await pool.query('SELECT "event" FROM "ProductionGuidesOwnerStatus" ORDER BY "revision" DESC LIMIT 1')).rows[0].event;await owner.applyStatus(statusEvent);await expect(owner.applyStatus({...statusEvent,result:{...statusEvent.result,state:'REJECTED'}})).rejects.toThrow('Evento');
+   // A new operation owns a new number; one ambiguous POST is durable and never requeued.
+   const second=await owner.issue(request,uuid(101),actor);lastSnapshot=(await owner.event(second.documentId,actor)).snapshot;throwPost=true;await billingRuntime.flush();
+   expect((await service.process(second.documentId)).state).toBe('UNKNOWN');const posts=submit.mock.calls.length;await service.process(second.documentId);await service.tick();expect(submit).toHaveBeenCalledTimes(posts);expect((await store.pending()).some(x=>x.documentId===second.documentId)).toBe(false);
+   active=false;await expect(owner.current(issued)).rejects.toThrow('revocado');active=true;
+   enabled=false;await expect(owner.issue(request,uuid(102),actor)).rejects.toThrow('deshabilitadas');await expect(service.process(second.documentId)).rejects.toThrow('deshabilitadas');enabled=true;
+   await owner.configure(seed.scope.seriesCounterId,{...grantInput,expectedVersion:1,enabled:false},actor);await expect(owner.current(issued)).rejects.toThrow('Concesión');
+  });
+ },120000);
+});

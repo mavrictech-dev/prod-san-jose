@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "factuez.b2b.install-plan.v1",
+  "environment": "BETA",
+  "deploymentId": "bf9d0f2a-bf6a-4c72-8c4a-2a6c8f96f830",
+  "instanceIds": {
+    "api": "f151c4de-144d-4a4e-a403-8a8c6b7a1ef4",
+    "webhooks": "4d38ebd7-185a-4861-8d80-246f9326f411"
+  },
+  "browserOrigin": "https://client.example.invalid",
+  "existingBrowserOrigins": [
+    "https://client.example.invalid"
+  ],
+  "tokenIssuer": "https://identity-b2b.example.invalid",
+  "mountRoot": "/run/factuez/client-b2b-new",
+  "artifactsRoot": "/data/client-b2b-originals",
+  "listenHost": "0.0.0.0",
+  "origins": {
+    "identity": "https://identity-readonly:9010",
+    "billing": "https://billing-readonly:9020",
+    "fiscal": "https://fiscal-readonly:9030",
+    "webhooks": "https://webhooks-readonly:9040",
+    "api": "https://b2b-api-readonly:9000"
+  },
+  "maintenancePorts": {
+    "api": 9001,
+    "webhooks": 9041
+  },
+  "databases": {
+    "identity": {
+      "host": "identity-postgres",
+      "port": 5432,
+      "name": "identity_readonly_beta",
+      "user": "identity_readonly"
+    },
+    "billing": {
+      "host": "billing-postgres",
+      "port": 5432,
+      "name": "billing_readonly_beta",
+      "user": "billing_readonly"
+    },
+    "fiscal": {
+      "host": "fiscal-postgres",
+      "port": 5432,
+      "name": "fiscal_readonly_beta",
+      "user": "fiscal_readonly"
+    },
+    "webhooks": {
+      "host": "webhooks-postgres",
+      "port": 5432,
+      "name": "b2b_webhooks_beta",
+      "user": "webhooks_readonly"
+    }
+  },
+  "nativeIdentityDatabase": {
+    "host": "identity-postgres",
+    "port": 5432,
+    "name": "identity_readonly_beta",
+    "user": "identity_native"
+  },
+  "publicFilesRoot": "public",
+  "caFiles": {
+    "private": "private-ca.pem",
+    "database": "database-ca.pem"
+  },
+  "certificateFiles": {
+    "identityServer": "identity-server.crt",
+    "billingServer": "billing-server.crt",
+    "fiscalServer": "fiscal-server.crt",
+    "webhooksServer": "webhooks-server.crt",
+    "apiServer": "api-server.crt",
+    "resource": "resource.crt",
+    "oauth": "oauth.crt",
+    "edge": "edge.crt",
+    "operator": "operator.crt",
+    "onpremResource": "onprem-resource.crt",
+    "webhookPublisher": "webhook-publisher.crt"
+  },
+  "publicKeyFiles": {
+    "b2bSigning": "b2b-signing-public.pem",
+    "human": "human-public.pem",
+    "integration": "integration-public.pem"
+  }
+}

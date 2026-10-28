@@ -1,0 +1,14 @@
+# Acceso LAN al QA existente. No habilita SUNAT, SMTP externo ni migradores.
+# Usar DESPUES de docker-compose.demo.yml y tests/compose.stage2.qa.yml.
+# FACTUEZ_INTRANET_IP debe ser la IPv4 privada de la interfaz LAN del servidor.
+services:
+  identity-service:
+    environment:
+      AUTH_BROWSER_ORIGINS: "http://127.0.0.1:8091,http://localhost:8091,http://${FACTUEZ_INTRANET_IP:?Define la IPv4 privada de la LAN}:8091"
+  kong:
+    ports: !override
+      - "127.0.0.1:8091:8000"
+      - "${FACTUEZ_INTRANET_IP:?Define la IPv4 privada de la LAN}:8091:8000"
+  realtime-service:
+    environment:
+      WS_ALLOWED_ORIGINS: "http://127.0.0.1:8091,http://localhost:8091,http://${FACTUEZ_INTRANET_IP:?Define la IPv4 privada de la LAN}:8091"

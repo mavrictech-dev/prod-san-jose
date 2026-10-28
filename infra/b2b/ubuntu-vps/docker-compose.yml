@@ -1,0 +1,1329 @@
+{
+  "name": "factuez-b2b-vps-review",
+  "x-review": {
+    "status": "BLOCKED",
+    "activationAllowed": false,
+    "host": "Ubuntu 24.04 amd64; shared 10 CPU / 31 GB",
+    "memoryBudgetBytes": 8000000000,
+    "reportingService": "ABSENT; no image, route, dependency or migration invented",
+    "migrations": "NOT_EXECUTED; candidate SQL is not a deployment migration",
+    "runtime": "INCOMPLETE_OWNER_COMPOSITION"
+  },
+  "services": {
+    "postgres": {
+      "image": "${B2B_POSTGRES_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 805306368,
+      "memswap_limit": 805306368,
+      "cpus": 1,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/data/postgres",
+          "target": "/var/lib/postgresql/data",
+          "read_only": false,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "POSTGRES_DB": "postgres",
+        "POSTGRES_USER": "${B2B_PG_ADMIN_USER:?TI must choose dedicated administrator}",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/postgres_admin_password"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "postgres: upstream entrypoint; initialization/roles need TI plan",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition; select PostgreSQL 17 amd64 digest and review PGDATA contract; no automatic init SQL"
+      },
+      "secrets": [
+        "postgres_admin_password"
+      ]
+    },
+    "redis": {
+      "image": "${B2B_REDIS_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 268435456,
+      "memswap_limit": 268435456,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/data/redis",
+          "target": "/data",
+          "read_only": false,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "redis-server: upstream; password file and ACL need TI plan",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "secrets": [
+        "redis_password"
+      ]
+    },
+    "kong": {
+      "image": "${B2B_KONG_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 268435456,
+      "memswap_limit": 268435456,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/kong.review.json",
+          "target": "/kong/review/kong.review.json",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "KONG_DATABASE": "off",
+        "KONG_ADMIN_LISTEN": "off",
+        "KONG_STATUS_LISTEN": "off",
+        "KONG_PROXY_LISTEN": "0.0.0.0:8000",
+        "KONG_DECLARATIVE_CONFIG": "/kong/review/kong.review.json",
+        "KONG_NGINX_WORKER_PROCESSES": "1",
+        "KONG_PROXY_ACCESS_LOG": "/dev/stdout",
+        "KONG_PROXY_ERROR_LOG": "/dev/stderr"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "kong: upstream; reviewed declarative configuration required",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "ports": [
+        {
+          "target": 8000,
+          "published": "9000",
+          "host_ip": "127.0.0.1",
+          "protocol": "tcp"
+        }
+      ]
+    },
+    "web-pwa": {
+      "image": "${B2B_WEB_PWA_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 536870912,
+      "memswap_limit": 536870912,
+      "cpus": 0.75,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "PORT": "3000"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "apps/web-pwa: Next runtime/image contract pending",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      }
+    },
+    "identity-service": {
+      "image": "${B2B_IDENTITY_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 402653184,
+      "memswap_limit": 402653184,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "PORT": "3001",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "DB_NAME": "${B2B_IDENTITY_DB_NAME:?TI dedicated owner database}",
+        "DB_USER": "${B2B_IDENTITY_DB_USER:?TI dedicated least-privilege owner role}",
+        "DB_PASSWORD_FILE": "/run/secrets/identity_db_password",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/identity-service/src/main.ts: legacy main; B2B owners not assembled",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "secrets": [
+        "identity_db_password",
+        "redis_password",
+        "jwt_private_key",
+        "jwt_public_key",
+        "internal_service_token",
+        "initial_admin_password"
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_started"
+        },
+        "redis": {
+          "condition": "service_started"
+        }
+      }
+    },
+    "billing-service": {
+      "image": "${B2B_BILLING_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 536870912,
+      "memswap_limit": 536870912,
+      "cpus": 0.75,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/data/print-branding",
+          "target": "/data/print-branding",
+          "read_only": false,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "PORT": "3002",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "DB_NAME": "${B2B_BILLING_DB_NAME:?TI dedicated owner database}",
+        "DB_USER": "${B2B_BILLING_DB_USER:?TI dedicated least-privilege owner role}",
+        "DB_PASSWORD_FILE": "/run/secrets/billing_db_password",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/billing-service/src/main.ts: legacy main; B2B owners not assembled",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "secrets": [
+        "billing_db_password",
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token"
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_started"
+        },
+        "redis": {
+          "condition": "service_started"
+        }
+      }
+    },
+    "sunat-service": {
+      "image": "${B2B_SUNAT_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 805306368,
+      "memswap_limit": 805306368,
+      "cpus": 1,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/data/artifacts",
+          "target": "/data/artifacts",
+          "read_only": false,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/data/private",
+          "target": "/data/private",
+          "read_only": false,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "PORT": "3003",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "DB_NAME": "${B2B_SUNAT_DB_NAME:?TI dedicated owner database}",
+        "DB_USER": "${B2B_SUNAT_DB_USER:?TI dedicated least-privilege owner role}",
+        "DB_PASSWORD_FILE": "/run/secrets/sunat_db_password",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "ARTIFACTS_ROOT": "/data/artifacts",
+        "PRIVATE_STORAGE_ROOT": "/data/private",
+        "APP_MASTER_KEY_FILE": "/run/secrets/app_master_key",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/sunat-service/src/main.ts: legacy main; B2B owners not assembled",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "secrets": [
+        "sunat_db_password",
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token",
+        "app_master_key"
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_started"
+        },
+        "redis": {
+          "condition": "service_started"
+        }
+      }
+    },
+    "mailer-worker": {
+      "image": "${B2B_MAILER_WORKER_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 335544320,
+      "memswap_limit": 335544320,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "PORT": "3004",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "DB_NAME": "${B2B_MAILER_DB_NAME:?TI dedicated owner database}",
+        "DB_USER": "${B2B_MAILER_DB_USER:?TI dedicated least-privilege owner role}",
+        "DB_PASSWORD_FILE": "/run/secrets/mailer_db_password",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "APP_MASTER_KEY_FILE": "/run/secrets/app_master_key",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/mailer-worker/src/main.ts: legacy main; corporate B2B owner not assembled",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "secrets": [
+        "mailer_db_password",
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token",
+        "app_master_key"
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_started"
+        },
+        "redis": {
+          "condition": "service_started"
+        }
+      }
+    },
+    "received-documents-service": {
+      "image": "${B2B_RECEIVED_DOCUMENTS_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 536870912,
+      "memswap_limit": 536870912,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "PORT": "3006",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "DB_NAME": "${B2B_RECEIVED_DB_NAME:?TI dedicated owner database}",
+        "DB_USER": "${B2B_RECEIVED_DB_USER:?TI dedicated least-privilege owner role}",
+        "DB_PASSWORD_FILE": "/run/secrets/received_db_password",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "RECEIVED_SETTINGS_KEY_FILE": "/run/secrets/reception_settings_key"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/received-documents-service/src/main.ts: legacy main; B2B owners not assembled",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "secrets": [
+        "received_db_password",
+        "redis_password",
+        "reception_settings_key"
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_started"
+        },
+        "redis": {
+          "condition": "service_started"
+        }
+      }
+    },
+    "received-sync-worker": {
+      "image": "${B2B_RECEIVED_SYNC_WORKER_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 335544320,
+      "memswap_limit": 335544320,
+      "cpus": 0.25,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "DB_NAME": "${B2B_RECEIVED_DB_NAME:?TI dedicated owner database}",
+        "DB_USER": "${B2B_RECEIVED_DB_USER:?TI dedicated least-privilege owner role}",
+        "DB_PASSWORD_FILE": "/run/secrets/received_db_password",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "RECEIVED_SETTINGS_KEY_FILE": "/run/secrets/reception_settings_key"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/received-documents-service/src/automation.worker.ts: legacy worker; B2B LOCAL/READ_ONLY composition pending",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "secrets": [
+        "received_db_password",
+        "redis_password",
+        "reception_settings_key"
+      ],
+      "depends_on": {
+        "postgres": {
+          "condition": "service_started"
+        },
+        "redis": {
+          "condition": "service_started"
+        }
+      }
+    },
+    "realtime-service": {
+      "image": "${B2B_REALTIME_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 201326592,
+      "memswap_limit": 201326592,
+      "cpus": 0.25,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "PORT": "3006",
+        "WS_ALLOWED_ORIGINS": "${B2B_HTTPS_ORIGIN:?TI approved HTTPS subdomain}"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/realtime-service/src/main.ts: existing main; approved origin needed",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "secrets": [
+        "redis_password",
+        "jwt_public_key"
+      ]
+    },
+    "history-service": {
+      "image": "${B2B_HISTORY_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 335544320,
+      "memswap_limit": 335544320,
+      "cpus": 0.25,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "FACTORY_ONLY: services/history-service/src/b2b/http.ts; no main",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "profiles": [
+        "b2b"
+      ]
+    },
+    "b2b-api-service": {
+      "image": "${B2B_B2B_API_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 335544320,
+      "memswap_limit": 335544320,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}",
+        "B2B_API_ENABLED": "false"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "MAIN_SOURCE_UNVERIFIED: src/main.ts bootstrapB2bApi is opt-in, requires PAUSED policy and eight-owner readiness; runtime-assembly.ts builds HTTP graph; owner bootstraps/image/VPS unverified",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "profiles": [
+        "b2b"
+      ]
+    },
+    "webhook-service": {
+      "image": "${B2B_WEBHOOK_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 268435456,
+      "memswap_limit": 268435456,
+      "cpus": 0.25,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "FACTORY_ONLY: createWebhookApplication/WebhookWorker; no main",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "profiles": [
+        "b2b"
+      ]
+    },
+    "integration-export-service": {
+      "image": "${B2B_INTEGRATION_EXPORT_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 335544320,
+      "memswap_limit": 335544320,
+      "cpus": 0.25,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/integration-export-service/src/main.ts: BETA DB guard, mTLS and container-loopback listener; B2B composition pending",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "profiles": [
+        "b2b"
+      ]
+    },
+    "integration-service": {
+      "image": "${B2B_INTEGRATION_SERVICE_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 201326592,
+      "memswap_limit": 201326592,
+      "cpus": 0.25,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "services/integration-service/src/main.ts: gated mTLS container-loopback listener; B2B composition pending",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "profiles": [
+        "b2b"
+      ]
+    },
+    "operations": {
+      "image": "${B2B_OPERATIONS_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 134217728,
+      "memswap_limit": 134217728,
+      "cpus": 0.1,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/b2b-operations.json",
+          "target": "/review/b2b-operations.json",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "METADATA_ONLY: B2bDeploymentMaintenance/B2bMaintenanceNode and B2bOperationalControl are libraries; no composed operator daemon/image",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "profiles": [
+        "operations"
+      ]
+    },
+    "backup-tools": {
+      "image": "${B2B_BACKUP_TOOLS_IMAGE:?TI must supply immutable repository@sha256 digest}",
+      "platform": "linux/amd64",
+      "pull_policy": "never",
+      "restart": "unless-stopped",
+      "mem_limit": 268435456,
+      "memswap_limit": 268435456,
+      "cpus": 0.1,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "networks": [
+        "factuez-vps"
+      ],
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "entrypoint": [
+        "/bin/sh",
+        "/review/review-blocked.sh"
+      ],
+      "command": [],
+      "healthcheck": {
+        "disable": true
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/config/review-blocked.sh",
+          "target": "/review/review-blocked.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "/srv/factuez-vps/backups",
+          "target": "/review/backups",
+          "read_only": false,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "B2B_REVIEW_ONLY": "true",
+        "B2B_TI_REVIEW_REFERENCE": "${B2B_TI_REVIEW_REFERENCE:?BLOCKED pending TI review}"
+      },
+      "x-runtime": {
+        "status": "BLOCKED",
+        "source": "METADATA_ONLY: recovery-bundle.mjs is SYNTHETIC/BETA only; no full backup runtime/image",
+        "executableVerified": false,
+        "proposedCommand": null,
+        "reason": "Review artifact: entrypoint always refuses startup; configuration is not production composition"
+      },
+      "profiles": [
+        "backup"
+      ]
+    }
+  },
+  "networks": {
+    "factuez-vps": {
+      "driver": "bridge"
+    }
+  },
+  "secrets": {
+    "postgres_admin_password": {
+      "file": "/srv/factuez-vps/secrets/postgres_admin_password"
+    },
+    "redis_password": {
+      "file": "/srv/factuez-vps/secrets/redis_password"
+    },
+    "identity_db_password": {
+      "file": "/srv/factuez-vps/secrets/identity_db_password"
+    },
+    "billing_db_password": {
+      "file": "/srv/factuez-vps/secrets/billing_db_password"
+    },
+    "sunat_db_password": {
+      "file": "/srv/factuez-vps/secrets/sunat_db_password"
+    },
+    "mailer_db_password": {
+      "file": "/srv/factuez-vps/secrets/mailer_db_password"
+    },
+    "received_db_password": {
+      "file": "/srv/factuez-vps/secrets/received_db_password"
+    },
+    "jwt_private_key": {
+      "file": "/srv/factuez-vps/secrets/jwt_private_key"
+    },
+    "jwt_public_key": {
+      "file": "/srv/factuez-vps/secrets/jwt_public_key"
+    },
+    "internal_service_token": {
+      "file": "/srv/factuez-vps/secrets/internal_service_token"
+    },
+    "initial_admin_password": {
+      "file": "/srv/factuez-vps/secrets/initial_admin_password"
+    },
+    "app_master_key": {
+      "file": "/srv/factuez-vps/secrets/app_master_key"
+    },
+    "reception_settings_key": {
+      "file": "/srv/factuez-vps/secrets/reception_settings_key"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "factuez.b2b.install-plan-rehearsal.v1",
+  "scope": "Consulta de comprobantes y gestión de webhooks",
+  "existingGeneratorsReviewed": [
+    "infra/b2b/ubuntu-vps/generate-review.mjs",
+    "infra/b2b/deployment-backup/synthetic-local-bundle.mjs"
+  ],
+  "checks": {
+    "nodeSyntax": "PASS",
+    "nodeTests": {
+      "passed": 9,
+      "failed": 0
+    },
+    "publicParserCompatibility": {
+      "passed": 1,
+      "failed": 0
+    },
+    "actualCliMissingPublicInputs": {
+      "state": "PUBLIC_INPUTS_NEED_ACTION",
+      "exitCode": 2,
+      "missingPublicFiles": 16,
+      "actionPerFile": true
+    },
+    "completePublicInputs": {
+      "source": "TEST_ONLY_SYNTHETIC_PUBLIC_CERTIFICATES",
+      "state": "PUBLIC_CONFIGURATION_VALIDATED",
+      "activationAllowed": false,
+      "runtimeReady": false
+    }
+  },
+  "effects": {
+    "appChanged": false,
+    "pwaChanged": false,
+    "qaChanged": false,
+    "apiOrScopesChanged": false,
+    "privateKeysRead": false,
+    "privateKeysGeneratedByCli": false,
+    "network": false,
+    "database": false,
+    "serviceStartup": false,
+    "deployment": false
+  },
+  "pending": [
+    "TI: aportar PKI pública y material privado propio; correspondencia privada se comprueba externamente",
+    "Main: Identity nativo y readonly en la misma base; hosts fijan identity_readonly_beta o requieren composición explícita de factory",
+    "Main: revisar esquemas owner, grants activos, originales Fiscal, imágenes, montajes, routing HTTPS/mTLS",
+    "Main/TI: revisar aprobaciones y habilitación opt-in; configuración generada permanece false/PAUSED",
+    "Billing escritura: integrar publisher persistente para eventos; READ mínimo no produce eventos"
+  ]
+}

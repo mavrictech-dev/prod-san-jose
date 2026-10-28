@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {checkApproval,planDeployment,performUpdate,verifyCoreModel,apps} from '../infra/deployment/cicd/deploy.mjs';
+import {services,digest} from '../infra/deployment/cicd/release.mjs';
+const prefix='ghcr.io/test/factuez';
+const r={format:'factuez.core.release.v1',commit:'a'.repeat(40),platform:'linux/amd64',schemaSha256:'b'.repeat(64),composeSha256:'c'.repeat(64),kongSha256:'d'.repeat(64),images:Object.fromEntries(services.map(s=>[s,prefix+'/'+s+'@sha256:'+'e'.repeat(64)]))};
+const bytes=Buffer.from(JSON.stringify(r)),now=Date.now();
+const config={format:'factuez.core.delivery-config.v1',project:'factuez-production',registryPrefix:prefix,directory:'/srv/delivery',composeFile:'/srv/delivery/core/docker-compose.yml',kongFile:'/srv/delivery/core/kong.yml',publicEnv:'/srv/delivery/public.env',currentImages:'/srv/delivery/current.env',schemaSha256:r.schemaSha256,composeSha256:r.composeSha256,kongSha256:r.kongSha256};
+const approval=()=>({releaseSha256:digest(bytes),schemaCompatible:true,rollbackCompatible:true,backupVerified:true,backupVerifiedAt:new Date(now-1000).toISOString(),backupReference:'/srv/backups/restoration-receipt.json',expiresAt:new Date(now+60000).toISOString()});
+test('approved update touches only eight app processes, not infrastructure',()=>{const p=planDeployment(config,r,bytes);assert.deepEqual(p.services,apps);assert.ok(!p.services.some(s=>['postgres','redis','kong'].includes(s)));assert.equal(checkApproval(approval(),bytes,now).releaseSha256,p.id);});
+for(const field of ['schemaSha256','composeSha256','kongSha256'])test('review required for '+field+' drift',()=>assert.throws(()=>planDeployment({...config,[field]:'f'.repeat(64)},r,bytes)));
+for(const v of ['/var/lib/factuez','/srv/../var/lib','relative/path','/srv/x\n'])test('rejects unsafe state path '+JSON.stringify(v),()=>assert.throws(()=>planDeployment({...config,directory:v},r,bytes)));
+for(const mutate of [a=>a.releaseSha256='f'.repeat(64),a=>a.schemaCompatible=false,a=>a.rollbackCompatible=false,a=>a.backupVerified=false,a=>a.expiresAt=new Date(now-1).toISOString(),a=>a.expiresAt=new Date(now+3*3600000).toISOString(),a=>a.backupVerifiedAt=new Date(now-2*86400000).toISOString(),a=>a.backupReference='/var/backup'])test('denies missing/stale approval '+String(mutate),()=>{const a=approval();mutate(a);assert.throws(()=>checkApproval(a,bytes,now));});
+function fixture(failAt=[]){const calls=[];const io=Object.fromEntries(['preflight','pull','stop','startNew','healthNew','commit','startPrevious','healthPrevious'].map(k=>[k,async()=>{calls.push(k);if(failAt.includes(k))throw Error('synthetic');}]));return {io,calls};}
+test('successful update ordered and commits only after healthy',async()=>{const {io,calls}=fixture();assert.equal(await performUpdate(io),'DEPLOYED');assert.deepEqual(calls,['preflight','pull','stop','startNew','healthNew','commit']);});
+for(const step of ['preflight','pull'])test(step+' failure never stops the installed app',async()=>{const {io,calls}=fixture([step]);await assert.rejects(performUpdate(io));assert.ok(!calls.includes('stop'));});
+for(const step of ['startNew','healthNew','commit'])test(step+' failure restores and checks previous images',async()=>{const {io,calls}=fixture([step]);await assert.rejects(performUpdate(io),/PREVIOUS_IMAGES_RESTORED/);assert.deepEqual(calls.slice(-3),['stop','startPrevious','healthPrevious']);});
+test('failed rollback reports manual recovery without pretending success',async()=>{const {io}=fixture(['healthNew','healthPrevious']);await assert.rejects(performUpdate(io),/MANUAL_RECOVERY_REQUIRED/);});
+const model=()=>JSON.parse(readFileSync(new URL('../infra/deployment/core-production/docker-compose.yml',import.meta.url),'utf8'));
+function resolved(){const m=model();m.services.kong.ports=[{host_ip:'127.0.0.1',published:'9000',target:8000}];return m;}
+test('resolved approved resource budget is accepted',()=>assert.equal(verifyCoreModel(resolved()),true));
+for(const mutate of [m=>m.services.kong.ports[0].host_ip='0.0.0.0',m=>m.services.postgres.ports=[{published:'5432'}],m=>m.services['sunat-service'].mem_limit=9000000000,m=>m.services['web-pwa'].healthcheck.disable=true,m=>m.services.evil={},m=>m.services.redis.logging.options['max-file']='99'])test('deployment independently rejects resource/port drift '+String(mutate),()=>{const m=resolved();mutate(m);assert.throws(()=>verifyCoreModel(m));});
+test('deployer never migrates SQL, resets counters, builds on VPS or stops other projects',()=>{const s=readFileSync(new URL('../infra/deployment/cicd/deploy.mjs',import.meta.url),'utf8');assert.ok(s.includes("'--project-name',config.project"));assert.ok(s.includes("'--no-deps','--no-build','--pull','never'"));assert.ok(!/db push|migrate deploy|system prune|compose down|apt upgrade/.test(s));});

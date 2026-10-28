@@ -1,0 +1,214 @@
+# Prueba local EFÍMERA de la vertical: PWA → Kong → Identity/Billing →
+# Redis/BullMQ → Sunat-service. No monta ni conoce secretos SUNAT reales.
+name: factuez-demo
+
+x-runtime: &runtime
+  NODE_ENV: production
+  TZ: America/Lima
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USER: factuez_demo_app
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD_FILE: /run/secrets/redis_password
+  JWT_ISSUER: factuez-identity
+  JWT_AUDIENCE: factuez-services
+  JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public_key
+  SUNAT_ENVIRONMENT: BETA
+
+x-service-secrets: &service-secrets
+  - demo_db_password
+  - redis_password
+  - jwt_public_key
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: factuez_demo_admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/demo_postgres_password
+    secrets: [demo_postgres_password, demo_db_password]
+    volumes:
+      - factuez_demo_postgres:/var/lib/postgresql/data
+      - ./infra/postgres/demo-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U factuez_demo_admin -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["sh", "-ec", "exec redis-server --appendonly yes --requirepass \"$$(cat /run/secrets/redis_password)\""]
+    secrets: [redis_password]
+    volumes: [factuez_demo_redis:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$(cat /run/secrets/redis_password)\" ping | grep PONG"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate-identity:
+    image: factuez-demo/identity-service:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args: { SERVICE_NAME: "@factuez/identity-service", SERVICE_PATH: "services/identity-service" }
+    working_dir: /workspace/services/identity-service
+    command: ["pnpm", "prisma", "db", "push"]
+    environment: { <<: *runtime, DB_NAME: factuez_identity, DB_PASSWORD_FILE: /run/secrets/demo_db_password }
+    secrets: *service-secrets
+    depends_on: { postgres: { condition: service_healthy } }
+
+  migrate-billing:
+    image: factuez-demo/billing-service:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args: { SERVICE_NAME: "@factuez/billing-service", SERVICE_PATH: "services/billing-service" }
+    working_dir: /workspace/services/billing-service
+    command: ["pnpm", "prisma", "db", "push"]
+    environment: { <<: *runtime, DB_NAME: factuez_billing, DB_PASSWORD_FILE: /run/secrets/demo_db_password }
+    secrets: *service-secrets
+    depends_on: { postgres: { condition: service_healthy } }
+
+  migrate-sunat:
+    image: factuez-demo/sunat-service:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args: { SERVICE_NAME: "@factuez/sunat-service", SERVICE_PATH: "services/sunat-service" }
+    working_dir: /workspace/services/sunat-service
+    command: ["pnpm", "prisma", "db", "push"]
+    environment: { <<: *runtime, DB_NAME: factuez_sunat, DB_PASSWORD_FILE: /run/secrets/demo_db_password }
+    secrets: *service-secrets
+    depends_on: { postgres: { condition: service_healthy } }
+
+  identity-service:
+    image: factuez-demo/identity-service:local
+    environment:
+      <<: *runtime
+      DB_NAME: factuez_identity
+      DB_PASSWORD_FILE: /run/secrets/demo_db_password
+      PORT: "3001"
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private_key
+      LOCAL_BROWSER_SESSION_QA_ENABLED: "true"
+      AUTH_BROWSER_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080"
+      INITIAL_ADMIN_USERNAME: demo.admin
+      INITIAL_ADMIN_FULL_NAME: Administrador de Demo FactuEz
+      INITIAL_ADMIN_PASSWORD_FILE: /run/secrets/initial_admin_password
+    secrets: [demo_db_password, redis_password, jwt_private_key, jwt_public_key, initial_admin_password]
+    depends_on:
+      migrate-identity: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  billing-service:
+    image: factuez-demo/billing-service:local
+    environment:
+      <<: *runtime
+      DB_NAME: factuez_billing
+      DB_PASSWORD_FILE: /run/secrets/demo_db_password
+      PORT: "3002"
+      FACTUEZ_DEMO_SEED: "true"
+      PRINT_SETTINGS_ENABLED: "true"
+      PRINT_BRANDING_ROOT: /data/print-branding
+    secrets: *service-secrets
+    volumes: [factuez_print_branding:/data/print-branding]
+    depends_on:
+      migrate-billing: { condition: service_completed_successfully }
+      identity-service: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  sunat-service:
+    image: factuez-demo/sunat-service:local
+    environment:
+      <<: *runtime
+      DB_NAME: factuez_sunat
+      DB_PASSWORD_FILE: /run/secrets/demo_db_password
+      PORT: "3003"
+      APP_MASTER_KEY_FILE: /run/secrets/app_master_key
+      INTERNAL_SERVICE_TOKEN_FILE: /run/secrets/internal_service_token
+      ARTIFACTS_ROOT: /data/artifacts
+      PRINT_SETTINGS_ENABLED: "true"
+      BILLING_INTERNAL_URL: http://billing-service:3002
+      SUNAT_WORKER_CONCURRENCY: "1"
+      IDENTITY_INTERNAL_URL: http://identity-service:3001
+    secrets: [demo_db_password, redis_password, jwt_public_key, app_master_key, internal_service_token]
+    volumes: [factuez_demo_artifacts:/data/artifacts]
+    depends_on:
+      migrate-sunat: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  web-pwa:
+    image: factuez-demo/web-pwa:local
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web-pwa
+      args: { NEXT_PUBLIC_API_BASE_URL: "" }
+    environment: { PORT: "3000" }
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  kong:
+    image: kong:3.9.3
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_ADMIN_LISTEN: "off"
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_NGINX_WORKER_PROCESSES: "1"
+    ports: ["127.0.0.1:8080:8000"]
+    volumes: ["./infra/kong/kong.demo.yml:/kong/declarative/kong.yml:ro"]
+    depends_on:
+      identity-service: { condition: service_healthy }
+      billing-service: { condition: service_healthy }
+      sunat-service: { condition: service_healthy }
+      web-pwa: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  factuez_demo_postgres:
+  factuez_demo_redis:
+  factuez_demo_artifacts:
+  factuez_print_branding:
+
+secrets:
+  demo_postgres_password:
+    file: "${FACTUEZ_DEMO_SECRETS_DIR:-./.factuez-demo/secrets}/demo_postgres_password.txt"
+  demo_db_password:
+    file: "${FACTUEZ_DEMO_SECRETS_DIR:-./.factuez-demo/secrets}/demo_db_password.txt"
+  redis_password:
+    file: "${FACTUEZ_DEMO_SECRETS_DIR:-./.factuez-demo/secrets}/redis_password.txt"
+  app_master_key:
+    file: "${FACTUEZ_DEMO_SECRETS_DIR:-./.factuez-demo/secrets}/app_master_key.txt"
+  internal_service_token:
+    file: "${FACTUEZ_DEMO_SECRETS_DIR:-./.factuez-demo/secrets}/internal_service_token.txt"
+  jwt_private_key:
+    file: "${FACTUEZ_DEMO_SECRETS_DIR:-./.factuez-demo/secrets}/jwt_private_key.pem"
+  jwt_public_key:
+    file: "${FACTUEZ_DEMO_SECRETS_DIR:-./.factuez-demo/secrets}/jwt_public_key.pem"
+  initial_admin_password:
+    file: "${FACTUEZ_DEMO_SECRETS_DIR:-./.factuez-demo/secrets}/initial_admin_password.txt"

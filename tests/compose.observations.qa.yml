@@ -1,0 +1,17 @@
+# Sólo actualización del runtime QA existente. No inicializa ni migra BD.
+services:
+  identity-service:
+    image: factuez-stage2-qa/identity-service:observations-final-20261010
+    pull_policy: never
+  billing-service:
+    image: factuez-stage2-qa/billing-service:observations-final-20261010
+    pull_policy: never
+  sunat-service:
+    image: factuez-stage2-qa/sunat-service:observations-20261010
+    pull_policy: never
+  mailer-worker:
+    image: factuez-stage2-qa/mailer-worker:observations-20261010
+    pull_policy: never
+  web-pwa:
+    image: factuez-stage2-qa/web-pwa:observations-20261010
+    pull_policy: never

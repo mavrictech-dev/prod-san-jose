@@ -1,0 +1,30 @@
+import { beforeAll,describe,expect,it,vi } from 'vitest';
+import { createServer,type Server } from 'node:https';
+import { X509Certificate } from 'node:crypto';
+import { inspect } from 'node:util';
+import { ProductionGuidesRest,ProductionGuidesHttps } from '../services/sunat-service/src/production-guides-transport';
+import { ProductionGuidesPrivateHttp,productionGuidesPrivatePeer } from '../packages/sunat-core/src/production-guides-private';
+import { productionGuidesBytesHash as hash,PRODUCTION_GUIDES_XSD_SHA256 } from '../packages/sunat-core/src/production-guides';
+import { snapshot09,tlsFixture,uuid } from './production-guides.fixture';
+import type { ProductionGuidesGrant as Grant } from '../packages/contracts/src/production-guides';
+function grant():Grant{return {...snapshot09().scope,actorId:uuid(3),version:1,enabled:true,profiles:['GRE09_PRIVATE04_V1'],credentialRevision:1,certificateFingerprint:'a'.repeat(64),rulesSha256:'b'.repeat(64),xsdSha256:PRODUCTION_GUIDES_XSD_SHA256,expiresAt:'2099-01-01T00:00:00.000Z'};}
+let tls:ReturnType<typeof tlsFixture>;beforeAll(()=>{tls=tlsFixture();});
+async function listen(server:Server){await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));return `https://127.0.0.1:${(server.address() as any).port}`;}
+async function close(server:Server){await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
+describe('GRE local HTTPS contract; official hosts never invoked',()=>{
+ it('scopes OAuth token, uses separate credentials, sends immutable ZIP and queries ticket without retry',async()=>{
+  const calls:any[]=[];const server=createServer({key:tls.key,cert:tls.cert},async(req,res)=>{const chunks:Buffer[]=[];for await(const b of req)chunks.push(Buffer.from(b));const body=Buffer.concat(chunks).toString();calls.push({path:req.url,method:req.method,auth:req.headers.authorization,body});res.setHeader('Content-Type','application/json');res.end(req.url?.includes('oauth2')?JSON.stringify({access_token:'SYNTHETIC_TOKEN',token_type:'Bearer',expires_in:3600}):req.method==='GET'?JSON.stringify({codRespuesta:'98'}):JSON.stringify({numTicket:uuid(91)}));});
+  const origin=await listen(server),authorize=vi.fn(async()=>{}),credentials={withGre:async(g:Grant,work:any)=>work({clientId:'synthetic-client',clientSecret:'SYNTHETIC_GRE_SECRET'},{username:g.issuerRuc+'SYNTHETIC',password:'SYNTHETIC_SOL_PASSWORD'})};
+  const rest=new ProductionGuidesRest({http:new ProductionGuidesHttps({origin,ca:tls.ca}),credentials,authorize,syntheticOrigin:origin});const g=grant(),zip=Buffer.from('SYNTHETIC ZIP BYTES');
+  try{expect(await rest.submit(g,{fileName:g.issuerRuc+'-09-T991-1.zip',xmlSha256:'c'.repeat(64),zipSha256:hash(zip),zip})).toEqual({ticket:uuid(91)});expect(await rest.ticket(g,uuid(91))).toEqual({state:'PENDING'});expect(calls).toHaveLength(3);const oauth=new URLSearchParams(calls[0].body);expect(oauth.get('scope')).toBe('https://api-cpe.sunat.gob.pe');expect(oauth.get('client_secret')).toBe('SYNTHETIC_GRE_SECRET');expect(oauth.get('password')).toBe('SYNTHETIC_SOL_PASSWORD');expect(JSON.parse(calls[1].body)).toEqual({archivo:{nomArchivo:g.issuerRuc+'-09-T991-1.zip',arcGreZip:zip.toString('base64'),hashZip:hash(zip)}});expect(calls[2].method).toBe('GET');expect(rest.source).toBe('LOCAL_SYNTHETIC');expect(inspect(rest)).not.toContain('SYNTHETIC_TOKEN');expect(JSON.stringify(rest)).not.toContain('SECRET');expect(authorize.mock.calls.length).toBe(4);}finally{rest.clear();await close(server);}
+ });
+ it('fails closed on unauthorized action before network or credentials',async()=>{const http={request:vi.fn()},credentials={withGre:vi.fn()},rest=new ProductionGuidesRest({http,credentials,authorize:async()=>{throw Error('DENIED');}});await expect(rest.ticket(grant(),uuid(91))).rejects.toThrow('DENIED');expect(http.request).not.toHaveBeenCalled();expect(credentials.withGre).not.toHaveBeenCalled();});
+ it('requires verified TLS and rejects HTTP, redirects and invalid ticket results',async()=>{
+  expect(()=>new ProductionGuidesHttps({origin:'http://127.0.0.1',ca:tls.ca})).toThrow();const originServer=createServer({key:tls.key,cert:tls.cert},(_q,res)=>{res.statusCode=302;res.setHeader('Location','https://api-cpe.sunat.gob.pe');res.end('{}');});const origin=await listen(originServer);
+  try{await expect(new ProductionGuidesHttps().request({url:origin,method:'GET',headers:{}})).rejects.toThrow();const response=await new ProductionGuidesHttps({origin,ca:tls.ca}).request({url:origin,method:'GET',headers:{}});expect(response.status).toBe(302);await expect(new ProductionGuidesHttps({origin,ca:Buffer.from('INVALID CA')}).request({url:origin,method:'GET',headers:{}})).rejects.toThrow();}finally{await close(originServer);}
+ });
+ it('provides concrete CA/server-pinned mTLS private ports and denies spoofed peers/routes',async()=>{
+  const fingerprint=new X509Certificate(tls.cert).fingerprint256.replaceAll(':','').toLowerCase();const server=createServer({key:tls.key,cert:tls.cert,ca:tls.ca,requestCert:true,rejectUnauthorized:true},async(req,res)=>{try{productionGuidesPrivatePeer(req as any,[fingerprint]);for await(const _b of req){}res.setHeader('Content-Type','application/json');res.end(JSON.stringify({native:true}));}catch{res.statusCode=403;res.end('{}');}});const origin=await listen(server),client=new ProductionGuidesPrivateHttp(origin,{...tls,serverFingerprint:fingerprint});
+  try{expect(await client.post('/internal/production-guides/billing/current',{})).toEqual({native:true});await expect(client.post('/outside',{})).rejects.toThrow('GRE_PRIVATE_ROUTE_DENIED');const wrong=new ProductionGuidesPrivateHttp(origin,{...tls,serverFingerprint:'a'.repeat(64)});await expect(wrong.post('/internal/production-guides/billing/current',{})).rejects.toThrow();wrong.close();expect(()=>productionGuidesPrivatePeer({socket:{encrypted:true,authorized:false,getPeerCertificate:()=>({fingerprint256:fingerprint})} as any},[fingerprint])).toThrow();}finally{client.close();await close(server);}
+ });
+});

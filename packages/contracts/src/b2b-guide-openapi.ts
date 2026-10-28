@@ -1,0 +1,55 @@
+type S=Record<string,any>;
+/** Business planning only: no fiscal profile, allocated number, XML/CDR or transport approval. */
+export function addB2bGuideDraftRoutes(api:S){
+  const s=api.components.schemas,ref=(n:string)=>({$ref:'#/components/schemas/'+n}),uuid={type:'string',format:'uuid'};
+  const obj=(properties:S)=>({type:'object',additionalProperties:false,properties,required:Object.keys(properties)});
+  const text=(maxLength:number)=>({type:'string',minLength:1,maxLength}),decimal=(scale:number)=>({type:'string',pattern:`^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,${scale}})?$`,description:'Decimal exacto estrictamente positivo.'});
+  const flags={candidateOnly:{type:'boolean',const:true},fiscalExecutionEnabled:{type:'boolean',const:false},transmissionAuthorized:{type:'boolean',const:false}};
+  s.GuideDraftBinding=obj({anchor:ref('Context'),guideSeriesId:{...uuid,description:'ID de metadatos DRAFT_ONLY configurados y concedidos explícitamente; no consume un correlativo fiscal.'},guideType:{type:'string',enum:['09','31']}});
+  s.GuideDraftParty=obj({ruc:{type:'string',pattern:'^[0-9]{11}$',description:'RUC con dígito de control válido; dato declarado, no prueba de identidad.'},legalName:text(200)});
+  s.GuideDraftLocation=obj({ubigeo:{type:'string',pattern:'^[0-9]{6}$'},address:text(500),establishmentCode:{type:'string',pattern:'^[0-9]{4}$'}});
+  s.GuideDraftTransport={oneOf:[obj({mode:{type:'string',const:'01'},carrier:obj({...s.GuideDraftParty.properties,mtcRegistration:text(20)})}),obj({mode:{type:'string',const:'02'},vehicle:obj({plate:{type:'string',pattern:'^[A-Z0-9]{6,8}$'},registration:text(40)}),driver:obj({identityType:{type:'string',enum:['1','4']},identityNumber:text(15),firstName:text(100),lastName:text(100),license:text(20)})})]};
+  s.GuideDraftBody=obj({issueDate:{type:'string',format:'date-time',description:'Zona horaria explícita; el propietario normaliza UTC.'},transferDate:{type:'string',format:'date'},reasonCode:{type:'string',pattern:'^[0-9]{2}$',description:'Código declarado para planificación; NO catálogo fiscal aprobado.'},origin:ref('GuideDraftLocation'),destination:ref('GuideDraftLocation'),sender:ref('GuideDraftParty'),recipient:ref('GuideDraftParty'),grossWeight:decimal(3),weightUnit:{type:'string',enum:['KGM','TNE']},transport:ref('GuideDraftTransport'),
+    items:{type:'array',minItems:1,maxItems:100,items:obj({code:text(40),description:text(250),quantity:decimal(6),unitCode:{type:'string',pattern:'^[A-Z0-9]{2,3}$'}})},
+    references:{type:'array',maxItems:20,items:obj({type:{type:'string',enum:['01','03','09','31']},issuerRuc:{type:'string',pattern:'^[0-9]{11}$'},series:{type:'string',pattern:'^[A-Z0-9]{4}$'},number:{type:'string',pattern:'^[0-9]{1,8}$'}})},regulatedGoods:{type:'boolean',description:'Declaración; no valida IQBF/combustibles, permisos ni autoriza su traslado.'}});
+  s.GuideDraftBody.description='Plan de negocio 09/31, no guía fiscal. 09: remitente coincide con RUC del contexto. 31: transporte público y transportista del RUC del contexto, al menos referencia 09 declarada. Referencias, catálogos, licencias y permisos siguen NO VERIFICADOS.';
+  s.GuideDraftPatch={...structuredClone(s.GuideDraftBody),required:[],description:'Reemplazo de campos completos, no merge profundo. No permite null ni cambiar la tupla.'};
+  const etag={type:'string',pattern:'^"v[1-9][0-9]{0,8}"$'};
+  s.GuideDraft=obj({schemaVersion:{type:'string',const:'factuez.b2b.guide-draft.v1'},id:uuid,binding:ref('GuideDraftBinding'),revision:etag,state:{type:'string',enum:['DRAFT','READY','CANCELLED'],description:'READY sólo congela el plan local; no habilita emitir o trasladar.'},body:ref('GuideDraftBody'),bodySha256:{type:'string',pattern:'^[a-f0-9]{64}$'},createdAt:{type:'string',format:'date-time'},updatedAt:{type:'string',format:'date-time'},...flags,authorizedForTransfer:{type:'boolean',const:false},referenceVerification:{type:'string',const:'NOT_VERIFIED'}});
+  s.GuideDraftCreate=obj({binding:ref('GuideDraftBinding'),body:ref('GuideDraftBody')});s.GuideDraftChange=obj({binding:ref('GuideDraftBinding'),body:ref('GuideDraftPatch')});s.GuideDraftFreeze=obj({binding:ref('GuideDraftBinding')});
+  s.GuideDraftPage=obj({items:{type:'array',maxItems:10,items:ref('GuideDraft')},page:obj({limit:{type:'integer',minimum:1,maximum:10},hasMore:{type:'boolean'},nextAfter:{anyOf:[uuid,{type:'null'}]},consistency:{type:'string',const:'LIVE_KEYSET_NOT_A_SNAPSHOT'}})});
+  s.GuideDraftOperation=obj({operationId:uuid,requestId:uuid,draftId:uuid,action:{type:'string',enum:['CREATE','PATCH','READY','CANCEL']},state:{type:'string',const:'SUCCEEDED_LOCAL'},binding:ref('GuideDraftBinding'),...flags});
+  const add=(method:string,path:string,id:string,response:string,body?:string)=>{
+    const read=method==='get',listing=path.endsWith('/guide-drafts')&&read,operation=path.includes('/guide-operations/'),params:S[]=[{name:'X-FactuEz-Actor-Kind',in:'header',required:true,schema:{type:'string',enum:['SERVICE','USER']}}];
+    if(path.includes('{id}'))params.push({name:'id',in:'path',required:true,schema:uuid});
+    if(read){for(const [name,schema]of Object.entries({...s.Context.properties,guideSeriesId:uuid,guideType:{type:'string',enum:['09','31']}}))params.push({name,in:'query',required:true,schema});if(listing)params.push({name:'limit',in:'query',required:false,schema:{type:'integer',minimum:1,maximum:10,default:10}},{name:'after',in:'query',required:false,schema:uuid});}
+    else{params.push({name:'Idempotency-Key',in:'header',required:true,schema:{type:'string',pattern:'^[A-Za-z0-9_-]{16,100}$'}});if(path.includes('{id}'))params.push({name:'If-Match',in:'header',required:true,schema:etag});}
+    const success={description:'Estado comercial local, sin número fiscal ni XML/CDR. Repetir exactamente clave/cuerpo/revisión tras perder una respuesta.',content:{'application/json':{schema:ref(response)}},...(!read?{headers:{ETag:{schema:etag},'X-Operation-Id':{schema:uuid},'X-Idempotent-Replay':{schema:{type:'string',enum:['true','false']}}}}:{})};
+    const responses:S={'200':success};if(method==='post'&&path.endsWith('/guide-drafts'))responses['201']=success;
+    for(const code of [400,401,403,404,409,412,413,428,429,503])responses[String(code)]={description:'Error seguro; sin efectos fiscales o numeración.',content:{'application/json':{schema:ref('Error')}}};
+    api.paths[path]??={};api.paths[path][method]={operationId:id,'x-source-implemented':true,'x-runtime-enabled':false,'x-draft-only':true,'x-required-scopes':['b2b:documents:read',read?'b2b:guides:read':'b2b:guides:write',...(operation?['b2b:guide-operations:read']:[])],security:[{B2bBearer:[],PrivateTransport:[]}],parameters:params,...(body?{requestBody:{required:true,content:{'application/json':{schema:ref(body)}}}}:{}),responses};
+  };
+  add('post','/b2b/v1/guide-drafts','b2bCreateGuideDraft','GuideDraft','GuideDraftCreate');add('get','/b2b/v1/guide-drafts','b2bListGuideDrafts','GuideDraftPage');
+  add('get','/b2b/v1/guide-drafts/{id}','b2bGetGuideDraft','GuideDraft');add('patch','/b2b/v1/guide-drafts/{id}','b2bPatchGuideDraft','GuideDraft','GuideDraftChange');
+  add('post','/b2b/v1/guide-drafts/{id}/ready','b2bFreezeGuideDraft','GuideDraft','GuideDraftFreeze');add('post','/b2b/v1/guide-drafts/{id}/cancel','b2bCancelGuideDraft','GuideDraft','GuideDraftFreeze');
+  add('get','/b2b/v1/guide-operations/{id}','b2bGetGuideOperation','GuideDraftOperation');
+  const preparationFlags={...flags,authorizedForTransfer:{type:'boolean',const:false},numberReserved:{type:'boolean',const:false},signatureVerified:{type:'boolean',const:false},officialRulesValidated:{type:'boolean',const:false},referenceVerification:{type:'string',const:'NOT_VERIFIED'}};
+  s.GuidePreparationBody=structuredClone(s.GuideDraftBody);
+  s.GuidePreparationBody.properties.reasonCode={type:'string',const:'04'};
+  s.GuidePreparationBody.properties.regulatedGoods={type:'boolean',const:false};
+  s.GuidePreparationBody.properties.references={type:'array',maxItems:0};
+  s.GuidePreparationBody.properties.transport=structuredClone(s.GuideDraftTransport.oneOf[1]);
+  s.GuidePreparationBody.properties.transport.properties.vehicle.properties.registration={type:'string',pattern:'^[A-Z0-9]{1,15}$'};
+  s.GuidePreparationBody.properties.transport.properties.driver.properties.license={type:'string',pattern:'^[A-Z0-9]{1,10}$'};
+  s.GuidePreparationBody.description='Perfil de preparación local 09/privado/04. Emisor, remitente y destinatario deben coincidir; establecimientos distintos. Catálogos/registro de establecimientos/bienes regulados y reglas oficiales NO validados.';
+  s.GuidePreparationPlan=obj({schemaVersion:{type:'string',const:'factuez.guide09-preparation-input.v1'},draftId:uuid,draftRevision:etag,draftBodySha256:{type:'string',pattern:'^[a-f0-9]{64}$'},issuer:ref('GuideDraftParty'),body:ref('GuidePreparationBody'),profile:{type:'string',const:'FACTUEZ-BETA-GRE09-PRIVATE04-PREPARATION-v1'},planSha256:{type:'string',pattern:'^[a-f0-9]{64}$'},...preparationFlags});
+  s.GuidePreparation=obj({schemaVersion:{type:'string',const:'factuez.b2b.guide-preparation.v1'},binding:ref('GuideDraftBinding'),plan:ref('GuidePreparationPlan'),
+    gates:{type:'array',const:['NUMBER_RESERVATION','ESTABLISHMENT_MAPPING','CATALOGUES_AND_REGULATED_GOODS','OFFICIAL_XSL_RULES','XSD_ON_SIGNED_XML','SIGNATURE_AND_PKI','SUNAT_TRANSPORT_AND_CDR']},...flags,authorizedForTransfer:{type:'boolean',const:false}});
+  const prepResponses:S={};for(const code of [400,401,403,404,409,412,413,428,429,503])prepResponses[String(code)]={description:'Solicitud inválida, permisos/revisión cambiados o perfil no cubierto; no se numera ni transmite.',content:{'application/json':{schema:ref('Error')}}};
+  prepResponses['200']={description:'Preparación de sólo lectura ligada al hash/revisión READY y al emisor propietario actual. NO emite guía ni XML descargable, no crea operación y no reserva número. No requiere Idempotency-Key.',content:{'application/json':{schema:ref('GuidePreparation')}}};
+  api.paths['/b2b/v1/guide-drafts/{id}/preparation']={post:{operationId:'b2bPrepareGuideDraft',summary:'Preparar borrador 09 privado/04 sin emitir','x-source-implemented':true,'x-runtime-enabled':false,'x-read-only':true,'x-required-scopes':['b2b:documents:read','b2b:guides:read'],
+    security:[{B2bBearer:[],PrivateTransport:[]}],parameters:[{name:'id',in:'path',required:true,schema:uuid},{name:'X-FactuEz-Actor-Kind',in:'header',required:true,schema:{type:'string',enum:['SERVICE','USER']}},{name:'If-Match',in:'header',required:true,schema:etag}],
+    requestBody:{required:true,content:{'application/json':{schema:ref('GuideDraftFreeze')}}},responses:prepResponses}};
+  const count=Object.values(api.paths as Record<string,S>).reduce((n,p)=>n+Object.keys(p).length,0);
+  api.info.description=api.info.description.replace(/^\d+ operaciones/,count+' operaciones')+' Incluye siete operaciones de borradores 09/31 y preflight 09 privado/04, sin numeración fiscal ni autorización de traslado; no cierra B2B-07.';return api;
+}

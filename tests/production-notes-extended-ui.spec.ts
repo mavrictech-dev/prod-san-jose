@@ -1,0 +1,13 @@
+import {describe,it,expect} from 'vitest';
+import {productionExtendedNoteCommand as command} from '../apps/web-pwa/features/workspace/production-notes';
+const series='10000000-0000-4000-8000-000000000001';
+describe('extended note form sends adjustment only',()=>{
+ it.each(['01','02','06'])('full credit %s cannot send caller quantities',code=>{const r=command(series,'07',code,'SYNTHETIC',{'1':{quantity:'900'}},'');expect(r.adjustment).toEqual({documentTypeCode:'07',reasonCode:code,reasonDescription:'SYNTHETIC'});expect(r.profile).toBe('07-08-ON-01-03-PEN-0101-IGV18-v2');});
+ it('description correction sends descriptions, never original monetary fields',()=>expect(command(series,'07','03','Correction',{'1':{correctedDescription:'Corrected'}},'').adjustment).toMatchObject({lines:[{originalLineNumber:1,correctedDescription:'Corrected'}]}));
+ it('global discount sends exact cent allocation and total',()=>expect(command(series,'07','04','Discount',{'1':{amountWithTax:'1.18'},'2':{amountWithTax:'2.36'}},'').adjustment).toMatchObject({amountWithTax:'3.54',lines:[{originalLineNumber:1,amountWithTax:'1.18'},{originalLineNumber:2,amountWithTax:'2.36'}]}));
+ it.each(['05','09'])('unit credit %s contains selected source line IDs and adjustment',code=>expect(command(series,'07',code,'Discount',{'1':{unitPriceAdjustmentWithTax:'1.18'}},'').adjustment).toMatchObject({lines:[{originalLineNumber:1,unitPriceAdjustmentWithTax:'1.18'}]}));
+ it('return uses quantity; bonus and other concepts have explicit fields',()=>{expect(command(series,'07','07','Return',{'1':{quantity:'0.5'}},'').adjustment).toMatchObject({lines:[{originalLineNumber:1,quantity:'0.5'}]});expect(command(series,'07','08','Bonus',{'1':{bonusAmountWithTax:'1.18',description:'Bonus'}},'').adjustment).toHaveProperty('lines');expect(command(series,'07','10','Other',{'1':{quantity:'1',unitPriceAdjustmentWithTax:'1.18',description:'Other'}},'').adjustment).toHaveProperty('lines');});
+ it('late interest requires its documented legal nature and amount',()=>{const f={'1':{interestAmount:'5.00'}};expect(()=>command(series,'08','01','Interest',f,'')).toThrow();expect(command(series,'08','01','Interest',f,'Documented late payment').adjustment).toMatchObject({interestNature:'MORATORIO',interestBasis:'Documented late payment',lines:[{originalLineNumber:1,interestAmount:'5.00'}]});});
+ it.each(['-1','0','NaN','1e3','1,18'])('rejects invalid monetary change %s',v=>expect(()=>command(series,'08','02','Change',{'1':{unitPriceAdjustmentWithTax:v}},'')).toThrow());
+ it('does not allow unsupported export/IVAP/installment codes',()=>{for(const c of ['11','12','13'])expect(()=>command(series,'07',c,'Unsupported',{},'')).toThrow();});
+});

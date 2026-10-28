@@ -1,0 +1,5 @@
+# Local QA only: permits saving a test Gmail configuration; does not enable SMTP transmission.
+services:
+  mailer-worker:
+    environment:
+      SMTP_APPROVED_HOSTS: smtp.gmail.com

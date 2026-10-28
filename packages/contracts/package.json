@@ -1,0 +1,123 @@
+{
+  "name": "@factuez/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./client-intake": {
+      "types": "./dist/client-intake.d.ts",
+      "require": "./dist/client-intake.js",
+      "default": "./dist/client-intake.js"
+    },
+    "./integration": {
+      "types": "./dist/integration-extraction.d.ts",
+      "require": "./dist/integration-extraction.js",
+      "default": "./dist/integration-extraction.js"
+    },
+    "./integration-openapi": {
+      "types": "./dist/integration-openapi.d.ts",
+      "require": "./dist/integration-openapi.js",
+      "default": "./dist/integration-openapi.js"
+    },
+    "./b2b": {
+      "types": "./dist/b2b.d.ts",
+      "require": "./dist/b2b.js",
+      "default": "./dist/b2b.js"
+    },
+    "./b2b-openapi": {
+      "types": "./dist/b2b-openapi.d.ts",
+      "require": "./dist/b2b-openapi.js",
+      "default": "./dist/b2b-openapi.js"
+    },
+    "./b2b-webhooks": {
+      "types": "./dist/b2b-webhooks.d.ts",
+      "require": "./dist/b2b-webhooks.js",
+      "default": "./dist/b2b-webhooks.js"
+    },
+    "./b2b-security": {
+      "types": "./dist/b2b-security.d.ts",
+      "require": "./dist/b2b-security.js",
+      "default": "./dist/b2b-security.js"
+    },
+    "./b2b-guide-security": {
+      "types": "./dist/b2b-guide-security.d.ts",
+      "require": "./dist/b2b-guide-security.js",
+      "default": "./dist/b2b-guide-security.js"
+    },
+    "./b2b-read-query": {
+      "types": "./dist/b2b-read-query.d.ts",
+      "require": "./dist/b2b-read-query.js",
+      "default": "./dist/b2b-read-query.js"
+    },
+    "./b2b-report-view": {
+      "types": "./dist/b2b-report-view.d.ts",
+      "require": "./dist/b2b-report-view.js",
+      "default": "./dist/b2b-report-view.js"
+    },
+    "./production-guides": {
+      "types": "./dist/production-guides.d.ts",
+      "require": "./dist/production-guides.js",
+      "default": "./dist/production-guides.js"
+    },
+    "./production-batches": {
+      "types": "./dist/production-batches.d.ts",
+      "require": "./dist/production-batches.js",
+      "default": "./dist/production-batches.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "client-intake": [
+        "dist/client-intake.d.ts"
+      ],
+      "integration": [
+        "dist/integration-extraction.d.ts"
+      ],
+      "integration-openapi": [
+        "dist/integration-openapi.d.ts"
+      ],
+      "b2b": [
+        "dist/b2b.d.ts"
+      ],
+      "b2b-openapi": [
+        "dist/b2b-openapi.d.ts"
+      ],
+      "b2b-webhooks": [
+        "dist/b2b-webhooks.d.ts"
+      ],
+      "b2b-security": [
+        "dist/b2b-security.d.ts"
+      ],
+      "b2b-guide-security": [
+        "dist/b2b-guide-security.d.ts"
+      ],
+      "b2b-read-query": [
+        "dist/b2b-read-query.d.ts"
+      ],
+      "b2b-report-view": [
+        "dist/b2b-report-view.d.ts"
+      ],
+      "production-guides": [
+        "dist/production-guides.d.ts"
+      ],
+      "production-batches": [
+        "dist/production-batches.d.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run src"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "vitest": "4.1.8"
+  }
+}

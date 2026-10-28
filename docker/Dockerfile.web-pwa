@@ -1,0 +1,29 @@
+ARG NODE_BASE_IMAGE=node:22-bookworm-slim
+FROM ${NODE_BASE_IMAGE}
+
+WORKDIR /workspace
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY services ./services
+
+RUN pnpm install --frozen-lockfile
+
+ARG NEXT_PUBLIC_API_BASE_URL=""
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+ARG NEXT_PUBLIC_B2B_ADMIN_PROFILE="SSO"
+ENV NEXT_PUBLIC_B2B_ADMIN_PROFILE=${NEXT_PUBLIC_B2B_ADMIN_PROFILE}
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN pnpm --filter @factuez/contracts build \
+    && pnpm --filter @factuez/sunat-core build \
+    && pnpm --filter @factuez/shadow-core... build \
+    && pnpm --filter @factuez/web-pwa build
+
+WORKDIR /workspace/apps/web-pwa
+ENV NODE_ENV=production
+ENV PORT=3000
+
+CMD ["pnpm", "start"]

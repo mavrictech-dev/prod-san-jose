@@ -1,0 +1,11 @@
+{
+  "profile": "SUNAT-XSD-20220228-SHA5cac9d93-v1",
+  "archive": "xsd-20220228.zip",
+  "sha256": "5cac9d9353521340fbc15d23f465a4946b004535b9ff411541c87da01694dbd5",
+  "sizeBytes": 609363,
+  "source": "https://cpe.sunat.gob.pe/sites/default/files/inline-files/Archivos%20XSD%20%281%29.zip",
+  "downloadedAt": "2026-10-01",
+  "publisherListedDate": "2022-02-28",
+  "documents": { "Invoice": "2.1/maindoc/UBL-Invoice-2.1.xsd", "SummaryDocuments": "2.0/maindoc/UBLPE-SummaryDocuments-1.0.xsd" },
+  "scope": "Structural XSD validation only. No fiscal business rules, PKI or SUNAT acceptance."
+}

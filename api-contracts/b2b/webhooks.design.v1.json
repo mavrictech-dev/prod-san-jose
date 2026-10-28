@@ -1,0 +1,1205 @@
+{
+  "schemaVersion": "factuez.webhook.v1",
+  "status": "DESIGN_ONLY_NOT_IMPLEMENTED",
+  "environment": "BETA",
+  "events": [
+    "document.created.v1",
+    "document.issued-locally.v1",
+    "document.tax-transport-updated.v1",
+    "document.tax-acceptance-verified.v1",
+    "document.tax-rejection-verified.v1",
+    "document.artifact-available.v1",
+    "credit-note.updated.v1",
+    "debit-note.updated.v1",
+    "guide.updated.v1",
+    "export.ready.v1",
+    "email.delivery-updated.v1",
+    "received-document.imported.v1"
+  ],
+  "schemas": {
+    "WebhookEvent": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "document.created.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "document.issued-locally.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "document.tax-transport-updated.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "document.tax-acceptance-verified.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "evidence": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "artifactId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "provenance": {
+                      "type": "string",
+                      "const": "SUNAT_BETA"
+                    },
+                    "signature": {
+                      "type": "string",
+                      "const": "VERIFIED"
+                    },
+                    "trust": {
+                      "type": "string",
+                      "const": "VERIFIED"
+                    },
+                    "identity": {
+                      "type": "string",
+                      "const": "MATCHED"
+                    },
+                    "binding": {
+                      "type": "string",
+                      "const": "VERIFIED"
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "const": "ACCEPTED"
+                    },
+                    "checkedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "artifactId",
+                    "provenance",
+                    "signature",
+                    "trust",
+                    "identity",
+                    "binding",
+                    "outcome",
+                    "checkedAt"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "evidence"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "document.tax-rejection-verified.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "evidence": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "artifactId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "provenance": {
+                      "type": "string",
+                      "const": "SUNAT_BETA"
+                    },
+                    "signature": {
+                      "type": "string",
+                      "const": "VERIFIED"
+                    },
+                    "trust": {
+                      "type": "string",
+                      "const": "VERIFIED"
+                    },
+                    "identity": {
+                      "type": "string",
+                      "const": "MATCHED"
+                    },
+                    "binding": {
+                      "type": "string",
+                      "const": "VERIFIED"
+                    },
+                    "outcome": {
+                      "type": "string",
+                      "const": "REJECTED"
+                    },
+                    "checkedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "artifactId",
+                    "provenance",
+                    "signature",
+                    "trust",
+                    "identity",
+                    "binding",
+                    "outcome",
+                    "checkedAt"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "evidence"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "document.artifact-available.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                },
+                "artifactId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "artifactKind": {
+                  "type": "string",
+                  "enum": [
+                    "SIGNED_XML",
+                    "CDR_XML",
+                    "SUBMISSION_ZIP",
+                    "PDF_A4",
+                    "PDF_TICKET"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance",
+                "artifactId",
+                "artifactKind"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "credit-note.updated.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "debit-note.updated.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "guide.updated.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "GUIDE"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "export.ready.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "EXPORT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "email.delivery-updated.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "EMAIL_DELIVERY"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "received-document.imported.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "RECEIVED_DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        }
+      ]
+    }
+  },
+  "delivery": {
+    "semantics": "AT_LEAST_ONCE",
+    "ordering": "NOT_GLOBAL",
+    "eventId": "Stable business event; receiver deduplicates durably.",
+    "deliveryId": "Stable per subscription/event, including retries.",
+    "attemptId": "Unique per HTTP attempt.",
+    "signature": {
+      "standard": "Standard Webhooks",
+      "algorithm": "HMAC-SHA256",
+      "headers": [
+        "webhook-id",
+        "webhook-timestamp",
+        "webhook-signature"
+      ],
+      "webhookIdValue": "deliveryId",
+      "signedContent": "webhook-id + \".\" + webhook-timestamp + \".\" + exactRawBody",
+      "replayWindowSeconds": 300
+    },
+    "timeoutSeconds": 10,
+    "maxAttempts": 8,
+    "retryHorizonSeconds": 86400,
+    "verifiedDestinationRequired": true,
+    "redirectsAllowed": false,
+    "authorizedReplayRequired": true,
+    "currentGrantRequired": true,
+    "payloadContainsDownloadUrls": false,
+    "payloadContainsXml": false
+  }
+}

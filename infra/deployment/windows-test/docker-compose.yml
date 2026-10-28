@@ -1,0 +1,1471 @@
+{
+  "name": "factuez-san-jose-test",
+  "x-contract": {
+    "scope": "Windows 11 Pro local test installation; no official fiscal or external mail transmission",
+    "newDatabasesOnly": true,
+    "memoryBudgetBytes": 8000000000,
+    "firstAdmin": "Explicit local bootstrap; disable after first login"
+  },
+  "services": {
+    "postgres": {
+      "image": "postgres:17-alpine",
+      "restart": "unless-stopped",
+      "mem_limit": 1400000000,
+      "memswap_limit": 1400000000,
+      "cpus": 1.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "60s",
+      "command": [
+        "postgres",
+        "-c",
+        "shared_buffers=384MB",
+        "-c",
+        "work_mem=8MB",
+        "-c",
+        "max_connections=100"
+      ],
+      "environment": {
+        "TZ": "America/Lima",
+        "POSTGRES_DB": "postgres",
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/postgres_admin_password"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "pgdata",
+          "target": "/var/lib/postgresql/data"
+        },
+        {
+          "type": "bind",
+          "source": "./init-postgres.sh",
+          "target": "/docker-entrypoint-initdb.d/01-init.sh",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "../../../.installation/windows-test/schemas",
+          "target": "/schema",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "networks": [
+        "private-db"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "test -f /var/lib/postgresql/data/factuez-schema-ready && pg_isready -h 127.0.0.1 -U postgres -d postgres"
+        ],
+        "interval": "10s",
+        "timeout": "5s",
+        "retries": 40,
+        "start_period": "60s"
+      },
+      "secrets": [
+        "postgres_admin_password",
+        "identity_db_password",
+        "billing_db_password",
+        "sunat_db_password",
+        "mailer_db_password",
+        "received_db_password"
+      ]
+    },
+    "redis": {
+      "image": "redis:7.4-alpine",
+      "restart": "unless-stopped",
+      "mem_limit": 450000000,
+      "memswap_limit": 450000000,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "user": "1000:1000",
+      "command": [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--appendfsync",
+        "everysec",
+        "--aclfile",
+        "/run/secrets/redis_acl",
+        "--maxmemory",
+        "268435456",
+        "--maxmemory-policy",
+        "noeviction",
+        "--save",
+        ""
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "redis_data",
+          "target": "/data",
+          "volume": {
+            "nocopy": true
+          }
+        }
+      ],
+      "secrets": [
+        "redis_acl",
+        "redis_password"
+      ],
+      "networks": [
+        "private-db"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "REDISCLI_AUTH=\"$$(cat /run/secrets/redis_password)\" redis-cli --no-auth-warning ping | grep -qx PONG"
+        ],
+        "interval": "10s",
+        "timeout": "5s",
+        "retries": 10,
+        "start_period": "15s"
+      },
+      "depends_on": {
+        "prepare-volumes": {
+          "condition": "service_completed_successfully"
+        }
+      }
+    },
+    "identity-service": {
+      "image": "factuez-windows-test/identity-service:local",
+      "restart": "unless-stopped",
+      "mem_limit": 450000000,
+      "memswap_limit": 450000000,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "init": true,
+      "working_dir": "/workspace",
+      "user": "1000:1000",
+      "command": [
+        "node",
+        "services/identity-service/dist/main.js"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "JWT_ISSUER": "factuez-identity",
+        "JWT_AUDIENCE": "factuez-services",
+        "JWT_PUBLIC_KEY_FILE": "/run/secrets/jwt_public_key",
+        "IDENTITY_INTERNAL_URL": "http://identity-service:3001",
+        "BILLING_INTERNAL_URL": "http://billing-service:3002",
+        "SUNAT_INTERNAL_URL": "http://sunat-service:3003",
+        "B2B_IDENTITY_ENABLED": "false",
+        "B2B_ONPREM_ADMIN_ENABLED": "false",
+        "B2B_READONLY_OWNER_ENABLED": "false",
+        "B2B_READONLY_API_ENABLED": "false",
+        "B2B_API_ENABLED": "false",
+        "B2B_MAILER_ENABLED": "false",
+        "B2B_RECEIVED_ENABLED": "false",
+        "B2B_SUNAT_RUNTIME_ENABLED": "false",
+        "BILLING_B2B_STANDALONE": "false",
+        "B2B_PRIVATE_ACCESS": "false",
+        "INTEGRATION_IDENTITY_ENABLED": "false",
+        "INTEGRATION_BILLING_CAPTURE_ENABLED": "false",
+        "INTEGRATION_BILLING_CHANGES_ENABLED": "false",
+        "CLIENT_INTAKE_QA_ENABLED": "false",
+        "FISCAL_CIRCUIT_QA_ENABLED": "false",
+        "FISCAL_BATCH_QA_ENABLED": "false",
+        "GRE_QA_ENABLED": "false",
+        "GRE_EXTERNAL_TRANSMISSION_ENABLED": "false",
+        "NOTES_QA_ENABLED": "false",
+        "SUNAT_BETA_WORKFLOW_ENABLED": "false",
+        "SUNAT_BETA_TRANSMISSION_ENABLED": "false",
+        "LOCAL_XML_VALIDATION_ENABLED": "false",
+        "LOCAL_MAIL_QA_ENABLED": "false",
+        "SMTP_QA_USE_APP_KEY": "false",
+        "SMTP_CONNECTION_DIAGNOSTICS_ENABLED": "false",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "LOCAL_BROWSER_SESSION_QA_ENABLED": "true",
+        "PORT": "3001",
+        "NODE_OPTIONS": "--max-old-space-size=384",
+        "DB_NAME": "factuez_identity",
+        "DB_USER": "factuez_identity",
+        "DB_PASSWORD_FILE": "/run/secrets/identity_db_password",
+        "JWT_PRIVATE_KEY_FILE": "/run/secrets/jwt_private_key",
+        "JWT_ACCESS_TOKEN_TTL_SECONDS": "900",
+        "AUTH_BROWSER_ORIGINS": "http://localhost:8091,http://127.0.0.1:8091",
+        "INITIAL_ADMIN_USERNAME": "${FIRST_ADMIN_USERNAME:-}",
+        "INITIAL_ADMIN_FULL_NAME": "${FIRST_ADMIN_FULL_NAME:-Administrador San Jose}",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token",
+        "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
+        "INITIAL_ADMIN_PASSWORD_FILE": "/run/secrets/initial_admin_password",
+        "SUNAT_ENVIRONMENT": "BETA",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
+        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+      },
+      "secrets": [
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token",
+        "identity_db_password",
+        "jwt_private_key",
+        "initial_admin_password"
+      ],
+      "networks": [
+        "private-db",
+        "core"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=201326592,mode=1777"
+      ],
+      "read_only": true,
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy"
+        },
+        "redis": {
+          "condition": "service_healthy"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health',{signal:AbortSignal.timeout(3000),redirect:'error'}).then(r=>{r.body?.cancel();process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      },
+      "build": {
+        "context": "../../..",
+        "dockerfile": "docker/Dockerfile.service",
+        "args": {
+          "SERVICE_NAME": "@factuez/identity-service",
+          "SERVICE_PATH": "services/identity-service"
+        }
+      }
+    },
+    "billing-service": {
+      "image": "factuez-windows-test/billing-service:local",
+      "restart": "unless-stopped",
+      "mem_limit": 750000000,
+      "memswap_limit": 750000000,
+      "cpus": 1,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "init": true,
+      "working_dir": "/workspace",
+      "user": "1000:1000",
+      "command": [
+        "node",
+        "services/billing-service/dist/main.js"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "JWT_ISSUER": "factuez-identity",
+        "JWT_AUDIENCE": "factuez-services",
+        "JWT_PUBLIC_KEY_FILE": "/run/secrets/jwt_public_key",
+        "IDENTITY_INTERNAL_URL": "http://identity-service:3001",
+        "BILLING_INTERNAL_URL": "http://billing-service:3002",
+        "SUNAT_INTERNAL_URL": "http://sunat-service:3003",
+        "B2B_IDENTITY_ENABLED": "false",
+        "B2B_ONPREM_ADMIN_ENABLED": "false",
+        "B2B_READONLY_OWNER_ENABLED": "false",
+        "B2B_READONLY_API_ENABLED": "false",
+        "B2B_API_ENABLED": "false",
+        "B2B_MAILER_ENABLED": "false",
+        "B2B_RECEIVED_ENABLED": "false",
+        "B2B_SUNAT_RUNTIME_ENABLED": "false",
+        "BILLING_B2B_STANDALONE": "false",
+        "B2B_PRIVATE_ACCESS": "false",
+        "INTEGRATION_IDENTITY_ENABLED": "false",
+        "INTEGRATION_BILLING_CAPTURE_ENABLED": "false",
+        "INTEGRATION_BILLING_CHANGES_ENABLED": "false",
+        "CLIENT_INTAKE_QA_ENABLED": "false",
+        "FISCAL_CIRCUIT_QA_ENABLED": "false",
+        "FISCAL_BATCH_QA_ENABLED": "false",
+        "GRE_QA_ENABLED": "false",
+        "GRE_EXTERNAL_TRANSMISSION_ENABLED": "false",
+        "NOTES_QA_ENABLED": "false",
+        "SUNAT_BETA_WORKFLOW_ENABLED": "false",
+        "SUNAT_BETA_TRANSMISSION_ENABLED": "false",
+        "LOCAL_XML_VALIDATION_ENABLED": "false",
+        "LOCAL_MAIL_QA_ENABLED": "false",
+        "SMTP_QA_USE_APP_KEY": "false",
+        "SMTP_CONNECTION_DIAGNOSTICS_ENABLED": "false",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "LOCAL_BROWSER_SESSION_QA_ENABLED": "false",
+        "PORT": "3002",
+        "NODE_OPTIONS": "--max-old-space-size=512",
+        "DB_NAME": "factuez_billing",
+        "DB_USER": "factuez_billing",
+        "DB_PASSWORD_FILE": "/run/secrets/billing_db_password",
+        "PRINT_SETTINGS_ENABLED": "true",
+        "PRINT_BRANDING_ROOT": "/data/print-branding",
+        "STATION_MASTER_CRUD_ENABLED": "true",
+        "BILLING_PRODUCTION_ISSUANCE_ENABLED": "false",
+        "BILLING_PRODUCTION_NOTES_ENABLED": "false",
+        "WORKSPACE_LIVE_ENABLED": "true",
+        "PRODUCTION_NOTES_OWNER_KEY_FILE": "/run/secrets/production_notes_owner_key",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token",
+        "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
+        "FACTUEZ_DEMO_SEED": "false",
+        "SUNAT_ENVIRONMENT": "BETA",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
+        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+      },
+      "secrets": [
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token",
+        "billing_db_password",
+        "production_notes_owner_key"
+      ],
+      "networks": [
+        "private-db",
+        "core"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=201326592,mode=1777"
+      ],
+      "read_only": true,
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy"
+        },
+        "redis": {
+          "condition": "service_healthy"
+        },
+        "identity-service": {
+          "condition": "service_healthy"
+        },
+        "prepare-volumes": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3002/health',{signal:AbortSignal.timeout(3000),redirect:'error'}).then(r=>{r.body?.cancel();process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "billing_service_print_branding",
+          "target": "/data/print-branding",
+          "volume": {
+            "nocopy": true
+          }
+        }
+      ],
+      "build": {
+        "context": "../../..",
+        "dockerfile": "docker/Dockerfile.service",
+        "args": {
+          "SERVICE_NAME": "@factuez/billing-service",
+          "SERVICE_PATH": "services/billing-service"
+        }
+      }
+    },
+    "sunat-service": {
+      "image": "factuez-windows-test/sunat-service:local",
+      "restart": "unless-stopped",
+      "mem_limit": 1800000000,
+      "memswap_limit": 1800000000,
+      "cpus": 2,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "init": true,
+      "working_dir": "/workspace",
+      "user": "1000:1000",
+      "command": [
+        "node",
+        "services/sunat-service/dist/main.js"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "JWT_ISSUER": "factuez-identity",
+        "JWT_AUDIENCE": "factuez-services",
+        "JWT_PUBLIC_KEY_FILE": "/run/secrets/jwt_public_key",
+        "IDENTITY_INTERNAL_URL": "http://identity-service:3001",
+        "BILLING_INTERNAL_URL": "http://billing-service:3002",
+        "SUNAT_INTERNAL_URL": "http://sunat-service:3003",
+        "B2B_IDENTITY_ENABLED": "false",
+        "B2B_ONPREM_ADMIN_ENABLED": "false",
+        "B2B_READONLY_OWNER_ENABLED": "false",
+        "B2B_READONLY_API_ENABLED": "false",
+        "B2B_API_ENABLED": "false",
+        "B2B_MAILER_ENABLED": "false",
+        "B2B_RECEIVED_ENABLED": "false",
+        "B2B_SUNAT_RUNTIME_ENABLED": "false",
+        "BILLING_B2B_STANDALONE": "false",
+        "B2B_PRIVATE_ACCESS": "false",
+        "INTEGRATION_IDENTITY_ENABLED": "false",
+        "INTEGRATION_BILLING_CAPTURE_ENABLED": "false",
+        "INTEGRATION_BILLING_CHANGES_ENABLED": "false",
+        "CLIENT_INTAKE_QA_ENABLED": "false",
+        "FISCAL_CIRCUIT_QA_ENABLED": "false",
+        "FISCAL_BATCH_QA_ENABLED": "false",
+        "GRE_QA_ENABLED": "false",
+        "GRE_EXTERNAL_TRANSMISSION_ENABLED": "false",
+        "NOTES_QA_ENABLED": "false",
+        "SUNAT_BETA_WORKFLOW_ENABLED": "false",
+        "SUNAT_BETA_TRANSMISSION_ENABLED": "false",
+        "LOCAL_XML_VALIDATION_ENABLED": "false",
+        "LOCAL_MAIL_QA_ENABLED": "false",
+        "SMTP_QA_USE_APP_KEY": "false",
+        "SMTP_CONNECTION_DIAGNOSTICS_ENABLED": "false",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "LOCAL_BROWSER_SESSION_QA_ENABLED": "false",
+        "PORT": "3003",
+        "NODE_OPTIONS": "--max-old-space-size=1024",
+        "DB_NAME": "factuez_sunat",
+        "DB_USER": "factuez_sunat",
+        "DB_PASSWORD_FILE": "/run/secrets/sunat_db_password",
+        "APP_MASTER_KEY_FILE": "/run/secrets/app_master_key",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token",
+        "ARTIFACTS_ROOT": "/data/artifacts",
+        "PRIVATE_STORAGE_ROOT": "/data/private",
+        "PRINT_SETTINGS_ENABLED": "true",
+        "WORKSPACE_LIVE_ENABLED": "true",
+        "SUNAT_WORKER_CONCURRENCY": "2",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
+        "SUNAT_PRODUCTION_NOTES_ENABLED": "false",
+        "SUNAT_OPENSSL_PATH": "/usr/bin/openssl",
+        "SUNAT_CRL_BUNDLE_FILE": "/run/factuez/pki/crls.pem",
+        "SUNAT_CDR_SIGNER_CERT_FILE": "/run/factuez/pki/cdr-signers.pem",
+        "SUNAT_SOAP_PRODUCTION_WSDL": "https://e-factura.sunat.gob.pe/ol-ti-itcpfegem/billService?wsdl",
+        "PRODUCTION_NOTES_OWNER_KEY_FILE": "/run/secrets/production_notes_owner_key",
+        "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
+        "SUNAT_ENVIRONMENT": "BETA",
+        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+      },
+      "secrets": [
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token",
+        "sunat_db_password",
+        "app_master_key",
+        "production_notes_owner_key"
+      ],
+      "networks": [
+        "private-db",
+        "core",
+        "egress"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=201326592,mode=1777"
+      ],
+      "read_only": true,
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy"
+        },
+        "redis": {
+          "condition": "service_healthy"
+        },
+        "identity-service": {
+          "condition": "service_healthy"
+        },
+        "billing-service": {
+          "condition": "service_healthy"
+        },
+        "prepare-volumes": {
+          "condition": "service_completed_successfully"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3003/health',{signal:AbortSignal.timeout(3000),redirect:'error'}).then(r=>{r.body?.cancel();process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      },
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "sunat_service_artifacts",
+          "target": "/data/artifacts",
+          "volume": {
+            "nocopy": true
+          }
+        },
+        {
+          "type": "volume",
+          "source": "sunat_service_private",
+          "target": "/data/private",
+          "volume": {
+            "nocopy": true
+          }
+        }
+      ],
+      "build": {
+        "context": "../../..",
+        "dockerfile": "docker/Dockerfile.service",
+        "args": {
+          "SERVICE_NAME": "@factuez/sunat-service",
+          "SERVICE_PATH": "services/sunat-service"
+        }
+      }
+    },
+    "mailer-worker": {
+      "image": "factuez-windows-test/mailer-worker:local",
+      "restart": "unless-stopped",
+      "mem_limit": 450000000,
+      "memswap_limit": 450000000,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "init": true,
+      "working_dir": "/workspace",
+      "user": "1000:1000",
+      "command": [
+        "node",
+        "services/mailer-worker/dist/main.js"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "JWT_ISSUER": "factuez-identity",
+        "JWT_AUDIENCE": "factuez-services",
+        "JWT_PUBLIC_KEY_FILE": "/run/secrets/jwt_public_key",
+        "IDENTITY_INTERNAL_URL": "http://identity-service:3001",
+        "BILLING_INTERNAL_URL": "http://billing-service:3002",
+        "SUNAT_INTERNAL_URL": "http://sunat-service:3003",
+        "B2B_IDENTITY_ENABLED": "false",
+        "B2B_ONPREM_ADMIN_ENABLED": "false",
+        "B2B_READONLY_OWNER_ENABLED": "false",
+        "B2B_READONLY_API_ENABLED": "false",
+        "B2B_API_ENABLED": "false",
+        "B2B_MAILER_ENABLED": "false",
+        "B2B_RECEIVED_ENABLED": "false",
+        "B2B_SUNAT_RUNTIME_ENABLED": "false",
+        "BILLING_B2B_STANDALONE": "false",
+        "B2B_PRIVATE_ACCESS": "false",
+        "INTEGRATION_IDENTITY_ENABLED": "false",
+        "INTEGRATION_BILLING_CAPTURE_ENABLED": "false",
+        "INTEGRATION_BILLING_CHANGES_ENABLED": "false",
+        "CLIENT_INTAKE_QA_ENABLED": "false",
+        "FISCAL_CIRCUIT_QA_ENABLED": "false",
+        "FISCAL_BATCH_QA_ENABLED": "false",
+        "GRE_QA_ENABLED": "false",
+        "GRE_EXTERNAL_TRANSMISSION_ENABLED": "false",
+        "NOTES_QA_ENABLED": "false",
+        "SUNAT_BETA_WORKFLOW_ENABLED": "false",
+        "SUNAT_BETA_TRANSMISSION_ENABLED": "false",
+        "LOCAL_XML_VALIDATION_ENABLED": "false",
+        "LOCAL_MAIL_QA_ENABLED": "false",
+        "SMTP_QA_USE_APP_KEY": "false",
+        "SMTP_CONNECTION_DIAGNOSTICS_ENABLED": "false",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "LOCAL_BROWSER_SESSION_QA_ENABLED": "false",
+        "PORT": "3004",
+        "NODE_OPTIONS": "--max-old-space-size=384",
+        "DB_NAME": "factuez_mailer",
+        "DB_USER": "factuez_mailer",
+        "DB_PASSWORD_FILE": "/run/secrets/mailer_db_password",
+        "MAILER_DATABASE_NAME": "factuez_mailer",
+        "APP_MASTER_KEY_FILE": "/run/secrets/app_master_key",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token",
+        "SMTP_SETTINGS_KEY_FILE": "/run/secrets/smtp_settings_key",
+        "SMTP_SETTINGS_KEY_VERSION": "1",
+        "SERVER_SMTP_ENABLED": "false",
+        "SERVER_SMTP_DOCUMENTS_ENABLED": "false",
+        "SMTP_APPROVED_HOSTS": "",
+        "MAIL_CONCURRENCY": "1",
+        "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
+        "SUNAT_ENVIRONMENT": "BETA",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
+        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+      },
+      "secrets": [
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token",
+        "mailer_db_password",
+        "app_master_key",
+        "smtp_settings_key"
+      ],
+      "networks": [
+        "private-db",
+        "core",
+        "egress"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=201326592,mode=1777"
+      ],
+      "read_only": true,
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy"
+        },
+        "redis": {
+          "condition": "service_healthy"
+        },
+        "identity-service": {
+          "condition": "service_healthy"
+        },
+        "sunat-service": {
+          "condition": "service_healthy"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3004/health',{signal:AbortSignal.timeout(3000),redirect:'error'}).then(r=>{r.body?.cancel();process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      },
+      "build": {
+        "context": "../../..",
+        "dockerfile": "docker/Dockerfile.service",
+        "args": {
+          "SERVICE_NAME": "@factuez/mailer-worker",
+          "SERVICE_PATH": "services/mailer-worker"
+        }
+      }
+    },
+    "realtime-service": {
+      "image": "factuez-windows-test/realtime-service:local",
+      "restart": "unless-stopped",
+      "mem_limit": 250000000,
+      "memswap_limit": 250000000,
+      "cpus": 0.25,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "init": true,
+      "working_dir": "/workspace",
+      "user": "1000:1000",
+      "command": [
+        "node",
+        "services/realtime-service/dist/main.js"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "JWT_ISSUER": "factuez-identity",
+        "JWT_AUDIENCE": "factuez-services",
+        "JWT_PUBLIC_KEY_FILE": "/run/secrets/jwt_public_key",
+        "IDENTITY_INTERNAL_URL": "http://identity-service:3001",
+        "BILLING_INTERNAL_URL": "http://billing-service:3002",
+        "SUNAT_INTERNAL_URL": "http://sunat-service:3003",
+        "B2B_IDENTITY_ENABLED": "false",
+        "B2B_ONPREM_ADMIN_ENABLED": "false",
+        "B2B_READONLY_OWNER_ENABLED": "false",
+        "B2B_READONLY_API_ENABLED": "false",
+        "B2B_API_ENABLED": "false",
+        "B2B_MAILER_ENABLED": "false",
+        "B2B_RECEIVED_ENABLED": "false",
+        "B2B_SUNAT_RUNTIME_ENABLED": "false",
+        "BILLING_B2B_STANDALONE": "false",
+        "B2B_PRIVATE_ACCESS": "false",
+        "INTEGRATION_IDENTITY_ENABLED": "false",
+        "INTEGRATION_BILLING_CAPTURE_ENABLED": "false",
+        "INTEGRATION_BILLING_CHANGES_ENABLED": "false",
+        "CLIENT_INTAKE_QA_ENABLED": "false",
+        "FISCAL_CIRCUIT_QA_ENABLED": "false",
+        "FISCAL_BATCH_QA_ENABLED": "false",
+        "GRE_QA_ENABLED": "false",
+        "GRE_EXTERNAL_TRANSMISSION_ENABLED": "false",
+        "NOTES_QA_ENABLED": "false",
+        "SUNAT_BETA_WORKFLOW_ENABLED": "false",
+        "SUNAT_BETA_TRANSMISSION_ENABLED": "false",
+        "LOCAL_XML_VALIDATION_ENABLED": "false",
+        "LOCAL_MAIL_QA_ENABLED": "false",
+        "SMTP_QA_USE_APP_KEY": "false",
+        "SMTP_CONNECTION_DIAGNOSTICS_ENABLED": "false",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "LOCAL_BROWSER_SESSION_QA_ENABLED": "false",
+        "PORT": "3005",
+        "NODE_OPTIONS": "--max-old-space-size=128",
+        "WORKSPACE_LIVE_ENABLED": "true",
+        "WS_ALLOWED_ORIGINS": "http://localhost:8091,http://127.0.0.1:8091",
+        "RECEIVED_INTERNAL_URL": "http://received-documents-service:3006",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token",
+        "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
+        "SUNAT_ENVIRONMENT": "BETA",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
+        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+      },
+      "secrets": [
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token"
+      ],
+      "networks": [
+        "private-db",
+        "core"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=201326592,mode=1777"
+      ],
+      "read_only": true,
+      "depends_on": {
+        "redis": {
+          "condition": "service_healthy"
+        },
+        "identity-service": {
+          "condition": "service_healthy"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3005/health',{signal:AbortSignal.timeout(3000),redirect:'error'}).then(r=>{r.body?.cancel();process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      },
+      "build": {
+        "context": "../../..",
+        "dockerfile": "docker/Dockerfile.service",
+        "args": {
+          "SERVICE_NAME": "@factuez/realtime-service",
+          "SERVICE_PATH": "services/realtime-service"
+        }
+      }
+    },
+    "received-documents-service": {
+      "image": "factuez-windows-test/received-documents-service:local",
+      "restart": "unless-stopped",
+      "mem_limit": 550000000,
+      "memswap_limit": 550000000,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "init": true,
+      "working_dir": "/workspace",
+      "user": "1000:1000",
+      "command": [
+        "node",
+        "services/received-documents-service/dist/main.js"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "JWT_ISSUER": "factuez-identity",
+        "JWT_AUDIENCE": "factuez-services",
+        "JWT_PUBLIC_KEY_FILE": "/run/secrets/jwt_public_key",
+        "IDENTITY_INTERNAL_URL": "http://identity-service:3001",
+        "BILLING_INTERNAL_URL": "http://billing-service:3002",
+        "SUNAT_INTERNAL_URL": "http://sunat-service:3003",
+        "B2B_IDENTITY_ENABLED": "false",
+        "B2B_ONPREM_ADMIN_ENABLED": "false",
+        "B2B_READONLY_OWNER_ENABLED": "false",
+        "B2B_READONLY_API_ENABLED": "false",
+        "B2B_API_ENABLED": "false",
+        "B2B_MAILER_ENABLED": "false",
+        "B2B_RECEIVED_ENABLED": "false",
+        "B2B_SUNAT_RUNTIME_ENABLED": "false",
+        "BILLING_B2B_STANDALONE": "false",
+        "B2B_PRIVATE_ACCESS": "false",
+        "INTEGRATION_IDENTITY_ENABLED": "false",
+        "INTEGRATION_BILLING_CAPTURE_ENABLED": "false",
+        "INTEGRATION_BILLING_CHANGES_ENABLED": "false",
+        "CLIENT_INTAKE_QA_ENABLED": "false",
+        "FISCAL_CIRCUIT_QA_ENABLED": "false",
+        "FISCAL_BATCH_QA_ENABLED": "false",
+        "GRE_QA_ENABLED": "false",
+        "GRE_EXTERNAL_TRANSMISSION_ENABLED": "false",
+        "NOTES_QA_ENABLED": "false",
+        "SUNAT_BETA_WORKFLOW_ENABLED": "false",
+        "SUNAT_BETA_TRANSMISSION_ENABLED": "false",
+        "LOCAL_XML_VALIDATION_ENABLED": "false",
+        "LOCAL_MAIL_QA_ENABLED": "false",
+        "SMTP_QA_USE_APP_KEY": "false",
+        "SMTP_CONNECTION_DIAGNOSTICS_ENABLED": "false",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "LOCAL_BROWSER_SESSION_QA_ENABLED": "false",
+        "PORT": "3006",
+        "NODE_OPTIONS": "--max-old-space-size=384",
+        "DB_NAME": "factuez_received",
+        "DB_USER": "factuez_received",
+        "DB_PASSWORD_FILE": "/run/secrets/received_db_password",
+        "WORKSPACE_LIVE_ENABLED": "true",
+        "RECEIVED_SETTINGS_KEY_FILE": "/run/secrets/reception_settings_key",
+        "RECEIVED_IMAP_APPROVED_HOSTS": "",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token",
+        "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
+        "SUNAT_ENVIRONMENT": "BETA",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
+        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+      },
+      "secrets": [
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token",
+        "received_db_password",
+        "reception_settings_key"
+      ],
+      "networks": [
+        "private-db",
+        "core"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=201326592,mode=1777"
+      ],
+      "read_only": true,
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy"
+        },
+        "redis": {
+          "condition": "service_healthy"
+        },
+        "identity-service": {
+          "condition": "service_healthy"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3006/health',{signal:AbortSignal.timeout(3000),redirect:'error'}).then(r=>{r.body?.cancel();process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      },
+      "build": {
+        "context": "../../..",
+        "dockerfile": "docker/Dockerfile.service",
+        "args": {
+          "SERVICE_NAME": "@factuez/received-documents-service",
+          "SERVICE_PATH": "services/received-documents-service"
+        }
+      }
+    },
+    "received-sync-worker": {
+      "image": "factuez-windows-test/received-documents-service:local",
+      "restart": "unless-stopped",
+      "mem_limit": 350000000,
+      "memswap_limit": 350000000,
+      "cpus": 0.25,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "init": true,
+      "working_dir": "/workspace",
+      "user": "1000:1000",
+      "command": [
+        "node",
+        "services/received-documents-service/dist/automation.worker.js"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "DB_HOST": "postgres",
+        "DB_PORT": "5432",
+        "REDIS_HOST": "redis",
+        "REDIS_PORT": "6379",
+        "REDIS_PASSWORD_FILE": "/run/secrets/redis_password",
+        "JWT_ISSUER": "factuez-identity",
+        "JWT_AUDIENCE": "factuez-services",
+        "JWT_PUBLIC_KEY_FILE": "/run/secrets/jwt_public_key",
+        "IDENTITY_INTERNAL_URL": "http://identity-service:3001",
+        "BILLING_INTERNAL_URL": "http://billing-service:3002",
+        "SUNAT_INTERNAL_URL": "http://sunat-service:3003",
+        "B2B_IDENTITY_ENABLED": "false",
+        "B2B_ONPREM_ADMIN_ENABLED": "false",
+        "B2B_READONLY_OWNER_ENABLED": "false",
+        "B2B_READONLY_API_ENABLED": "false",
+        "B2B_API_ENABLED": "false",
+        "B2B_MAILER_ENABLED": "false",
+        "B2B_RECEIVED_ENABLED": "false",
+        "B2B_SUNAT_RUNTIME_ENABLED": "false",
+        "BILLING_B2B_STANDALONE": "false",
+        "B2B_PRIVATE_ACCESS": "false",
+        "INTEGRATION_IDENTITY_ENABLED": "false",
+        "INTEGRATION_BILLING_CAPTURE_ENABLED": "false",
+        "INTEGRATION_BILLING_CHANGES_ENABLED": "false",
+        "CLIENT_INTAKE_QA_ENABLED": "false",
+        "FISCAL_CIRCUIT_QA_ENABLED": "false",
+        "FISCAL_BATCH_QA_ENABLED": "false",
+        "GRE_QA_ENABLED": "false",
+        "GRE_EXTERNAL_TRANSMISSION_ENABLED": "false",
+        "NOTES_QA_ENABLED": "false",
+        "SUNAT_BETA_WORKFLOW_ENABLED": "false",
+        "SUNAT_BETA_TRANSMISSION_ENABLED": "false",
+        "LOCAL_XML_VALIDATION_ENABLED": "false",
+        "LOCAL_MAIL_QA_ENABLED": "false",
+        "SMTP_QA_USE_APP_KEY": "false",
+        "SMTP_CONNECTION_DIAGNOSTICS_ENABLED": "false",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_LIVE_READ_ALLOWED": "false",
+        "LOCAL_BROWSER_SESSION_QA_ENABLED": "false",
+        "PORT": "3007",
+        "NODE_OPTIONS": "--max-old-space-size=192",
+        "DB_NAME": "factuez_received",
+        "DB_USER": "factuez_received",
+        "DB_PASSWORD_FILE": "/run/secrets/received_db_password",
+        "WORKSPACE_LIVE_ENABLED": "true",
+        "RECEIVED_SETTINGS_KEY_FILE": "/run/secrets/reception_settings_key",
+        "RECEIVED_IMAP_APPROVED_HOSTS": "",
+        "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token",
+        "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
+        "SUNAT_ENVIRONMENT": "BETA",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
+        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
+        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+      },
+      "secrets": [
+        "redis_password",
+        "jwt_public_key",
+        "internal_service_token",
+        "received_db_password",
+        "reception_settings_key"
+      ],
+      "networks": [
+        "private-db",
+        "core"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=201326592,mode=1777"
+      ],
+      "read_only": true,
+      "depends_on": {
+        "postgres": {
+          "condition": "service_healthy"
+        },
+        "redis": {
+          "condition": "service_healthy"
+        },
+        "received-documents-service": {
+          "condition": "service_healthy"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3007/health',{signal:AbortSignal.timeout(3000),redirect:'error'}).then(r=>{r.body?.cancel();process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      }
+    },
+    "web-pwa": {
+      "image": "factuez-windows-test/web-pwa:local",
+      "restart": "unless-stopped",
+      "mem_limit": 900000000,
+      "memswap_limit": 900000000,
+      "cpus": 1,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "init": true,
+      "working_dir": "/workspace/apps/web-pwa",
+      "user": "1000:1000",
+      "command": [
+        "node",
+        "node_modules/next/dist/bin/next",
+        "start",
+        "--hostname",
+        "0.0.0.0",
+        "--port",
+        "3000"
+      ],
+      "environment": {
+        "NODE_ENV": "production",
+        "TZ": "America/Lima",
+        "PORT": "3000",
+        "NEXT_TELEMETRY_DISABLED": "1",
+        "NODE_OPTIONS": "--max-old-space-size=640",
+        "NEXT_PUBLIC_API_BASE_URL": "",
+        "NEXT_PUBLIC_B2B_ADMIN_PROFILE": "SSO"
+      },
+      "networks": [
+        "edge"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,noexec,size=67108864,mode=1777"
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "web_pwa_cache",
+          "target": "/workspace/apps/web-pwa/.next/cache",
+          "volume": {
+            "nocopy": true
+          }
+        }
+      ],
+      "read_only": true,
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/login',{signal:AbortSignal.timeout(3000),redirect:'error'}).then(r=>{r.body?.cancel();process.exit(r.ok?0:1)}).catch(()=>process.exit(1))"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      },
+      "build": {
+        "context": "../../..",
+        "dockerfile": "docker/Dockerfile.web-pwa",
+        "args": {
+          "NEXT_PUBLIC_API_BASE_URL": "",
+          "NEXT_PUBLIC_B2B_ADMIN_PROFILE": "SSO"
+        }
+      },
+      "depends_on": {
+        "prepare-volumes": {
+          "condition": "service_completed_successfully"
+        }
+      }
+    },
+    "kong": {
+      "image": "kong:3.9.3",
+      "restart": "unless-stopped",
+      "mem_limit": 350000000,
+      "memswap_limit": 350000000,
+      "cpus": 0.5,
+      "pids_limit": 160,
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      },
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "stop_grace_period": "60s",
+      "user": "kong",
+      "environment": {
+        "KONG_DATABASE": "off",
+        "KONG_ADMIN_LISTEN": "off",
+        "KONG_STATUS_LISTEN": "127.0.0.1:8100",
+        "KONG_PROXY_LISTEN": "0.0.0.0:8000",
+        "KONG_DECLARATIVE_CONFIG": "/run/factuez/kong.yml",
+        "KONG_PREFIX": "/tmp/kong",
+        "KONG_NGINX_WORKER_PROCESSES": "1",
+        "KONG_PROXY_ACCESS_LOG": "off",
+        "KONG_ADMIN_ACCESS_LOG": "off",
+        "KONG_PROXY_ERROR_LOG": "/dev/stderr"
+      },
+      "volumes": [
+        {
+          "read_only": true,
+          "type": "bind",
+          "target": "/run/factuez/kong.yml",
+          "source": "../core-production/kong.yml",
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ],
+      "networks": [
+        "edge",
+        "core"
+      ],
+      "ports": [
+        "127.0.0.1:8091:8000"
+      ],
+      "tmpfs": [
+        "/tmp:rw,nosuid,nodev,size=67108864,mode=1777"
+      ],
+      "read_only": true,
+      "depends_on": {
+        "web-pwa": {
+          "condition": "service_healthy"
+        },
+        "identity-service": {
+          "condition": "service_healthy"
+        },
+        "billing-service": {
+          "condition": "service_healthy"
+        },
+        "sunat-service": {
+          "condition": "service_healthy"
+        },
+        "mailer-worker": {
+          "condition": "service_healthy"
+        },
+        "realtime-service": {
+          "condition": "service_healthy"
+        },
+        "received-documents-service": {
+          "condition": "service_healthy"
+        }
+      },
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "kong",
+          "health"
+        ],
+        "interval": "15s",
+        "timeout": "5s",
+        "retries": 5,
+        "start_period": "45s"
+      }
+    },
+    "prepare-volumes": {
+      "image": "factuez-windows-test/identity-service:local",
+      "network_mode": "none",
+      "user": "0:0",
+      "restart": "no",
+      "cap_drop": [
+        "ALL"
+      ],
+      "cap_add": [
+        "CHOWN",
+        "FOWNER"
+      ],
+      "mem_limit": 128000000,
+      "cpus": 0.25,
+      "entrypoint": [
+        "node"
+      ],
+      "command": [
+        "-e",
+        "const fs=require('node:fs');for(const n of fs.readdirSync('/volumes')){const p='/volumes/'+n;fs.chownSync(p,1000,1000);fs.chmodSync(p,0o700)}"
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "redis_data",
+          "target": "/volumes/redis_data",
+          "volume": {
+            "nocopy": true
+          }
+        },
+        {
+          "type": "volume",
+          "source": "billing_service_print_branding",
+          "target": "/volumes/billing_service_print_branding",
+          "volume": {
+            "nocopy": true
+          }
+        },
+        {
+          "type": "volume",
+          "source": "sunat_service_artifacts",
+          "target": "/volumes/sunat_service_artifacts",
+          "volume": {
+            "nocopy": true
+          }
+        },
+        {
+          "type": "volume",
+          "source": "sunat_service_private",
+          "target": "/volumes/sunat_service_private",
+          "volume": {
+            "nocopy": true
+          }
+        },
+        {
+          "type": "volume",
+          "source": "web_pwa_cache",
+          "target": "/volumes/web_pwa_cache",
+          "volume": {
+            "nocopy": true
+          }
+        }
+      ],
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+    }
+  },
+  "networks": {
+    "private-db": {
+      "internal": true
+    },
+    "core": {
+      "internal": true
+    },
+    "edge": {
+      "internal": true
+    },
+    "egress": {
+      "internal": true
+    }
+  },
+  "secrets": {
+    "identity_db_password": {
+      "file": "../../../.installation/windows-test/secrets/identity_db_password"
+    },
+    "billing_db_password": {
+      "file": "../../../.installation/windows-test/secrets/billing_db_password"
+    },
+    "sunat_db_password": {
+      "file": "../../../.installation/windows-test/secrets/sunat_db_password"
+    },
+    "mailer_db_password": {
+      "file": "../../../.installation/windows-test/secrets/mailer_db_password"
+    },
+    "received_db_password": {
+      "file": "../../../.installation/windows-test/secrets/received_db_password"
+    },
+    "redis_password": {
+      "file": "../../../.installation/windows-test/secrets/redis_password"
+    },
+    "redis_acl": {
+      "file": "../../../.installation/windows-test/secrets/redis_acl"
+    },
+    "jwt_private_key": {
+      "file": "../../../.installation/windows-test/secrets/jwt_private_key"
+    },
+    "jwt_public_key": {
+      "file": "../../../.installation/windows-test/secrets/jwt_public_key"
+    },
+    "internal_service_token": {
+      "file": "../../../.installation/windows-test/secrets/internal_service_token"
+    },
+    "app_master_key": {
+      "file": "../../../.installation/windows-test/secrets/app_master_key"
+    },
+    "smtp_settings_key": {
+      "file": "../../../.installation/windows-test/secrets/smtp_settings_key"
+    },
+    "reception_settings_key": {
+      "file": "../../../.installation/windows-test/secrets/reception_settings_key"
+    },
+    "production_notes_owner_key": {
+      "file": "../../../.installation/windows-test/secrets/production_notes_owner_key"
+    },
+    "initial_admin_password": {
+      "file": "../../../.installation/windows-test/secrets/initial_admin_password"
+    },
+    "postgres_admin_password": {
+      "file": "../../../.installation/windows-test/secrets/postgres_admin_password"
+    }
+  },
+  "volumes": {
+    "pgdata": {},
+    "redis_data": {},
+    "billing_service_print_branding": {},
+    "sunat_service_artifacts": {},
+    "sunat_service_private": {},
+    "web_pwa_cache": {}
+  }
+}

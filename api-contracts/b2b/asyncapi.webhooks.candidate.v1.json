@@ -1,0 +1,159 @@
+{
+  "asyncapi": "3.0.0",
+  "info": {
+    "title": "FactuEz · local issuance webhooks candidate",
+    "version": "1.0.0"
+  },
+  "defaultContentType": "application/json",
+  "x-runtime-enabled": false,
+  "x-supported-event": "document.issued-locally.v1",
+  "x-fiscal-acceptance": "NOT_ASSERTED",
+  "channels": {
+    "localIssuance": {
+      "address": "TI_APPROVED_CALLBACK",
+      "messages": {
+        "issued": {
+          "$ref": "#/components/messages/IssuedLocally"
+        }
+      }
+    }
+  },
+  "operations": {
+    "deliverLocalIssuance": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/localIssuance"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/localIssuance/messages/issued"
+        }
+      ]
+    }
+  },
+  "components": {
+    "messages": {
+      "IssuedLocally": {
+        "name": "document.issued-locally.v1",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schemaVersion": {
+              "type": "string",
+              "const": "factuez.webhook.v1"
+            },
+            "eventId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "eventName": {
+              "type": "string",
+              "const": "document.issued-locally.v1"
+            },
+            "occurredAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "issuerId": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "environment": {
+              "type": "string",
+              "const": "BETA"
+            },
+            "correlationId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "payload": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "resource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "DOCUMENT"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "version": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "id",
+                    "version"
+                  ]
+                },
+                "provenance": {
+                  "type": "string",
+                  "enum": [
+                    "LOCAL",
+                    "LOCAL_SIMULATOR",
+                    "SUNAT_BETA"
+                  ]
+                }
+              },
+              "required": [
+                "resource",
+                "provenance"
+              ]
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "eventId",
+            "eventName",
+            "occurredAt",
+            "issuerId",
+            "environment",
+            "correlationId",
+            "payload"
+          ]
+        },
+        "headers": {
+          "type": "object",
+          "required": [
+            "webhook-id",
+            "webhook-timestamp",
+            "webhook-signature"
+          ],
+          "properties": {
+            "webhook-id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "webhook-timestamp": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,10}$"
+            },
+            "webhook-signature": {
+              "type": "string",
+              "description": "Standard Webhooks v1; one or two space-separated signatures during rotation"
+            },
+            "X-FactuEz-Attempt-Id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        },
+        "correlationId": {
+          "location": "$message.payload#/correlationId"
+        }
+      }
+    }
+  }
+}

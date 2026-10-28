@@ -1,0 +1,23 @@
+# Candidate image for the B2B facade only. BASE_IMAGE must be an approved Node 22
+# bookworm-slim image pinned by digest, built explicitly for linux/amd64.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS build
+WORKDIR /workspace
+RUN node -e "const [major,minor]=process.versions.node.split('.').map(Number); if(major!==22 || minor<18) process.exit(1)" && corepack enable
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+COPY apps ./apps
+COPY packages ./packages
+COPY services ./services
+RUN pnpm install --frozen-lockfile && \
+    pnpm --filter @factuez/contracts build && \
+    pnpm --filter @factuez/service-access build && \
+    pnpm --filter @factuez/b2b-api-service build
+
+FROM ${BASE_IMAGE} AS runtime
+WORKDIR /workspace
+ENV NODE_ENV=production
+# Preserve pnpm workspace links and their targets. This is not a minimal image.
+COPY --from=build --chown=node:node /workspace /workspace
+COPY --chown=node:node infra/b2b/ubuntu-package-phase1/launch.mjs /workspace/infra/b2b/ubuntu-package-phase1/launch.mjs
+USER node
+CMD ["node", "/workspace/infra/b2b/ubuntu-package-phase1/launch.mjs"]

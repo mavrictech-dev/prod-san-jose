@@ -1,0 +1,4761 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FactuEz B2B · lectura candidata",
+    "version": "1.0.0",
+    "description": "Contrato del listener aislado probado con datos ficticios. No desplegado en Kong. Sin emisión ni producción."
+  },
+  "x-audience": "factuez-b2b-v1",
+  "x-runtime-enabled": false,
+  "paths": {
+    "/b2b/v1/me": {
+      "get": {
+        "operationId": "b2bMe",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:context:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/capabilities": {
+      "get": {
+        "operationId": "b2bCapabilities",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:context:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/issuers": {
+      "get": {
+        "operationId": "b2bListIssuer",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "pointId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuerPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/branches": {
+      "get": {
+        "operationId": "b2bListBranch",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "pointId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BranchPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/points": {
+      "get": {
+        "operationId": "b2bListPoint",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "pointId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PointPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/series": {
+      "get": {
+        "operationId": "b2bListSeries",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "pointId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/products": {
+      "get": {
+        "operationId": "b2bListProduct",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:catalog:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/lookup": {
+      "get": {
+        "operationId": "b2bLookupDocument",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:documents:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "series",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "number",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents": {
+      "get": {
+        "operationId": "b2bListDocuments",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:documents:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "pointId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "CSV 01,03; otros tipos devuelven 422, nunca se omiten."
+            }
+          },
+          {
+            "name": "seriesId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/{id}": {
+      "get": {
+        "operationId": "b2bGetDocument",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:documents:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/{id}/status": {
+      "get": {
+        "operationId": "b2bGetStatus",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:documents:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Status"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/{id}/artifacts": {
+      "get": {
+        "operationId": "b2bListArtifacts",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:documents:read",
+          "b2b:artifacts:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/batches/{id}/artifacts": {
+      "get": {
+        "operationId": "b2bListBatchArtifacts",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:documents:read",
+          "b2b:artifacts:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Respuesta autorizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/artifacts/{id}/content": {
+      "get": {
+        "operationId": "b2bDownloadOriginal",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:documents:read",
+          "b2b:artifacts:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bytes íntegros. PDF es representación local CURRENT-PRUEBA, no aceptación fiscal.",
+            "headers": {
+              "Content-Length": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Content-SHA256": {
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              }
+            },
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/b2b/v1/documents/{id}/representations/{format}": {
+      "get": {
+        "operationId": "b2bRenderCurrentLocal",
+        "x-source-implemented": true,
+        "x-runtime-enabled": false,
+        "security": [
+          {
+            "B2bBearer": [],
+            "PrivateTransport": []
+          }
+        ],
+        "x-required-scopes": [
+          "b2b:documents:read",
+          "b2b:artifacts:read"
+        ],
+        "parameters": [
+          {
+            "name": "X-FactuEz-Actor-Kind",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SERVICE",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "format",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "a4",
+                "ticket"
+              ]
+            }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "BETA"
+            }
+          },
+          {
+            "name": "issuerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bytes íntegros. PDF es representación local CURRENT-PRUEBA, no aceptación fiscal.",
+            "headers": {
+              "Content-Length": {
+                "schema": {
+                  "type": "integer"
+                }
+              },
+              "X-Content-SHA256": {
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error seguro, sin rutas ni secretos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "B2bBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT u OIDC introspectado según actor"
+      },
+      "PrivateTransport": {
+        "type": "mutualTLS"
+      }
+    },
+    "schemas": {
+      "Party": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "identityType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "identityNumber": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "legalName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ubigeo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{6}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "establishmentCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "identityType",
+          "identityNumber",
+          "legalName",
+          "address",
+          "ubigeo",
+          "establishmentCode"
+        ]
+      },
+      "Tax": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemeId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxableAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "affectationCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schemeId",
+          "name",
+          "taxableAmount",
+          "amount",
+          "percent",
+          "affectationCode"
+        ]
+      },
+      "Allowance": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "charge": {
+            "type": "boolean"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "charge",
+          "amount",
+          "baseAmount",
+          "percent",
+          "reasonCode",
+          "reason"
+        ]
+      },
+      "Item": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "productCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "unitCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unitValue": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unitPriceWithTax": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lineExtensionAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tax"
+            },
+            "maxItems": 50
+          },
+          "allowances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allowance"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "lineId",
+          "productCode",
+          "description",
+          "unitCode",
+          "quantity",
+          "unitValue",
+          "unitPriceWithTax",
+          "lineExtensionAmount",
+          "taxes",
+          "allowances"
+        ]
+      },
+      "Totals": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lineExtensionAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxableAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exemptAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unaffectedAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freeAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "igvAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "iscAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "otherTaxesAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowanceTotalAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chargeTotalAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prepaidAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payableAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "lineExtensionAmount",
+          "taxableAmount",
+          "exemptAmount",
+          "unaffectedAmount",
+          "freeAmount",
+          "igvAmount",
+          "iscAmount",
+          "otherTaxesAmount",
+          "allowanceTotalAmount",
+          "chargeTotalAmount",
+          "prepaidAmount",
+          "payableAmount"
+        ]
+      },
+      "Reference": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "documentId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "01",
+                  "03",
+                  "07",
+                  "08",
+                  "09",
+                  "31"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fullNumber": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "reasonCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "documentId",
+          "type",
+          "fullNumber",
+          "kind",
+          "reasonCode",
+          "reason"
+        ]
+      },
+      "PaymentTerms": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "CONTADO",
+                  "CREDITO"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pendingAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "installments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "string",
+                  "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$"
+                },
+                "dueDate": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^20[0-9]{2}-[0-9]{2}-[0-9]{2}$"
+                }
+              },
+              "required": [
+                "amount",
+                "dueDate"
+              ]
+            },
+            "maxItems": 999
+          }
+        },
+        "required": [
+          "type",
+          "pendingAmount",
+          "installments"
+        ]
+      },
+      "Sale": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "SALE"
+          },
+          "issuer": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/Party"
+          },
+          "operationTypeCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Item"
+            },
+            "maxItems": 10000
+          },
+          "taxes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Tax"
+            },
+            "maxItems": 50
+          },
+          "allowances": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Allowance"
+            },
+            "maxItems": 50
+          },
+          "totals": {
+            "$ref": "#/components/schemas/Totals"
+          },
+          "paymentTerms": {
+            "$ref": "#/components/schemas/PaymentTerms"
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "maxItems": 100
+          },
+          "observations": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "additionalInformation": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              },
+              "required": [
+                "name",
+                "value"
+              ]
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "kind",
+          "issuer",
+          "customer",
+          "operationTypeCode",
+          "items",
+          "taxes",
+          "allowances",
+          "totals",
+          "paymentTerms",
+          "references",
+          "observations",
+          "additionalInformation"
+        ]
+      },
+      "DocumentSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "system": {
+            "type": "string",
+            "enum": [
+              "BILLING",
+              "AUTHORIZED_HISTORY"
+            ]
+          },
+          "originSystem": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "originId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "system",
+          "originSystem",
+          "originId"
+        ]
+      },
+      "Context": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "issuerRuc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seriesId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "documentType": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03"
+            ]
+          }
+        },
+        "required": [
+          "issuerId",
+          "issuerRuc",
+          "environment",
+          "branchId",
+          "pointId",
+          "seriesId",
+          "documentType"
+        ]
+      },
+      "State": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "local": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ISSUED",
+                  "CANCELLED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transport": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "NOT_CHECKED",
+                      "PENDING",
+                      "QUEUED",
+                      "BUILDING",
+                      "SIGNED",
+                      "SUBMITTED",
+                      "PROCESSING",
+                      "SUMMARY_PENDING",
+                      "ACCEPTED",
+                      "ACCEPTED_WITH_OBSERVATIONS",
+                      "REJECTED",
+                      "RETRYABLE_ERROR",
+                      "PERMANENT_ERROR",
+                      "VOID_PENDING",
+                      "VOIDED"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fiscal": {
+            "type": "string",
+            "const": "NOT_VERIFIED"
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "LOCAL",
+              "SUNAT_BETA",
+              "HISTORICAL"
+            ]
+          }
+        },
+        "required": [
+          "local",
+          "transport",
+          "fiscal",
+          "provenance"
+        ]
+      },
+      "Document": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "context": {
+            "$ref": "#/components/schemas/Context"
+          },
+          "documentType": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03"
+            ]
+          },
+          "series": {
+            "type": "string",
+            "maxLength": 4
+          },
+          "number": {
+            "type": "string",
+            "pattern": "^[0-9]{1,18}$"
+          },
+          "fullNumber": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "resourceVersion": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "snapshotSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "issuerName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "issueTime": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,9})?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "PEN",
+                  "USD"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Party"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payableAmount": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^-?[0-9]{1,26}(?:\\.[0-9]{1,12})?$",
+                "description": "Decimal exacto como texto; nunca float. null significa no disponible, no cero."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "detail": {
+            "$ref": "#/components/schemas/Sale"
+          },
+          "state": {
+            "$ref": "#/components/schemas/State"
+          },
+          "source": {
+            "$ref": "#/components/schemas/DocumentSource"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "id",
+          "context",
+          "documentType",
+          "series",
+          "number",
+          "fullNumber",
+          "resourceVersion",
+          "snapshotSha256",
+          "issuerName",
+          "issueDate",
+          "issueTime",
+          "currency",
+          "customer",
+          "payableAmount",
+          "detail",
+          "state",
+          "source",
+          "warnings"
+        ]
+      },
+      "Status": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "documentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "local": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ISSUED",
+                  "CANCELLED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transport": {
+            "anyOf": [
+              {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "NOT_CHECKED",
+                      "PENDING",
+                      "QUEUED",
+                      "BUILDING",
+                      "SIGNED",
+                      "SUBMITTED",
+                      "PROCESSING",
+                      "SUMMARY_PENDING",
+                      "ACCEPTED",
+                      "ACCEPTED_WITH_OBSERVATIONS",
+                      "REJECTED",
+                      "RETRYABLE_ERROR",
+                      "PERMANENT_ERROR",
+                      "VOID_PENDING",
+                      "VOIDED"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fiscal": {
+            "type": "string",
+            "const": "NOT_VERIFIED"
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "LOCAL",
+              "SUNAT_BETA",
+              "HISTORICAL"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "documentId",
+          "local",
+          "transport",
+          "fiscal",
+          "provenance"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "clientId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "SERVICE"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "USER"
+                  },
+                  "subjectId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "subjectId"
+                ]
+              }
+            ]
+          },
+          "effectiveScopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "maxItems": 100
+          },
+          "grantRevision": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "clientId",
+          "actor",
+          "effectiveScopes",
+          "grantRevision",
+          "environment"
+        ]
+      },
+      "Issuer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "ruc": {
+            "type": "string",
+            "pattern": "^[0-9]{11}$"
+          },
+          "legalName": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          }
+        },
+        "required": [
+          "id",
+          "ruc",
+          "legalName",
+          "environment"
+        ]
+      },
+      "Branch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "id",
+          "issuerId",
+          "code",
+          "name"
+        ]
+      },
+      "Point": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 30
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "id",
+          "issuerId",
+          "branchId",
+          "code",
+          "name"
+        ]
+      },
+      "Series": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "issuerId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "branchId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "01",
+              "03"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 4
+          }
+        },
+        "required": [
+          "id",
+          "issuerId",
+          "branchId",
+          "pointId",
+          "type",
+          "label"
+        ]
+      },
+      "Product": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sku": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "unitCode": {
+            "type": "string",
+            "maxLength": 8
+          },
+          "taxAffectationCode": {
+            "type": "string",
+            "maxLength": 4
+          },
+          "defaultUnitPrice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9]+(?:\\.[0-9]+)?$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sku",
+          "description",
+          "unitCode",
+          "taxAffectationCode",
+          "defaultUnitPrice"
+        ]
+      },
+      "PageInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{43}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "snapshotAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "complete": {
+            "type": "boolean",
+            "description": "Fin de este corte autorizado, no cobertura universal de tipos."
+          }
+        },
+        "required": [
+          "limit",
+          "nextCursor",
+          "snapshotId",
+          "snapshotAt",
+          "expiresAt",
+          "hasMore",
+          "complete"
+        ]
+      },
+      "Coverage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "documentTypes": {
+            "const": [
+              "01",
+              "03"
+            ],
+            "type": "array"
+          },
+          "unsupported": {
+            "const": [
+              "07",
+              "08",
+              "09",
+              "31"
+            ],
+            "type": "array"
+          },
+          "scope": {
+            "const": "AUTHORIZED_FILTERED_CUT",
+            "type": "string"
+          },
+          "fiscalAcceptance": {
+            "const": "NOT_ASSERTED",
+            "type": "string"
+          }
+        },
+        "required": [
+          "documentTypes",
+          "unsupported",
+          "scope",
+          "fiscalAcceptance"
+        ]
+      },
+      "IssuerPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Issuer"
+            },
+            "maxItems": 100
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "BranchPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Branch"
+            },
+            "maxItems": 100
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "PointPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Point"
+            },
+            "maxItems": 100
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "SeriesPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Series"
+            },
+            "maxItems": 100
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "ProductPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "maxItems": 100
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "DocumentPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Document"
+            },
+            "maxItems": 100
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/Coverage"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "page",
+          "coverage"
+        ]
+      },
+      "Artifact": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "UNSIGNED_XML",
+              "SIGNED_XML",
+              "SUBMISSION_ZIP",
+              "CDR_XML",
+              "CDR_ZIP"
+            ]
+          },
+          "owner": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "DOCUMENT",
+                  "BATCH"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,150}\\.(xml|zip)$"
+          },
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "application/xml",
+              "application/zip"
+            ]
+          },
+          "byteLength": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10485760
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "availability": {
+            "const": "AVAILABLE",
+            "type": "string"
+          },
+          "representation": {
+            "const": "ORIGINAL",
+            "type": "string"
+          },
+          "provenance": {
+            "const": "LOCAL",
+            "type": "string"
+          },
+          "verification": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "integrity": {
+                "const": "UNVERIFIED",
+                "type": "string"
+              },
+              "signature": {
+                "const": "UNVERIFIED",
+                "type": "string"
+              },
+              "trust": {
+                "const": "UNVERIFIED",
+                "type": "string"
+              },
+              "identity": {
+                "const": "UNVERIFIED",
+                "type": "string"
+              },
+              "checkedAt": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "integrity",
+              "signature",
+              "trust",
+              "identity",
+              "checkedAt"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "owner",
+          "fileName",
+          "mediaType",
+          "byteLength",
+          "sha256",
+          "availability",
+          "representation",
+          "provenance",
+          "verification"
+        ]
+      },
+      "ArtifactList": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Artifact"
+            },
+            "maxItems": 32
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "items",
+          "warnings"
+        ]
+      },
+      "Capabilities": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "environment": {
+            "type": "string",
+            "const": "BETA"
+          },
+          "fiscalActivation": {
+            "type": "boolean",
+            "const": false
+          },
+          "executionReadiness": {
+            "const": "NOT_PROBED",
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 80
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "ENABLED",
+                    "DISABLED",
+                    "NOT_IMPLEMENTED"
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "maxLength": 300
+                }
+              },
+              "required": [
+                "id",
+                "state",
+                "reason"
+              ]
+            },
+            "maxItems": 100
+          },
+          "coverage": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "01",
+                    "03",
+                    "07",
+                    "08",
+                    "09",
+                    "31"
+                  ]
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "SUPPORTED",
+                    "SOURCE_NOT_SUPPORTED"
+                  ]
+                }
+              },
+              "required": [
+                "type",
+                "state"
+              ]
+            },
+            "maxItems": 100
+          },
+          "originalArtifacts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "maxItems": 100
+          },
+          "localRepresentations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "a4",
+                "ticket"
+              ]
+            },
+            "maxItems": 100
+          },
+          "limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "pageSize": {
+                "const": 100,
+                "type": "integer"
+              },
+              "cutRows": {
+                "const": 10000,
+                "type": "integer"
+              },
+              "cutTtlSeconds": {
+                "const": 300,
+                "type": "integer"
+              },
+              "dateRangeDays": {
+                "const": 366,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "pageSize",
+              "cutRows",
+              "cutTtlSeconds",
+              "dateRangeDays"
+            ]
+          },
+          "legacyExtraction": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "separateAudience": {
+                "const": true,
+                "type": "boolean"
+              },
+              "forwarded": {
+                "const": false,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "separateAudience",
+              "forwarded"
+            ]
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "environment",
+          "fiscalActivation",
+          "executionReadiness",
+          "features",
+          "coverage",
+          "originalArtifacts",
+          "localRepresentations",
+          "limits",
+          "legacyExtraction"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string",
+            "const": "factuez.b2b.v1"
+          },
+          "requestId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "requestId",
+          "code",
+          "message",
+          "retryable"
+        ]
+      }
+    }
+  }
+}

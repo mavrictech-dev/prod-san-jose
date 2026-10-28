@@ -1,0 +1,27 @@
+# TI-reviewed overlay for docker-compose.yml in an OWN on-prem installation, NOT QA.
+# All names/domains/secret paths below must be explicitly provisioned by TI.
+# Do NOT apply this overlay to factuez-stage2-qa. No emission service is changed.
+services:
+  received-documents-service:
+    environment:
+      RECEIVED_LOCAL_FIXTURE_ENABLED: "false"
+      RECEIVED_QA_USE_APP_KEY: "false"
+      RECEIVED_LIVE_READ_ALLOWED: "false" # TI authorizes read-only access explicitly.
+      RECEIVED_SETTINGS_KEY_FILE: /run/secrets/reception_settings_key
+      RECEIVED_IMAP_APPROVED_HOSTS: "" # exact corporate FQDN, configured by TI
+    secrets: [reception_settings_key]
+  received-sync-worker:
+    environment:
+      RECEIVED_LOCAL_FIXTURE_ENABLED: "false"
+      RECEIVED_QA_USE_APP_KEY: "false"
+      RECEIVED_LIVE_READ_ALLOWED: "false"
+      RECEIVED_SETTINGS_KEY_FILE: /run/secrets/reception_settings_key
+      RECEIVED_IMAP_APPROVED_HOSTS: ""
+    secrets: [reception_settings_key]
+    networks: [factuez-internal, reception-egress]
+networks:
+  reception-egress:
+    driver: bridge
+secrets:
+  reception_settings_key:
+    file: ${FACTUEZ_SECRETS_DIR:-./secrets}/reception_settings_key.txt # 32 bytes in hex; access restricted by TI

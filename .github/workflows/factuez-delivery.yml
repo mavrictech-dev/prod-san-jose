@@ -1,0 +1,132 @@
+name: San Jose - verify and publish images
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: factuez-ci-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      DATABASE_URL: postgresql://build:build@127.0.0.1:1/build_not_connected
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_API_BASE_URL: ''
+      NEXT_PUBLIC_B2B_ADMIN_PROFILE: SSO
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.18.0'
+      - run: corepack enable && corepack prepare pnpm@11.19.0 --activate
+      - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma clients offline
+        run: pnpm -r --if-present run db:generate
+      - name: Build all workspace packages and apps
+        run: pnpm build
+      - name: Deployment contract and rollback tests
+        run: |
+          node infra/deployment/core-production/validate.mjs --test
+          node --test tests/core-release-plan.test.mjs tests/core-vps-preflight.test.mjs tests/cicd-release.test.mjs tests/cicd-deploy.test.mjs
+      - name: Prepare offline XML test tools
+        run: |
+          python3 -m venv .ci-python
+          .ci-python/bin/pip install lxml==6.0.2
+          echo "$PWD/.ci-python/bin" >> "$GITHUB_PATH"
+          .ci-python/bin/python tests/cicd-xsd.fixture.test.py
+          .ci-python/bin/python tests/prepare-ci-xsd.py
+      - name: Fiscal regression without official transmissions
+        run: pnpm exec vitest run tests/production-notes-extended-profile.spec.ts tests/production-notes-extended-policy.spec.ts tests/production-notes-dispatch.spec.ts tests/corporate-document-source.spec.ts tests/corporate-document-extended-notes.spec.ts --maxWorkers=2
+  publish:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.FACTUEZ_PUBLISH_IMAGES == 'true'
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        service: [identity-service, billing-service, sunat-service, mailer-worker, realtime-service, received-documents-service, web-pwa]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.18.0'
+      - name: Build and publish immutable core images
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          NODE_BASE: ${{ vars.FACTUEZ_NODE_BASE_IMAGE }}
+          SERVICE: ${{ matrix.service }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$NODE_BASE" =~ ^node:22-bookworm-slim@sha256:[a-f0-9]{64}$ ]] || { echo 'Configure FACTUEZ_NODE_BASE_IMAGE with an approved digest'; exit 1; }
+          prefix=$(node --input-type=module -e 'import {registryPrefix} from "./infra/deployment/cicd/release.mjs"; console.log(registryPrefix(process.env.SOURCE_REPOSITORY));')
+          mkdir -p release-metadata
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          docker buildx create --use --driver docker-container
+          service="$SERVICE"
+          if [[ "$service" == web-pwa ]]; then
+            args=(-f docker/Dockerfile.web-pwa --build-arg NEXT_PUBLIC_API_BASE_URL= --build-arg NEXT_PUBLIC_B2B_ADMIN_PROFILE=SSO)
+          else
+            args=(-f docker/Dockerfile.service --build-arg "SERVICE_NAME=@factuez/$service" --build-arg "SERVICE_PATH=services/$service")
+          fi
+          docker buildx build --platform linux/amd64 --push --provenance=mode=min --sbom=true --build-arg "NODE_BASE_IMAGE=$NODE_BASE" "${args[@]}" --label "org.opencontainers.image.revision=$COMMIT" --label "org.opencontainers.image.source=https://github.com/$SOURCE_REPOSITORY" --tag "$prefix/$service:$COMMIT" --metadata-file "release-metadata/$service.json" .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: factuez-digest-${{ github.sha }}-${{ matrix.service }}
+          path: release-metadata/*.json
+          if-no-files-found: error
+          retention-days: 7
+  manifest:
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.18.0'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: factuez-digest-${{ github.sha }}-*
+          path: release-metadata
+          merge-multiple: true
+      - name: Assemble exact release from seven successful builds
+        env:
+          SOURCE_REPOSITORY: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix=$(node --input-type=module -e 'import {registryPrefix} from "./infra/deployment/cicd/release.mjs"; console.log(registryPrefix(process.env.SOURCE_REPOSITORY));')
+          mkdir delivery
+          node infra/deployment/cicd/release.mjs "$PWD" "$prefix" "$COMMIT" release-metadata delivery/release.json
+          cp infra/deployment/core-production/docker-compose.yml infra/deployment/core-production/kong.yml delivery/
+          (cd delivery && sha256sum release.json docker-compose.yml kong.yml > SHA256SUMS)
+          cat delivery/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: factuez-release-${{ github.sha }}
+          path: delivery/
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,431 @@
+{
+  "schemaVersion": "factuez.integration-source-inventory.v1",
+  "reviewDate": "2026-10-09",
+  "scope": {
+    "project": "FactuEz",
+    "purpose": "PHASE_1_SOURCE_AUDIT",
+    "runtimeDataRead": false,
+    "secretsRead": false,
+    "officialNetworkUsed": false,
+    "deploymentsChanged": false,
+    "phase2EndpointsImplemented": false,
+    "remoteAccessEnabled": false
+  },
+  "sources": [
+    {
+      "id": "billing-schema",
+      "path": "services/billing-service/prisma/schema.prisma",
+      "anchors": [
+        "enum DocumentType {",
+        "model Document {",
+        "immutableSnapshot",
+        "model DocumentItem {",
+        "model DespatchAdviceDetails {",
+        "model DailySummaryItem {"
+      ]
+    },
+    {
+      "id": "billing-query",
+      "path": "services/billing-service/src/application/issuance-query.service.ts",
+      "anchors": [
+        "async recentDocuments(",
+        "skip: (page - 1) * 20,",
+        "take: 20,",
+        "async documentDetail(",
+        "immutableSnapshot: true,",
+        "printContext:",
+        "activeOnly = true,"
+      ]
+    },
+    {
+      "id": "billing-controller",
+      "path": "services/billing-service/src/documents.controller.ts",
+      "anchors": [
+        "@Controller(\"api/v1/documents\")",
+        "@Get(\":documentId\")",
+        "PermissionCodes.DOCUMENT_VIEW"
+      ]
+    },
+    {
+      "id": "billing-issue",
+      "path": "services/billing-service/src/application/issue-document.service.ts",
+      "anchors": [
+        "documentType: \"INVOICE\" | \"SALES_RECEIPT\";",
+        "company.environment !== 'BETA'",
+        "branchId: point.branchId,",
+        "lines: calculated.lines,"
+      ]
+    },
+    {
+      "id": "snapshot-contract",
+      "path": "packages/contracts/src/events.ts",
+      "anchors": [
+        "export type FiscalDocumentTypeCode = \"01\" | \"03\" | \"07\" | \"08\" | \"09\";",
+        "export interface FiscalDocumentSnapshot {",
+        "lines: FiscalLineSnapshot[];"
+      ]
+    },
+    {
+      "id": "billing-note-reservation",
+      "path": "services/billing-service/src/application/beta-supplement-command.repository.ts",
+      "anchors": [
+        "private async reserveInTransaction(",
+        "await this.insertNote(",
+        "await tx.dailySummary.create(",
+        "conditionCode: 'conditionCode' in entry"
+      ]
+    },
+    {
+      "id": "billing-note-gate",
+      "path": "services/billing-service/src/application/beta-supplement-command.service.ts",
+      "anchors": [
+        "export function assertBillingSupplementActivation(): never",
+        "throw new ServiceUnavailableException(",
+        "assertBillingSupplementActivation();"
+      ]
+    },
+    {
+      "id": "fiscal-schema",
+      "path": "services/sunat-service/prisma/schema.prisma",
+      "anchors": [
+        "model FiscalDocument {",
+        "model FiscalBatch {",
+        "model DocumentArtifact {",
+        "model BatchArtifact {",
+        "model NotesQa {",
+        "model GreQaGuide {",
+        "CDR_ZIP",
+        "SIGNED_XML"
+      ]
+    },
+    {
+      "id": "fiscal-consumer",
+      "path": "services/sunat-service/src/application/document-issued.consumer.ts",
+      "anchors": [
+        "kind: \"UNSIGNED_XML\" as const,",
+        "this.prisma.fiscalDocument.upsert"
+      ]
+    },
+    {
+      "id": "beta-documents",
+      "path": "services/sunat-service/src/application/beta-issuance.repository.ts",
+      "anchors": [
+        "['SIGNED_XML', manifest.documentXml",
+        "current.batchId",
+        "immutablePayload: JSON.parse(JSON.stringify(snapshot))"
+      ]
+    },
+    {
+      "id": "beta-cdr",
+      "path": "services/sunat-service/src/application/beta-issuance.service.ts",
+      "anchors": [
+        "['CDR_ZIP', batchZip",
+        "['CDR_ZIP', zip"
+      ]
+    },
+    {
+      "id": "beta-notes",
+      "path": "services/sunat-service/src/application/beta-supplement.repository.ts",
+      "anchors": [
+        "await tx.fiscalDocument.create(",
+        "await tx.fiscalBatch.create(",
+        "['SIGNED_XML', manifest.xml"
+      ]
+    },
+    {
+      "id": "beta-note-cdr",
+      "path": "services/sunat-service/src/application/beta-supplement.service.ts",
+      "anchors": [
+        "['CDR_ZIP', zip",
+        "this.prisma.documentArtifact",
+        "this.prisma.batchArtifact"
+      ]
+    },
+    {
+      "id": "fiscal-download",
+      "path": "services/sunat-service/src/application/artifact-delivery.service.ts",
+      "anchors": [
+        "![\"ticket\", \"a4\"].includes(format)",
+        "snapshot.environment !== 'BETA'",
+        "![\"QUEUED\", \"BUILDING\"].includes(document.status)"
+      ]
+    },
+    {
+      "id": "pdf-current",
+      "path": "services/sunat-service/src/application/current-pdf.service.ts",
+      "anchors": [
+        "private readonly cache = new PdfPreviewCache();",
+        "snapshot.environment !== 'BETA'",
+        "branchName: _currentName"
+      ]
+    },
+    {
+      "id": "artifact-store",
+      "path": "services/sunat-service/src/infrastructure/artifact-store.ts",
+      "anchors": [
+        "export const MAX_ARTIFACT_BYTES = 10 * 1024 * 1024;",
+        "async read(",
+        "constants.O_RDONLY",
+        "Integridad del artefacto inválida"
+      ]
+    },
+    {
+      "id": "notes-qa",
+      "path": "services/sunat-service/src/application/notes-qa.service.ts",
+      "anchors": [
+        "officialCdr: false",
+        "async download(",
+        "'cdr-xml', 'cdr-zip', 'transport-xml', 'transport-zip'",
+        "SIMULADO-NO-FISCAL"
+      ]
+    },
+    {
+      "id": "gre-qa",
+      "path": "services/sunat-service/src/application/gre-qa.service.ts",
+      "anchors": [
+        "officialCdr: false",
+        "Sólo emisor ficticio",
+        "async download(",
+        "!['xml','zip','ticket','a4'].includes(format)"
+      ]
+    },
+    {
+      "id": "tracking",
+      "path": "services/sunat-service/src/application/supplement-tracking.service.ts",
+      "anchors": [
+        "async list(",
+        "take: 101",
+        "take: 201",
+        "Legacy singleton snapshots"
+      ]
+    },
+    {
+      "id": "history-contract",
+      "path": "packages/history-core/src/index.ts",
+      "anchors": [
+        "input.datasetClass === 'SYNTHETIC'",
+        "'factuez.history-full.v1'"
+      ]
+    },
+    {
+      "id": "history-api",
+      "path": "services/history-service/src/read-api.ts",
+      "anchors": [
+        "@Controller('api/v1/history')",
+        "options.datasetClass!=='SYNTHETIC'",
+        "No environment/secrets/DB reads or automatic listen."
+      ]
+    },
+    {
+      "id": "gt-reader",
+      "path": "packages/evidence-core/src/offline-review.ts",
+      "anchors": [
+        "type === '09' || type === '31'",
+        "DIAGNOSTIC_ONLY"
+      ]
+    },
+    {
+      "id": "gt-renderer",
+      "path": "packages/pdf-renderer/src/gre.ts",
+      "anchors": [
+        "renderLocalTransportGuidePdf",
+        "no emite 31",
+        "GT · PLANTILLA 31"
+      ]
+    },
+    {
+      "id": "received-schema",
+      "path": "services/received-documents-service/prisma/schema.prisma",
+      "anchors": [
+        "model ReceivedDocument {",
+        "recipientRuc",
+        "model ReceivedArtifact {",
+        "bytes      Bytes"
+      ]
+    },
+    {
+      "id": "identity-api",
+      "path": "services/identity-service/src/auth.controller.ts",
+      "anchors": [
+        "@Controller(\"api/v1/auth\")",
+        "@Post(\"login\")",
+        "@Get(\"me\")"
+      ]
+    },
+    {
+      "id": "kong-qa",
+      "path": "infra/kong/kong.stage2.qa.yml",
+      "anchors": [
+        "/api/v1/fiscal-artifacts",
+        "/api/v1/notes-qa",
+        "/api/v1/gre-qa",
+        "/api/v1/fiscal-evidence"
+      ]
+    },
+    {
+      "id": "kong-base",
+      "path": "infra/kong/kong.yml",
+      "anchors": [
+        "/api/v1/fiscal-artifacts",
+        "/api/v1/documents"
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "type": "01",
+      "name": "Factura",
+      "businessRead": "BILLING_SNAPSHOT",
+      "localIssuer": "ACTIVE_BETA_01_03",
+      "artifactSource": "FISCAL_DOCUMENT",
+      "cdrScope": "DOCUMENT",
+      "capability": "PARTIAL_INTERNAL",
+      "evidence": [
+        "billing-schema",
+        "billing-query",
+        "billing-issue",
+        "beta-documents",
+        "beta-cdr",
+        "fiscal-download"
+      ],
+      "gap": "Lectura detallada existe; falta listado/exportación por cursor y descarga genérica de XML/CDR. Disponibilidad física no ensayada."
+    },
+    {
+      "type": "03",
+      "name": "Boleta",
+      "businessRead": "BILLING_SNAPSHOT",
+      "localIssuer": "ACTIVE_BETA_01_03",
+      "artifactSource": "FISCAL_DOCUMENT_AND_BATCH",
+      "cdrScope": "SUMMARY_OR_BATCH",
+      "capability": "PARTIAL_INTERNAL",
+      "evidence": [
+        "billing-schema",
+        "billing-query",
+        "beta-documents",
+        "beta-cdr",
+        "tracking"
+      ],
+      "gap": "Resolver el resumen/lote real; copia de CDR en DocumentArtifact no lo convierte en individual. Hay snapshots RC singleton y multi-entry."
+    },
+    {
+      "type": "07",
+      "name": "Nota de crédito",
+      "businessRead": "BILLING_AND_FISCAL_CODE_PREPARED",
+      "localIssuer": "SUPPLEMENT_PRODUCER_BLOCKED",
+      "artifactSource": "FISCAL_DOCUMENT_OR_NOTES_QA_SEPARATE",
+      "cdrScope": "DOCUMENT_OR_SUMMARY",
+      "capability": "PREPARED_GATED",
+      "evidence": [
+        "billing-note-reservation",
+        "billing-note-gate",
+        "beta-notes",
+        "beta-note-cdr",
+        "notes-qa"
+      ],
+      "gap": "No confundir NotesQa con FiscalDocument. No activar emisor para extraer; añadir read-model seguro si existen notas persistidas."
+    },
+    {
+      "type": "08",
+      "name": "Nota de débito",
+      "businessRead": "BILLING_AND_FISCAL_CODE_PREPARED",
+      "localIssuer": "SUPPLEMENT_PRODUCER_BLOCKED",
+      "artifactSource": "FISCAL_DOCUMENT_OR_NOTES_QA_SEPARATE",
+      "cdrScope": "DOCUMENT_OR_SUMMARY",
+      "capability": "PREPARED_GATED",
+      "evidence": [
+        "billing-note-reservation",
+        "billing-note-gate",
+        "beta-notes",
+        "beta-note-cdr",
+        "notes-qa"
+      ],
+      "gap": "Persistencia/transporte preparados no equivalen a ventas reales disponibles. Mantener originales/QA y vínculos por referencia separados."
+    },
+    {
+      "type": "09",
+      "name": "Guía remitente",
+      "businessRead": "MODEL_ONLY_AND_SEPARATE_QA",
+      "localIssuer": "GRE_SYNTHETIC_ONLY",
+      "artifactSource": "GRE_QA_JSON_METADATA",
+      "cdrScope": "NOT_AVAILABLE_OFFICIAL_IN_LOCAL_GRE",
+      "capability": "LOCAL_LAB_ONLY",
+      "evidence": [
+        "billing-schema",
+        "gre-qa",
+        "fiscal-schema"
+      ],
+      "gap": "DespatchAdviceDetails es un modelo; emisión Billing admite sólo 01/03. GRE QA guarda XML/ZIP local, no CDR oficial ni traslado autorizado."
+    },
+    {
+      "type": "31",
+      "name": "Guía transportista",
+      "businessRead": "OFFLINE_DIAGNOSTIC_ONLY",
+      "localIssuer": "NOT_IMPLEMENTED_AS_ISSUANCE",
+      "artifactSource": "OFFLINE_INPUT_NOT_REGISTERED_ISSUED",
+      "cdrScope": "OFFLINE_SAMPLE_ONLY",
+      "capability": "OFFLINE_READER_AND_LOCAL_TEMPLATE",
+      "evidence": [
+        "snapshot-contract",
+        "gt-reader",
+        "gt-renderer",
+        "received-schema"
+      ],
+      "gap": "FiscalDocumentTypeCode no incluye 31 y DocumentType no tiene un tipo transportista. Lector/plantilla y recepción de proveedor no crean una guía emitida."
+    }
+  ],
+  "rules": [
+    "Los originales no se regeneran ni sustituyen; PDF actual y original histórico son artefactos distintos.",
+    "No inferir aceptación de SUNAT de SHA, archivo presente, enum ACCEPTED o CDR simulado.",
+    "Un CDR de resumen requiere autorizar todos los miembros antes de descargar el original.",
+    "No mezclar emitidos, recibidos, diagnósticos offline e historial SYNTHETIC.",
+    "No activar emisión, reservas, firma ni transmisión para resolver una consulta de extracción.",
+    "Mantener origen histórico y entorno explícitos; no usar maestros actuales como hechos originales."
+  ],
+  "gaps": [
+    {
+      "id": "G01",
+      "phase": 2,
+      "description": "Contrato normalizado versionado por tipo y fuente; alcance explícito de capacidades parciales."
+    },
+    {
+      "id": "G02",
+      "phase": 3,
+      "description": "Identidades máquina-a-máquina separadas de usuarios, credenciales rotables, scopes por RUC/sede/periodo y autorización interna."
+    },
+    {
+      "id": "G03",
+      "phase": 4,
+      "description": "Read APIs internas de XML/CDR y lote, inventario por hashes/tamaños, pertenencia y errores de disponibilidad."
+    },
+    {
+      "id": "G04",
+      "phase": 4,
+      "description": "Lectura de notas persistidas sin quitar el gate de su productor; exportar QA sólo como QA."
+    },
+    {
+      "id": "G05",
+      "phase": 4,
+      "description": "Guías 09/31 de negocio requieren fuente persistente real y contrato específico; no afirmar cobertura oficial."
+    },
+    {
+      "id": "G06",
+      "phase": 5,
+      "description": "Extracción completa por cursor y corte consistente; listado actual limitado a páginas de 20."
+    },
+    {
+      "id": "G07",
+      "phase": 6,
+      "description": "Feed durable commit-consistente; Outbox/live avisos existentes no constituyen checkpoint de exportación."
+    },
+    {
+      "id": "G08",
+      "phase": 7,
+      "description": "Entrada privada exclusiva, VPN/HTTPS y política de red; no exponer rutas completas del Kong intranet."
+    },
+    {
+      "id": "G09",
+      "phase": 8,
+      "description": "Pruebas runtime de pertenencia/hash/estado y conciliación con export real autorizado; no hechas en esta auditoría."
+    }
+  ]
+}

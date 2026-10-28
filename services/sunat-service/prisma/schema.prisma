@@ -1,0 +1,422 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SunatEnvironment {
+  BETA
+  PRODUCTION
+}
+
+enum SunatStatus {
+  QUEUED
+  BUILDING
+  SIGNED
+  SUBMITTED
+  PROCESSING
+  ACCEPTED
+  ACCEPTED_WITH_OBSERVATIONS
+  REJECTED
+  RETRYABLE_ERROR
+  PERMANENT_ERROR
+}
+
+enum ArtifactKind {
+  UNSIGNED_XML
+  SIGNED_XML
+  SUBMISSION_ZIP
+  CDR_XML
+  CDR_ZIP
+  PDF_TICKET_80MM
+  PDF_A4
+  DELIVERY_ZIP
+}
+
+enum SubmissionChannel {
+  SOAP_SEND_BILL
+  SOAP_SEND_SUMMARY
+  SOAP_GET_STATUS
+  REST_GRE_SUBMIT
+  REST_GRE_STATUS
+}
+
+enum SubmissionResult {
+  PENDING
+  SUCCESS
+  BUSINESS_ERROR
+  TRANSPORT_ERROR
+  UNKNOWN
+}
+
+model IssuerProjection {
+  id            Int              @id // ID externo de Billing, no singleton
+  ruc           String           @unique @db.Char(11)
+  legalName     String           @db.VarChar(200)
+  tradeName     String?          @db.VarChar(200)
+  taxAddress    String           @db.VarChar(300)
+  ubigeo        String           @db.Char(6)
+  environment   SunatEnvironment @default(BETA)
+  sourceVersion Int
+  updatedAt     DateTime         @updatedAt
+}
+
+model SunatCredentials {
+  id                        Int      @id @default(autoincrement())
+  issuerRuc                 String   @db.Char(11)
+  environment               SunatEnvironment
+  certificateStorageKey     String?  @db.VarChar(500)
+  certificateCipher         String? // PKCS#12 completo cifrado, nunca texto claro
+  certificateSelfSigned     Boolean?
+  certificateFingerprint    String?  @db.VarChar(128)
+  certificateExpiresAt      DateTime?
+  certificatePasswordCipher String?
+  solUsernameCipher         String?
+  solPasswordCipher         String?
+  greClientIdCipher         String?
+  greClientSecretCipher     String?
+  @@unique([issuerRuc, environment])
+  secretsKeyVersion         Int      @default(1)
+  revision                  Int      @default(0)
+  updatedAt                 DateTime @updatedAt
+}
+
+model FiscalConfigurationAudit {
+  id          String           @id @default(uuid()) @db.Uuid
+  issuerRuc   String           @db.Char(11)
+  environment SunatEnvironment
+  actorId     String           @db.Uuid // ID externo Identity, sin FK entre BD
+  fields      String[]         // Sólo nombres, jamás valores ni contraseñas
+  revision    Int
+  occurredAt  DateTime         @default(now())
+  @@index([issuerRuc, environment, occurredAt])
+}
+
+model FiscalDocument {
+  issuerRuc        String      @db.Char(11)
+  documentId       String      @id @db.Uuid // ID externo de billing-service
+  documentType     String      @db.VarChar(2)
+  series           String      @db.VarChar(4)
+  number           BigInt
+  environment      SunatEnvironment
+  status           SunatStatus @default(QUEUED)
+  billingEventId   String      @unique @db.Uuid
+  immutablePayload Json
+  digestValue      String?     @db.VarChar(128)
+  acceptedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  submissions SunatSubmission[]
+  artifacts   DocumentArtifact[]
+  cdrLogs     CdrLog[]
+  localValidations LocalXmlValidation[]
+  circuitQa FiscalCircuitQa?
+  batchQaMembers FiscalBatchQaMember[]
+
+  @@unique([issuerRuc, environment, documentType, series, number], map: "FiscalDocument_issuer_fiscal_number_key")
+}
+
+// Prueba criptográfica separada de SIGNED/SUBMITTED y de los artefactos fiscales.
+model LocalXmlValidation {
+  id                     String @id @default(uuid()) @db.Uuid
+  documentId             String @db.Uuid
+  profile                String @db.VarChar(80)
+  credentialRevision     Int
+  certificateFingerprint String @db.Char(64)
+  snapshotSha256         String @db.Char(64)
+  digestValue            String @db.VarChar(128)
+  xmlStorageKey          String @db.VarChar(500)
+  xmlSha256              String @db.Char(64)
+  xmlSizeBytes           BigInt
+  zipStorageKey          String @db.VarChar(500)
+  zipSha256              String @db.Char(64)
+  zipSizeBytes           BigInt
+  actorId                String @db.Uuid
+  createdAt              DateTime @default(now())
+  document FiscalDocument @relation(fields: [documentId], references: [documentId], onDelete: Restrict)
+  @@unique([documentId, profile, credentialRevision])
+  @@index([documentId, createdAt])
+}
+
+// Evidencia de transporte SIMULADO, separada de SunatSubmission/CDR fiscales.
+model FiscalCircuitQa {
+  id String @id @default(uuid()) @db.Uuid
+  documentId String @unique @db.Uuid
+  actorId String @db.Uuid
+  credentialRevision Int
+  scenario String @db.VarChar(30)
+  state String @default("QUEUED") @db.VarChar(40)
+  requestFileName String @unique @db.VarChar(120)
+  reference String @db.VarChar(40)
+  digestValue String @db.VarChar(128)
+  requestArtifact Json
+  signedXmlArtifact Json
+  documentXmlArtifact Json
+  documentDigestValue String @db.VarChar(128)
+  xsdEvidence Json?
+  cdrZipArtifact Json?
+  cdrXmlArtifact Json?
+  responseCode String? @db.VarChar(40)
+  description String? @db.VarChar(2048)
+  notes String[]
+  ticket String? @db.VarChar(120)
+  pollAttempts Int @default(0)
+  nextPollAt DateTime @default(now())
+  claimedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  document FiscalDocument @relation(fields: [documentId], references: [documentId], onDelete: Restrict)
+  @@index([state, nextPollAt])
+}
+
+model FiscalQaCounter {
+  id String @id @db.VarChar(30)
+  lastNumber Int @default(0)
+}
+
+// Lotes ficticios RC/RA. Nunca se mezclan con FiscalBatch ni CDR oficiales.
+model FiscalBatchQa {
+  id String @id @db.Uuid
+  issuerRuc String @db.Char(11)
+  idempotencyKey String @db.Uuid
+  inputSha256 String @db.Char(64)
+  kind String @db.VarChar(12)
+  identifier String @db.VarChar(32)
+  actorId String @db.Uuid
+  credentialRevision Int
+  scenario String @db.VarChar(30)
+  state String @default("BUILDING") @db.VarChar(40)
+  immutablePayload Json
+  requestFileName String @unique @db.VarChar(120)
+  digestValue String? @db.VarChar(128)
+  requestArtifact Json?
+  signedXmlArtifact Json?
+  xsdEvidence Json?
+  cdrZipArtifact Json?
+  cdrXmlArtifact Json?
+  responseCode String? @db.VarChar(40)
+  description String? @db.VarChar(2048)
+  notes String[]
+  ticket String? @db.VarChar(120)
+  pollAttempts Int @default(0)
+  nextPollAt DateTime @default(now())
+  claimedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members FiscalBatchQaMember[]
+  @@unique([issuerRuc,idempotencyKey])
+  @@unique([issuerRuc,identifier])
+  @@index([state,nextPollAt])
+}
+model FiscalBatchQaMember {
+  id String @id @db.Uuid
+  batchId String @db.Uuid
+  documentId String @db.Uuid
+  action String @db.VarChar(8)
+  batch FiscalBatchQa @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  document FiscalDocument @relation(fields: [documentId], references: [documentId], onDelete: Restrict)
+  @@unique([documentId,action])
+  @@index([batchId])
+}
+
+model FiscalBatch {
+  issuerRuc        String      @db.Char(11)
+  id               String      @id @default(uuid()) @db.Uuid
+  summaryId        String      @unique @db.Uuid // ID externo de billing-service
+  identifier       String      @db.VarChar(32)
+  environment      SunatEnvironment
+  status           SunatStatus @default(QUEUED)
+  billingEventId   String      @unique @db.Uuid
+  immutablePayload Json
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@unique([issuerRuc, environment, identifier])
+  submissions SunatSubmission[]
+  artifacts   BatchArtifact[]
+  cdrLogs     CdrLog[]
+}
+
+model SunatSubmission {
+  id                  String            @id @default(uuid()) @db.Uuid
+  documentId          String?           @db.Uuid
+  batchId             String?           @db.Uuid
+  channel             SubmissionChannel
+  attempt             Int
+  idempotencyKey      String            @unique @db.VarChar(160)
+  ticket              String?           @db.VarChar(120)
+  httpStatus          Int?
+  result              SubmissionResult  @default(PENDING)
+  requestArtifactKey  String?           @db.VarChar(500)
+  responseArtifactKey String?           @db.VarChar(500)
+  errorCode           String?           @db.VarChar(40)
+  errorMessage        String?
+  startedAt           DateTime          @default(now())
+  completedAt         DateTime?
+  nextRetryAt         DateTime?
+
+  document FiscalDocument? @relation(fields: [documentId], references: [documentId], onDelete: Restrict)
+  batch    FiscalBatch?    @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  cdrLogs CdrLog[]
+
+  @@unique([documentId, channel, attempt])
+  @@unique([batchId, channel, attempt])
+  @@index([result, nextRetryAt])
+}
+
+model CdrLog {
+  id            String   @id @default(uuid()) @db.Uuid
+  documentId    String?  @db.Uuid
+  batchId       String?  @db.Uuid
+  submissionId  String   @db.Uuid
+  responseCode  String   @db.VarChar(20)
+  description   String
+  notes         String[]
+  cdrStorageKey String   @db.VarChar(500)
+  cdrSha256     String   @db.Char(64)
+  receivedAt    DateTime @default(now())
+
+  document   FiscalDocument? @relation(fields: [documentId], references: [documentId], onDelete: Restrict)
+  batch      FiscalBatch?    @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  submission SunatSubmission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+}
+
+model DocumentArtifact {
+  id         String       @id @default(uuid()) @db.Uuid
+  documentId String       @db.Uuid
+  kind       ArtifactKind
+  storageKey String       @db.VarChar(500)
+  mediaType  String       @db.VarChar(120)
+  sizeBytes  BigInt
+  sha256     String       @db.Char(64)
+  createdAt  DateTime     @default(now())
+
+  document FiscalDocument @relation(fields: [documentId], references: [documentId], onDelete: Restrict)
+
+  @@unique([documentId, kind])
+}
+
+model BatchArtifact {
+  id         String       @id @default(uuid()) @db.Uuid
+  batchId    String       @db.Uuid
+  kind       ArtifactKind
+  storageKey String       @db.VarChar(500)
+  mediaType  String       @db.VarChar(120)
+  sizeBytes  BigInt
+  sha256     String       @db.Char(64)
+  createdAt  DateTime     @default(now())
+
+  batch FiscalBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@unique([batchId, kind])
+}
+
+model NotesQa {
+  id String @id @db.Uuid
+  originalDocumentId String @db.Uuid
+  originalCircuitId String @db.Uuid
+  actorId String @db.Uuid
+  idempotencyKey String @db.Uuid
+  requestSha256 String @db.Char(64)
+  originalSha256 String @db.Char(64)
+  credentialRevision Int
+  certificateFingerprint String @db.Char(64)
+  issuerRuc String @db.Char(11)
+  documentTypeCode String @db.Char(2)
+  series String @db.Char(4)
+  number Int
+  snapshot Json
+  state String @default("QUEUED") @db.VarChar(30)
+  attempts Int @default(0)
+  claimedAt DateTime? @db.Timestamp(3)
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+  digestValue String? @db.VarChar(128)
+  xmlArtifact Json?
+  zipArtifact Json?
+  xsdEvidence Json?
+  description String? @db.VarChar(2048)
+  @@unique([originalDocumentId,actorId,idempotencyKey], map: "NotesQa_request_key")
+  @@unique([issuerRuc,documentTypeCode,series,number], map: "NotesQa_number_key")
+  @@index([state,createdAt])
+  @@index([originalDocumentId,createdAt])
+}
+model NotesQaCounter {
+  id String @id @db.VarChar(40)
+  lastNumber Int @default(0)
+}
+
+model GreQaGuide {
+  id String @id @db.Uuid
+  actorId String @db.Uuid
+  idempotencyKey String @db.Uuid
+  issuerRuc String @db.VarChar(11)
+  companyId Int
+  originBranchId String @db.Uuid
+  destinationBranchId String @db.Uuid
+  localIdentifier String @unique @db.VarChar(50)
+  ublNumber String @db.VarChar(20)
+  payload Json
+  inputSha256 String @db.Char(64)
+  xmlArtifact Json
+  zipArtifact Json
+  signatureVerified Boolean @default(false)
+  digestValue String? @db.VarChar(128)
+  certificateFingerprint String? @db.VarChar(128)
+  credentialRevision Int?
+  xsdEvidence Json?
+  state String @default("PREPARED_LOCAL") @db.VarChar(32)
+  simulation Json?
+  createdAt DateTime @default(now()) @db.Timestamp(3)
+  updatedAt DateTime @default(now()) @db.Timestamp(3)
+  @@unique([actorId,idempotencyKey])
+  @@unique([issuerRuc,ublNumber])
+  @@index([companyId,createdAt(sort: Desc)])
+}
+
+model OutboxEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  eventType     String   @db.VarChar(120)
+  aggregateId   String   @db.VarChar(120)
+  payload       Json
+  occurredAt    DateTime @default(now())
+  publishedAt   DateTime?
+  attempts      Int      @default(0)
+  lastError     String?
+  @@index([publishedAt, occurredAt])
+}
+
+model InboxEvent {
+  eventId     String   @id @db.Uuid
+  eventType   String   @db.VarChar(120)
+  processedAt DateTime @default(now())
+}
+
+// Explicit per-issuer authority. Saving credentials never creates this record.
+model FiscalDispatchAuthorization {
+  issuerRuc String @db.Char(11)
+  environment SunatEnvironment
+  enabled Boolean @default(false)
+  profile String @db.VarChar(64)
+  credentialRevision Int
+  certificateFingerprint String @db.Char(64)
+  version Int @default(1)
+  actorId String @db.Uuid
+  registrationAttestedAt DateTime?
+  updatedAt DateTime @updatedAt
+  @@id([issuerRuc, environment])
+}
+model FiscalDispatchAudit {
+  id String @id @default(uuid()) @db.Uuid
+  issuerRuc String @db.Char(11)
+  environment SunatEnvironment
+  enabled Boolean
+  version Int
+  credentialRevision Int
+  actorId String @db.Uuid
+  occurredAt DateTime @default(now())
+  @@index([issuerRuc, environment, occurredAt])
+}

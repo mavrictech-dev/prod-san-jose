@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+enum EmailStatus {
+  QUEUED
+  SENDING
+  SENT
+  RETRYABLE_ERROR
+  FAILED
+}
+
+model SmtpSettings {
+  id                Int      @id @default(1)
+  host              String   @db.VarChar(255)
+  port              Int
+  secure            Boolean  @default(true)
+  usernameCipher    String?
+  passwordCipher    String?
+  fromName          String   @db.VarChar(160)
+  fromAddress       String   @db.VarChar(254)
+  replyTo           String?  @db.VarChar(254)
+  enabled           Boolean  @default(false)
+  secretsKeyVersion Int      @default(1)
+  updatedAt         DateTime @updatedAt
+}
+
+model EmailDelivery {
+  id             String      @id @default(uuid()) @db.Uuid
+  documentId     String      @db.Uuid // ID externo de billing-service
+  sourceEventId  String      @db.Uuid
+  recipient      String      @db.VarChar(254)
+  packageVersion Int         @default(1)
+  status         EmailStatus @default(QUEUED)
+  attempt        Int         @default(0)
+  messageId      String?     @db.VarChar(255)
+  errorMessage   String?
+  queuedAt       DateTime    @default(now())
+  sentAt         DateTime?
+  nextRetryAt    DateTime?
+
+  @@unique([documentId, recipient, packageVersion])
+  @@unique([sourceEventId, recipient])
+  @@index([status, nextRetryAt])
+}
+
+model InboxEvent {
+  eventId     String   @id @db.Uuid
+  eventType   String   @db.VarChar(120)
+  processedAt DateTime @default(now())
+}
+
+// Nunca contiene JWT, credenciales SMTP ni datos de producción.
+model LocalQaMail {
+  id            String   @id @default(uuid()) @db.Uuid
+  documentId    String   @db.Uuid
+  actorId       String   @db.Uuid
+  recipient     String   @db.VarChar(254)
+  format        String   @db.VarChar(8)
+  manifest      Json
+  status        String   @default("QUEUED") @db.VarChar(32)
+  attempt       Int      @default(0)
+  description   String?  @db.VarChar(240)
+  messageId     String?  @db.VarChar(255)
+  claimedAt     DateTime?
+  nextAttemptAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  capturedAt    DateTime?
+
+  @@unique([documentId, recipient, format])
+  @@index([status, nextAttemptAt])
+}
+
+// Propiedad exclusiva del Mailer. El SQL aditivo conserva CHECK y auditoría
+// GENERATED ALWAYS; este schema NO autoriza db push sobre bases existentes.
+model CorporateSmtpConfiguration {
+  issuerRuc           String   @id @db.VarChar(11)
+  companyId           Int
+  configurationCipher String   @db.VarChar(5700)
+  keyVersion          Int
+  revision            Int
+  updatedBy           String   @db.Uuid
+  updatedAt           DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model CorporateSmtpConfigurationAudit {
+  id                  BigInt   @id @default(autoincrement())
+  issuerRuc           String   @db.VarChar(11)
+  companyId           Int
+  actorId             String   @db.Uuid
+  revision            Int
+  credentialsReplaced Boolean
+  action              String   @default("smtp.configuration.saved") @db.VarChar(40)
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([issuerRuc, revision])
+}

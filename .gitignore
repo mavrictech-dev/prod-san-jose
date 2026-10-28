@@ -1,0 +1,48 @@
+node_modules/
+.pnpm-store/
+.turbo/
+.next/
+*.tsbuildinfo
+.factuez-demo/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+# El repositorio es público: conservar sólo instrucciones y marcador vacío.
+secrets/**
+!secrets/README.md
+!secrets/.gitkeep
+*.p12
+*.pfx
+*.key
+*.pem
+*.p7b
+*.p7m
+*.log
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.backup
+data/
+backups/
+private_data/
+packages/database/src/generated/
+services/*/src/generated/
+# Evidencia fiscal, respuestas de pilotos, copias y documentos del cliente.
+tmp/
+output/
+
+# Configuración local de asistentes; no pertenece a la entrega
+.agents/
+.codex/
+.kilo/
+skills-lock.json
+.ci-python/
+__pycache__/
+*.pyc
+
+# Delivery repository: no development documentation or installation state.
+/docs/
+/.installation/

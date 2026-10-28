@@ -1,0 +1,115 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: received-documents-service
+    url: http://received-documents-service:3006
+    routes:
+      - name: received-documents-route
+        paths: [/api/v1/received-documents]
+        strip_path: false
+        protocols: [http, https]
+    plugins:
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 18
+          size_unit: megabytes
+  - name: identity-service
+    url: http://identity-service:3001
+    routes:
+      - name: identity-auth-route
+        paths: [/api/v1/auth, /api/v1/users, /api/v1/roles, /api/v1/b2b-admin]
+        strip_path: false
+        protocols: [http, https]
+
+  - name: billing-service
+    url: http://billing-service:3002
+    routes:
+      - name: billing-route
+        paths:
+          - /api/v1/setup/company
+          - /api/v1/emission-points
+          - /api/v1/shifts
+          - /api/v1/products
+          - /api/v1/customers
+          - /api/v1/documents
+          - /api/v1/stations
+          - /api/v1/daily-summaries
+        strip_path: false
+        protocols: [http, https]
+
+  - name: sunat-service
+    url: http://sunat-service:3003
+    routes:
+      - name: sunat-route
+        paths:
+          - /api/v1/setup/certificate
+          - /api/v1/setup/sunat
+          - /api/v1/fiscal-artifacts
+          - /api/v1/local-xml-validation
+          - /api/v1/fiscal-rules
+        strip_path: false
+        protocols: [http, https]
+
+  - name: reporting-service
+    url: http://reporting-service:3005
+    routes:
+      - name: reporting-route
+        paths: [/api/v1/reports, /api/v1/dashboard]
+        strip_path: false
+        protocols: [http, https]
+
+  - name: realtime-service
+    url: http://realtime-service:3006
+    routes:
+      - name: socketio-route
+        paths: [/socket.io]
+        strip_path: false
+        protocols: [http, https]
+
+  - name: web-pwa
+    url: http://web-pwa:3000
+    routes:
+      - name: web-route
+        paths: [/]
+        strip_path: false
+        protocols: [http, https]
+
+plugins:
+  - name: correlation-id
+    config:
+      header_name: X-Correlation-ID
+      generator: uuid
+      echo_downstream: true
+
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 12
+      size_unit: megabytes
+
+  - name: rate-limiting
+    config:
+      minute: 600
+      policy: local
+      fault_tolerant: true
+
+  - name: cors
+    config:
+      origins:
+        - https://factuez.grifosanjose.lan
+      methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+      headers:
+        - Accept
+        - Authorization
+        - Content-Type
+        - Idempotency-Key
+        - X-Correlation-ID
+      exposed_headers: [X-Correlation-ID]
+      credentials: true
+      max_age: 3600
+
+  - name: prometheus
+    config:
+      status_code_metrics: true
+      latency_metrics: true
+      bandwidth_metrics: true

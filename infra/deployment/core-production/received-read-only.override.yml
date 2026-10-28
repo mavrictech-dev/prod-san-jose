@@ -1,0 +1,35 @@
+{
+  "x-reception-contract": {
+    "scope": "Read-only SIRE/IMAP after current RUC validation and explicit activation. No fiscal emission or registry submission.",
+    "memoryBudgetUnchanged": true,
+    "publicPortsUnchanged": true
+  },
+  "services": {
+    "received-documents-service": {
+      "environment": {
+        "RECEIVED_LIVE_READ_ALLOWED": "true",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_IMAP_APPROVED_HOSTS": "${CORE_IMAP_APPROVED_HOSTS:?Explicit approved IMAP DNS list required}"
+      },
+      "networks": [
+        "private-db",
+        "core",
+        "egress"
+      ]
+    },
+    "received-sync-worker": {
+      "environment": {
+        "RECEIVED_LIVE_READ_ALLOWED": "true",
+        "RECEIVED_LOCAL_FIXTURE_ENABLED": "false",
+        "RECEIVED_QA_USE_APP_KEY": "false",
+        "RECEIVED_IMAP_APPROVED_HOSTS": "${CORE_IMAP_APPROVED_HOSTS:?Explicit approved IMAP DNS list required}"
+      },
+      "networks": [
+        "private-db",
+        "core",
+        "egress"
+      ]
+    }
+  }
+}

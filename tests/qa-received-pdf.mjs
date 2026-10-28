@@ -1,0 +1,12 @@
+import { createRequire } from 'node:module';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { receivedXml } from './received-fixture.mjs';
+if (!process.argv.includes('--synthetic-only')) throw new Error('Requiere --synthetic-only');
+const require = createRequire(import.meta.url);
+const { parseReceivedXml } = require('../packages/received-core/dist');
+const { receivedReadingPdf } = require('../services/received-documents-service/dist/exports');
+const p = parseReceivedXml(Buffer.from(receivedXml()));
+p.items = Array.from({ length: 15 }, (_, i) => ({ ...p.items[0], lineId: String(i + 1), description: `Ítem ficticio ${i + 1}: ${p.items[0].description}` }));
+await mkdir('tmp/pdfs', { recursive: true });
+await writeFile('tmp/pdfs/received-qa.pdf', await receivedReadingPdf({ fullNumber: p.fullNumber, projection: p }));
+console.log('PDF ficticio de recepción generado para QA visual');

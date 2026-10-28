@@ -1,0 +1,13 @@
+# Update only these compatible QA services with --no-deps --no-build.
+# Does not run SQL, migrate, seed, publish B2B listeners or activate SUNAT.
+services:
+  web-pwa:
+    image: factuez-stage2-qa/web-pwa:connections-final-20261028
+    pull_policy: never
+  sunat-service:
+    image: factuez-stage2-qa/sunat-service:production01-final-20261028
+    pull_policy: never
+    environment:
+      SUNAT_PRODUCTION_WORKFLOW_ENABLED: "false"
+      SUNAT_BETA_TRANSMISSION_ENABLED: "false"
+      SUNAT_BETA_WORKFLOW_ENABLED: "false"
