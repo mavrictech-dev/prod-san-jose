@@ -120,6 +120,17 @@ Start-Process 'http://127.0.0.1:8091/login'
 
 Kong debe publicar `127.0.0.1:8091->8000/tcp`. La red `host-access` permite esa publicación hacia Windows; únicamente Kong participa en ella. Las redes de base de datos y servicios siguen siendo internas. Start y RepairAccess comprueban además una respuesta HTTP 200 de `/login` antes de anunciar éxito. Esta corrección no requiere Build ni Prepare.
 
+## Si el login devuelve error interno por permisos de JWT
+
+Si el registro de Identity indica `EACCES` al leer `jwt_public_key` o `jwt_private_key`, aplicar:
+
+```powershell
+git pull --ff-only
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\infra\deployment\windows-test\Install-Test.ps1 -Action RepairAuth
+```
+
+La reparación verifica que las claves existentes forman pareja, ajusta su propietario al usuario 1000 del servicio y conserva su contenido. La privada permanece con permisos 0600; la pública, que no es secreta, 0644. Comprueba lectura y firma/verificación desde el usuario real de Identity. No requiere Build ni Prepare y no modifica usuarios ni contraseñas. Las nuevas preparaciones y el arranque también comprueban este acceso.
+
 ## Diagnóstico
 
 ```powershell

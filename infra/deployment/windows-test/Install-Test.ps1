@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess')][string]$Action='Status')
+param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth')][string]$Action='Status')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -10,6 +10,15 @@ $project='factuez-san-jose-test'
 $utf8=New-Object Text.UTF8Encoding($false)
 function Invoke-Docker([string[]]$Arguments) { & docker @Arguments; if($LASTEXITCODE -ne 0){throw 'Docker operation failed. Do not delete volumes or regenerate secrets.'} }
 function Invoke-Compose([string[]]$Arguments) { if(-not(Test-Path -LiteralPath $envFile)){throw 'Run Prepare first.'}; Invoke-Docker (@('compose','--project-name',$project,'--env-file',$envFile,'--file',$composeFile)+$Arguments) }
+function Repair-JwtFilePermissions {
+ $secretFolder=Join-Path $state 'secrets'
+ $repairFile=Join-Path $PSScriptRoot 'repair-jwt-permissions.cjs'
+ Invoke-Docker -Arguments @('run','--rm','--pull','never','--network','none','--user','0:0','--mount',"type=bind,source=$secretFolder,target=/keys",'--mount',"type=bind,source=$repairFile,target=/repair.cjs,readonly",'--entrypoint','node','factuez-windows-test/identity-service:local','/repair.cjs','/keys')
+}
+function Assert-AuthenticationKeys {
+ $check="const f=require('node:fs'),c=require('node:crypto');let p,q;try{p=f.readFileSync(process.env.JWT_PRIVATE_KEY_FILE);q=f.readFileSync(process.env.JWT_PUBLIC_KEY_FILE);const b=Buffer.from('factuez-auth-readiness');if(!c.verify('sha256',b,q,c.sign('sha256',b,p)))throw Error();console.log('AUTHENTICATION_KEYS_ACCESSIBLE');}catch{console.error('AUTHENTICATION_KEY_READINESS_FAILED');process.exitCode=1;}finally{p?.fill(0);q?.fill(0);}"
+ Invoke-Compose -Arguments @('exec','--no-TTY','--user','1000:1000','identity-service','node','-e',$check)
+}
 function Assert-WebAccess {
  for($attempt=0;$attempt -lt 20;$attempt++) {
   $response=$null
@@ -60,6 +69,7 @@ if($Action -eq 'Prepare') {
  [IO.File]::WriteAllText($envFile,"FIRST_ADMIN_USERNAME=${username}`nFIRST_ADMIN_FULL_NAME=${fullName}`n",$utf8)
  $keyScript="const fs=require('node:fs'),c=require('node:crypto');const k=c.generateKeyPairSync('rsa',{modulusLength:3072,publicKeyEncoding:{type:'spki',format:'pem'},privateKeyEncoding:{type:'pkcs8',format:'pem'}});fs.writeFileSync('/install/secrets/jwt_private_key',k.privateKey,{flag:'wx',mode:0o600});fs.writeFileSync('/install/secrets/jwt_public_key',k.publicKey,{flag:'wx',mode:0o600});"
  Invoke-Docker -Arguments @('run','--rm','--network','none','--mount',"type=bind,source=$state,target=/install",'--entrypoint','node','factuez-windows-test/identity-service:local','-e',$keyScript)
+ Repair-JwtFilePermissions
  $scriptsPath=Join-Path $projectRoot 'scripts'
  Invoke-Docker -Arguments @('run','--rm','--network','none','--mount',"type=bind,source=$state,target=/install",'--mount',"type=bind,source=$scriptsPath,target=/workspace/scripts,readonly",'--entrypoint','node','factuez-windows-test/identity-service:local','scripts/export-windows-test-schemas.cjs','/install/schemas')
  [IO.File]::WriteAllText((Join-Path $state 'prepared.marker'),"NEW_WINDOWS_TEST_INSTALLATION`n",$utf8)
@@ -70,7 +80,14 @@ if($Action -eq 'Start') {
  $listener=Get-NetTCPConnection -State Listen -LocalPort 8091 -ErrorAction SilentlyContinue
  $existing=@(& docker ps -q --filter "label=com.docker.compose.project=$project")
  if($listener -and $existing.Count -eq 0){throw 'Port 8091 is occupied by another application.'}
- Invoke-Compose -Arguments @('up','--detach','--no-build','--wait','--wait-timeout','300');Assert-WebAccess;Write-Host 'Open http://localhost:8091/login';return
+ Invoke-Compose -Arguments @('up','--detach','--no-build','--wait','--wait-timeout','300');Assert-AuthenticationKeys;Assert-WebAccess;Write-Host 'Open http://localhost:8091/login';return
+}
+if($Action -eq 'RepairAuth') {
+ if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing prepared installation required.'}
+ Repair-JwtFilePermissions
+ Invoke-Compose -Arguments @('up','--detach','--no-deps','--no-build','--force-recreate','--wait','--wait-timeout','120','identity-service')
+ Assert-AuthenticationKeys;Assert-WebAccess
+ Write-Host 'Authentication key access repaired. Administrator, password and keys retained.';return
 }
 if($Action -eq 'RepairAccess') {
  if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing prepared installation required.'}
