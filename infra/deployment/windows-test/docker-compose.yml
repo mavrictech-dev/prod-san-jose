@@ -1280,7 +1280,8 @@
       ],
       "networks": [
         "edge",
-        "core"
+        "core",
+        "host-access"
       ],
       "ports": [
         "127.0.0.1:8091:8000"
@@ -1408,6 +1409,10 @@
     },
     "egress": {
       "internal": true
+    },
+    "host-access": {
+      "driver": "bridge",
+      "internal": false
     }
   },
   "secrets": {

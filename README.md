@@ -108,6 +108,18 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\infra\deployment\windo
 
 Los servicios usan `restart: unless-stopped` y registros con tamaño limitado. Docker Desktop debe iniciarse en Windows para que los contenedores funcionen; configurar su inicio con la sesión del usuario en sus ajustes. No es un servicio de Windows Server que garantice arranque antes del inicio de sesión. Si se detuvieron con Stop, volver a ejecutar Start.
 
+## Si todos están saludables pero el puerto 8091 no responde
+
+Actualizar esta corrección y recrear únicamente Kong; conserva el administrador, claves, volúmenes y bases existentes:
+
+```powershell
+git pull --ff-only
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\infra\deployment\windows-test\Install-Test.ps1 -Action RepairAccess
+Start-Process 'http://127.0.0.1:8091/login'
+```
+
+Kong debe publicar `127.0.0.1:8091->8000/tcp`. La red `host-access` permite esa publicación hacia Windows; únicamente Kong participa en ella. Las redes de base de datos y servicios siguen siendo internas. Start y RepairAccess comprueban además una respuesta HTTP 200 de `/login` antes de anunciar éxito. Esta corrección no requiere Build ni Prepare.
+
 ## Diagnóstico
 
 ```powershell

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap')][string]$Action='Status')
+param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess')][string]$Action='Status')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -10,6 +10,19 @@ $project='factuez-san-jose-test'
 $utf8=New-Object Text.UTF8Encoding($false)
 function Invoke-Docker([string[]]$Arguments) { & docker @Arguments; if($LASTEXITCODE -ne 0){throw 'Docker operation failed. Do not delete volumes or regenerate secrets.'} }
 function Invoke-Compose([string[]]$Arguments) { if(-not(Test-Path -LiteralPath $envFile)){throw 'Run Prepare first.'}; Invoke-Docker (@('compose','--project-name',$project,'--env-file',$envFile,'--file',$composeFile)+$Arguments) }
+function Assert-WebAccess {
+ for($attempt=0;$attempt -lt 20;$attempt++) {
+  $response=$null
+  try {
+   $request=[Net.HttpWebRequest]::Create('http://127.0.0.1:8091/login')
+   $request.Proxy=$null;$request.Timeout=5000;$request.ReadWriteTimeout=5000;$request.AllowAutoRedirect=$false
+   $response=$request.GetResponse()
+   if([int]$response.StatusCode -eq 200){Write-Host 'Verified: http://127.0.0.1:8091/login responds.';return}
+  } catch { } finally { if($null -ne $response){$response.Close()} }
+  Start-Sleep -Seconds 2
+ }
+ throw 'Containers started but http://127.0.0.1:8091/login is not accessible. Run Status and check Kong port publication. Do not repeat Prepare.'
+}
 if($env:OS -ne 'Windows_NT'){throw 'Windows 11 required for this launcher.'}
 $dockerOs=& docker info --format '{{.OSType}}'
 if($LASTEXITCODE -ne 0 -or $dockerOs.Trim() -ne 'linux'){throw 'Start Docker Desktop in Linux containers mode first.'}
@@ -57,7 +70,12 @@ if($Action -eq 'Start') {
  $listener=Get-NetTCPConnection -State Listen -LocalPort 8091 -ErrorAction SilentlyContinue
  $existing=@(& docker ps -q --filter "label=com.docker.compose.project=$project")
  if($listener -and $existing.Count -eq 0){throw 'Port 8091 is occupied by another application.'}
- Invoke-Compose -Arguments @('up','--detach','--no-build','--wait','--wait-timeout','300');Write-Host 'Open http://localhost:8091/login';return
+ Invoke-Compose -Arguments @('up','--detach','--no-build','--wait','--wait-timeout','300');Assert-WebAccess;Write-Host 'Open http://localhost:8091/login';return
+}
+if($Action -eq 'RepairAccess') {
+ if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing prepared installation required.'}
+ Invoke-Compose -Arguments @('up','--detach','--no-deps','--no-build','--force-recreate','--wait','--wait-timeout','120','kong')
+ Assert-WebAccess;return
 }
 if($Action -eq 'DisableBootstrap') {
  if(-not(Test-Path -LiteralPath $envFile)){throw 'Installation not prepared.'}
