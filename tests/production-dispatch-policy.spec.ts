@@ -71,7 +71,7 @@ afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); v
 describe('ProductionDispatchPolicy.assertCurrent: private server gate and current database authority', () => {
   it('accepts a valid REAL 01 invoice with both opt-ins and the exact credential revision/fingerprint', async () => {
     const f = fixture(); expect(() => assertFiscalSnapshot(invoice(), { mode: 'REAL_PREPARATION' })).not.toThrow();
-    await expect(f.policy.assertCurrent(invoice(), REVISION)).resolves.toBeUndefined();
+    await expect(f.policy.assertCurrent(invoice(), REVISION)).resolves.toMatchObject({profile:PRODUCTION_INVOICE_PROFILE,credentialRevision:REVISION,enabled:true});
     for (const read of [f.prisma.fiscalDispatchAuthorization.findUnique, f.prisma.sunatCredentials.findUnique])
       expect(read).toHaveBeenCalledWith(expect.objectContaining({ where: { issuerRuc_environment: { issuerRuc: RUC, environment: 'PRODUCTION' } } }));
     expect(f.configuration.status).not.toHaveBeenCalled(); expect(f.readiness.inspect).not.toHaveBeenCalled(); expect(pinned).not.toHaveBeenCalled();
@@ -229,18 +229,18 @@ describe('ProductionDispatchPolicy.configure: validation, CAS, readiness and rev
 function receipt() { const snapshot = invoice(); return { ...snapshot, documentTypeCode: '03', series: 'B001', fullNumber: 'B001-1' }; }
 describe('Production receipt profile: explicit new human selection, no automatic grant expansion', () => {
   it('v1 still authorizes 01 and cannot authorize valid 03', async () => {
-    const f = fixture(); await expect(f.policy.assertCurrent(invoice())).resolves.toBeUndefined();
+    const f = fixture(); await expect(f.policy.assertCurrent(invoice())).resolves.toMatchObject({profile:PRODUCTION_INVOICE_PROFILE,enabled:true});
     await expect(f.policy.assertCurrent(receipt())).rejects.toThrow('Autorización');
   });
   it('explicit 01/03 selection stores v2 with a new CAS version and authorizes both documents', async () => {
     const f = fixture(); expect(await f.configure({ ...f.input(), authorizedDocumentTypes: ['01', '03'] }))
       .toMatchObject({ profile: PRODUCTION_RECEIPT_PROFILE, supportedDocumentTypes: ['01', '03'], version: VERSION + 1 });
-    await expect(f.policy.assertCurrent(receipt(), REVISION)).resolves.toBeUndefined();
-    await expect(f.policy.assertCurrent(invoice(), REVISION)).resolves.toBeUndefined();
+    await expect(f.policy.assertCurrent(receipt(), REVISION)).resolves.toMatchObject({profile:PRODUCTION_RECEIPT_PROFILE,credentialRevision:REVISION,enabled:true});
+    await expect(f.policy.assertCurrent(invoice(), REVISION)).resolves.toMatchObject({profile:PRODUCTION_RECEIPT_PROFILE,credentialRevision:REVISION,enabled:true});
     expect(await f.policy.admit(COMPANY, receipt(), AUTH)).toEqual({ authorized: true, environment: 'PRODUCTION', issuerRuc: RUC,
       profile: PRODUCTION_RECEIPT_PROFILE, documentId: receipt().documentId, snapshotSha256: fiscalSnapshotSha256(receipt()) });
     expect(await f.policy.admit(COMPANY, invoice(), AUTH)).toEqual({ authorized: true, environment: 'PRODUCTION', issuerRuc: RUC,
-      profile: PRODUCTION_INVOICE_PROFILE, documentId: invoice().documentId, snapshotSha256: fiscalSnapshotSha256(invoice()) });
+      profile: PRODUCTION_RECEIPT_PROFILE, documentId: invoice().documentId, snapshotSha256: fiscalSnapshotSha256(invoice()) });
   });
   it.each([undefined, ['01']])('old clients or explicit 01 never broaden authority: %j', async selected => {
     const f = fixture(); await f.configure({ ...f.input(), ...(selected ? { authorizedDocumentTypes: selected } : {}) });

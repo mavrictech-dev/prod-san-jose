@@ -90,11 +90,11 @@ export function nativeRuntimeOpenApiPaths() {
   const masterDescription = 'Administrador general de alcance GLOBAL. Requiere CRUD habilitado. Producción exige habilitación de emisión y sesión humana. Las bajas son lógicas; los turnos abiertos impiden desactivar. No modifica documentos emitidos ni reinicia correlativos.';
   const master = (id: string, title: string, permission: string, params: Parameter[], success: number, result: Schema, input?: Schema, detail = '') =>
     operation(id, title, 'Emisores, sedes y series', permission, params, success, result, input, masterDescription + ' ' + detail, [400, 401, 403, 404, 409, 503]);
-  const productFields = { sku: { ...str(40), minLength: 1 }, description: { ...str(250), minLength: 1 }, category: { ...str(80), minLength: 1 },
+  const productFields = { sku: { ...str(40), minLength: 1 }, description: { ...str(250), minLength: 1 }, categoryId: uuid,
     sunatProductCode: nullable({ type: 'string', pattern: '^\\d{8}$' }), unitCode: { type: 'string', pattern: '^(?:[A-Z0-9]{3}|ZZ|M3)$' },
-    taxAffectationCode: enumeration('10', '11', '12', '13', '14', '15', '16', '17', '20', '21', '30', '31', '32', '33', '34', '35', '36', '37', '40'),
+    taxAffectationCode: {type:'string',const:'10',description:'Referencia compartida. La afectacion efectiva se asigna por RUC/sede en product-taxes; la tasa se muestra como porcentaje.'},
     defaultUnitPrice: nullable(decimal), active: bool };
-  const product = object({ id: uuid, ...productFields, updatedAt: dateTime });
+  const product = object({ id: uuid, category:str(80), ...productFields, updatedAt: dateTime });
   const productOp = (id: string, title: string, params: Parameter[], success: number, result: Schema, input?: Schema) =>
     operation(id, title, 'Productos', 'product.manage y ADMIN GLOBAL', params, success, result, input,
       'Catálogo compartido. Cambiar el producto no cambia documentos históricos. Las afectaciones del catálogo son más amplias que el perfil de emisión 01/03.', [400, 401, 403, 404, 409, 503]);
@@ -121,7 +121,7 @@ export function nativeRuntimeOpenApiPaths() {
     printParams, success, result, input, 'Sólo BETA, con almacenamiento de impresión habilitado. settings=null restaura herencia; logoUpload sólo con logoMode=CUSTOM. La vista previa no emite ni transmite.', [400, 401, 403, 409, 503]);
   const line = object({ productId: uuid, productCode: str(), description: { ...str(250), minLength: 1 }, unitCode: { type: 'string', pattern: '^[A-Z0-9]{2,3}$' },
     quantity: { ...decimal, description: 'Decimal positivo > 0, hasta 12 enteros y 6 decimales.' }, unitPriceWithTax: { ...decimal, description: 'Precio positivo con IGV incluido.' },
-    taxAffectationCode: { type: 'string', const: '10' }, igvRate: { type: 'string', const: '18' } },
+    taxAffectationCode: enumeration('10','20','30'), igvRate: {type:'string',pattern:'^[0-9]{1,2}(\\.[0-9]{1,2})?$' } },
     ['description', 'unitCode', 'quantity', 'unitPriceWithTax', 'taxAffectationCode', 'igvRate']);
   const installment = object({ amount: { ...money, description: 'Positivo; suma de cuotas igual a pendingAmount.' }, dueDate: date, currencyCode: enumeration('PEN', 'USD') }, ['amount', 'dueDate']);
   const paymentTerms = { oneOf: [object({ type: { const: 'CONTADO' } }), object({ type: { const: 'CREDITO' }, currencyCode: enumeration('PEN', 'USD'), pendingAmount: money,
@@ -204,7 +204,7 @@ export function nativeRuntimeOpenApiPaths() {
       delete: master('DeactivateIssuer', 'Desactivar emisor', 'setup.manage', [path('id', companyId)], 200, issuer, object({ expectedRevision: revision })),
     },
     '/api/v1/stations/issuers/{id}/environment': { post: master('IssuerEnvironment', 'Cambiar emisor sin uso a PRODUCCIÓN', 'setup.manage y sunat.configure', [path('id', companyId)], 201,
-      object({ id: companyId, ruc, environment: { const: 'PRODUCTION' }, revision }), object({ expectedRevision: revision, environment: { const: 'PRODUCTION' }, confirmation: { const: 'CAMBIAR EMISOR A PRODUCCIÓN' } }),
+      object({ id: companyId, ruc, environment: { const: 'PRODUCTION' }, revision }), object({ expectedRevision: revision, environment: { const: 'PRODUCTION' }, confirmation: { const: 'CAMBIAR EMISOR A PRODUCCIÓN' },productionSeries:array(object({pointId:uuid,documentType:enumeration('INVOICE','SALES_RECEIPT','CREDIT_NOTE','DEBIT_NOTE','DESPATCH_ADVICE'),series:str(4)}))},['expectedRevision','environment','confirmation']),
       'Transición única desde BETA activo sin documentos, resúmenes, Outbox ni numeración consumida. No activa los envíos fiscales.') },
     '/api/v1/stations': { post: master('CreateBranch', 'Crear sede', 'setup.manage', [], 201, branch,
       object({ companyId, ...masterFields, establishmentCode }, ['companyId', 'code', 'name'])) },
@@ -231,7 +231,7 @@ export function nativeRuntimeOpenApiPaths() {
     },
     '/api/v1/stations/products': {
       get: productOp('ListProducts', 'Consultar productos', [], 200, array(product)),
-      post: productOp('CreateProduct', 'Crear producto', [], 201, product, object({ ...productFields, expectedUpdatedAt: dateTime }, ['sku', 'description', 'category', 'unitCode', 'taxAffectationCode'])),
+      post: productOp('CreateProduct', 'Crear producto', [], 201, product, object({ ...productFields, expectedUpdatedAt: dateTime }, ['sku', 'description', 'categoryId', 'unitCode', 'taxAffectationCode'])),
     },
     '/api/v1/stations/products/{id}': { patch: productOp('UpdateProduct', 'Actualizar o desactivar producto', [path()], 200, product,
       { ...object({ ...productFields, expectedUpdatedAt: dateTime }, ['expectedUpdatedAt']), minProperties: 2 }) },

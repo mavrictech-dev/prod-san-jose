@@ -17,7 +17,9 @@ export function ProductionActivation({ companyId }: { companyId: number }) {
   const path = `/api/v1/setup/sunat/${companyId}/PRODUCTION/dispatch`;
   const status = useResource<State>(path);
   const [includeReceipts, setIncludeReceipts] = useState(false);
+  const [includeZeroTax, setIncludeZeroTax] = useState(false);
   const [open, setOpen] = useState(false), [registration, setRegistration] = useState(false), [confirmation, setConfirmation] = useState('');
+  const [productionSeries,setProductionSeries]=useState<Array<{pointId:string;documentType:string;series:string}>>([]);
   const [modeOpen, setModeOpen] = useState(false), [modeConfirmation, setModeConfirmation] = useState(''), [modeRevision, setModeRevision] = useState<number>();
   const [busy, setBusy] = useState(false), [error, setError] = useState<string>(), [success, setSuccess] = useState<string>();
   async function save(enabled: boolean) {
@@ -25,7 +27,7 @@ export function ProductionActivation({ companyId }: { companyId: number }) {
     setBusy(true); setError(undefined); setSuccess(undefined);
     try {
       await api(path, { method: 'POST', body: JSON.stringify({ enabled, expectedRevision: status.data.credentialRevision,
-        expectedVersion: status.data.version, ...(enabled ? { registrationConfirmed: registration, confirmation, authorizedDocumentTypes: includeReceipts ? ['01', '03'] : ['01'] } : {}) }) });
+        expectedVersion: status.data.version, ...(enabled ? { registrationConfirmed: registration, confirmation, authorizedDocumentTypes: includeReceipts ? ['01', '03'] : ['01'], authorizedTaxTreatments: includeZeroTax ? ['10','20','30'] : ['10'] } : {}) }) });
       setSuccess(enabled ? `Autorización guardada para ${includeReceipts ? 'factura 01 y boleta 03 mediante resumen RC' : 'factura 01'}. Los documentos pendientes serán revisados por el servicio de despacho.` : 'Autorización retirada. No se iniciarán nuevos envíos para este emisor.');
       setOpen(false); setConfirmation(''); setRegistration(false); status.reload();
       window.dispatchEvent(new Event('factuez:live-refresh'));
@@ -38,7 +40,7 @@ export function ProductionActivation({ companyId }: { companyId: number }) {
       const masters = await api<{ companies: { id: number; revision: number; environment: string }[] }>('/api/v1/stations/admin/catalog');
       const issuer = masters.companies.find(value => value.id === companyId);
       if (!issuer || issuer.environment !== 'BETA' || !Number.isSafeInteger(issuer.revision)) throw new Error('Actualice los datos del emisor antes de cambiar su ambiente.');
-      setModeRevision(issuer.revision); setModeConfirmation(''); setModeOpen(true);
+      setModeRevision(issuer.revision);setProductionSeries((catalog?.emissionPoints.filter(p=>p.companyId===companyId)??[]).flatMap(p=>p.series.map(s=>({pointId:p.id,documentType:s.documentType,series:''})))); setModeConfirmation(''); setModeOpen(true);
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'No se pudo revisar el emisor'); }
     finally { setBusy(false); }
   }
@@ -46,7 +48,7 @@ export function ProductionActivation({ companyId }: { companyId: number }) {
     if (busy || modeRevision === undefined || modeConfirmation !== 'CAMBIAR EMISOR A PRODUCCIÓN') return;
     setBusy(true); setError(undefined);
     try {
-      await api(`/api/v1/stations/issuers/${companyId}/environment`, { method: 'POST', body: JSON.stringify({ expectedRevision: modeRevision, environment: 'PRODUCTION', confirmation: modeConfirmation }) });
+      await api(`/api/v1/stations/issuers/${companyId}/environment`, { method: 'POST', body: JSON.stringify({ expectedRevision: modeRevision, environment: 'PRODUCTION', confirmation: modeConfirmation, productionSeries:productionSeries.filter(s=>s.series) }) });
       setModeOpen(false); setModeConfirmation(''); await reloadCatalog(); status.reload();
       setSuccess('Ambiente de emisión actualizado. Las nuevas facturas de este emisor corresponden a Producción.');
       window.dispatchEvent(new Event('factuez:live-refresh'));
@@ -55,7 +57,7 @@ export function ProductionActivation({ companyId }: { companyId: number }) {
   }
   const state = status.data;
   return <Card className="mt-6"><CardHeader><CardTitle>Autorización de envíos reales</CardTitle>
-    <CardDescription>Factura 01 y habilitación opcional de boleta 03 por resumen RC · soles · venta interna con IGV 18 %.</CardDescription></CardHeader>
+    <CardDescription>Factura 01 y boleta 03 por resumen RC · soles · gravado al 18 %; perfil opcional para exonerados e inafectos.</CardDescription></CardHeader>
     <CardContent className="space-y-4">{status.error ? <ErrorState message={status.error} retry={status.reload} /> : !state ? <Loading /> : state.environment !== 'PRODUCTION' ?
       <ErrorState message="No se pudo confirmar el ambiente de la autorización." /> : <>
       <div className="flex flex-wrap gap-2"><Badge variant="outline">RUC {state.ruc}</Badge><Badge variant="outline">{state.enabled ? 'Autorización vigente' : 'Sin autorización vigente'}</Badge><Badge variant="outline">Alcance: {state.supportedDocumentTypes.join(' / ')}</Badge></div>
@@ -63,19 +65,20 @@ export function ProductionActivation({ companyId }: { companyId: number }) {
       <p className="text-sm text-muted-foreground">Autorizar el despacho no envía un comprobante de prueba. El servicio revisa el certificado, las credenciales y los documentos del emisor antes de cada envío.</p>
       <p className="text-sm">Ambiente actual de las ventas: <strong>{company?.environment === 'PRODUCTION' ? 'Producción' : 'Beta / pruebas'}</strong></p>
       {state.enabled && company?.environment === 'BETA' && can('setup.manage') && <Button variant="outline" disabled={busy} onClick={() => void reviewEmissionMode()}>Preparar este emisor para Producción</Button>}
-      <div className="flex flex-wrap gap-2"><Button disabled={busy || !state.serverEnabled} onClick={() => { setError(undefined); setIncludeReceipts(false); setRegistration(false); setConfirmation(''); setOpen(true); }}>{state.enabled ? 'Revisar alcance autorizado' : 'Autorizar envíos'}</Button>
+      <div className="flex flex-wrap gap-2"><Button disabled={busy || !state.serverEnabled} onClick={() => { setError(undefined); setIncludeReceipts(false);setIncludeZeroTax(false); setRegistration(false); setConfirmation(''); setOpen(true); }}>{state.enabled ? 'Revisar alcance autorizado' : 'Autorizar envíos'}</Button>
         <Button variant="outline" disabled={busy || state.version === 0} onClick={() => void save(false)}>Suspender nuevos envíos</Button></div>
     </>}{error && <ErrorState message={error} />}{success && <p role="status" className="text-sm">{success}</p>}</CardContent>
     <Dialog open={open} onOpenChange={value => { if (!busy) setOpen(value); }}><DialogContent><DialogHeader><DialogTitle>Activar envíos reales a SUNAT</DialogTitle>
       <DialogDescription>RUC {state?.ruc}. Los documentos pendientes de este perfil podrán enviarse a Producción. Un envío realizado no se deshace al suspender la autorización.</DialogDescription></DialogHeader>
       <div className="space-y-4"><div className="flex items-start gap-3"><Checkbox id="production-registration" checked={registration} onCheckedChange={value => setRegistration(value === true)} /><Label htmlFor="production-registration">Confirmo que el emisor y su certificado están registrados y habilitados ante SUNAT.</Label></div>
-      <div className="flex items-start gap-3"><Checkbox id="production-receipts" checked={includeReceipts} onCheckedChange={value => setIncludeReceipts(value === true)} /><Label htmlFor="production-receipts">Autorizo también boleta 03 mediante resumen RC de una boleta. Acepto que se procesen las boletas pendientes de este perfil con una nueva versión de autorización.</Label></div>
+      <div className="flex items-start gap-3"><Checkbox id="production-receipts" checked={includeReceipts} onCheckedChange={value => {setIncludeReceipts(value === true); if(value!==true)setIncludeZeroTax(false);}} /><Label htmlFor="production-receipts">Autorizo también boleta 03 mediante resumen RC de una boleta. Acepto que se procesen las boletas pendientes de este perfil con una nueva versión de autorización.</Label></div>
       <p className="text-sm">Alcance elegido: {includeReceipts ? 'Factura 01 y boleta 03 mediante RC' : 'Sólo factura 01'}. El resultado SUNAT de la boleta corresponde al RC que la incluye.</p>
       <div className="space-y-2"><Label htmlFor="production-confirmation">Escriba: {confirmationText}</Label><Input id="production-confirmation" value={confirmation} autoComplete="off" onChange={event => setConfirmation(event.target.value)} /></div>
-      {error && <ErrorState message={error} />}</div><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setOpen(false)}>Cancelar</Button>
+      {error && <ErrorState message={error} />}</div><label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={includeZeroTax} disabled={!includeReceipts} onChange={e=>setIncludeZeroTax(e.target.checked)}/>Autorizar perfil 10/20/30: gravado al 18 %, exonerado e inafecto. Requiere factura y boleta seleccionadas.</label><DialogFooter><Button variant="outline" disabled={busy} onClick={() => setOpen(false)}>Cancelar</Button>
       <Button disabled={busy || !registration || confirmation !== confirmationText} onClick={() => void save(true)}>Confirmar autorización</Button></DialogFooter></DialogContent></Dialog>
     <Dialog open={modeOpen} onOpenChange={value => { if (!busy) setModeOpen(value); }}><DialogContent><DialogHeader><DialogTitle>Configurar ambiente de emisión</DialogTitle>
-      <DialogDescription>RUC {state?.ruc}. Sólo se permite para un emisor nuevo, sin documentos ni series utilizadas. Se conserva la numeración configurada. El cambio se bloqueará si ya existe historial de pruebas.</DialogDescription></DialogHeader>
+      <DialogDescription>RUC {state?.ruc}. El servidor verifica credenciales y autorización productiva. El historial de pruebas conserva su ambiente y originales; las nuevas operaciones usan series separadas.</DialogDescription></DialogHeader>
+      <div className="space-y-3"><p className="text-sm">Si existe historial Beta, indique nuevas series productivas por punto. Las series Beta se desactivan para nuevas ventas y conservan sus correlativos e historial. En un emisor sin historial puede conservar sus series sin uso.</p>{productionSeries.map((s,i)=><div key={i} className="space-y-2"><Label htmlFor={`production-series-${i}`}>{catalog?.emissionPoints.find(p=>p.id===s.pointId)?.name} · {s.documentType}</Label><Input id={`production-series-${i}`} maxLength={4} placeholder={s.documentType==='INVOICE'?'F...':'B...'} value={s.series} onChange={e=>setProductionSeries(rows=>rows.map((r,j)=>i===j?{...r,series:e.target.value.toUpperCase()}:r))}/></div>)}</div>
       <div className="space-y-2"><Label htmlFor="emission-mode-confirmation">Escriba: CAMBIAR EMISOR A PRODUCCIÓN</Label><Input id="emission-mode-confirmation" autoComplete="off" value={modeConfirmation} onChange={event => setModeConfirmation(event.target.value)} /></div>
       {error && <ErrorState message={error} />}<DialogFooter><Button variant="outline" disabled={busy} onClick={() => setModeOpen(false)}>Cancelar</Button><Button disabled={busy || modeConfirmation !== 'CAMBIAR EMISOR A PRODUCCIÓN'} onClick={() => void changeEmissionMode()}>Confirmar ambiente</Button></DialogFooter></DialogContent></Dialog>
   </Card>;

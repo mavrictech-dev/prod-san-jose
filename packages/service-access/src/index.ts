@@ -61,3 +61,5 @@ export class LivePublisher {
   }
   async close() { await this.queue?.close(); }
 }
+
+export * from './native-gre-host';

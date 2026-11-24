@@ -11,13 +11,14 @@ export const FISCAL_RULES_SOURCE = Object.freeze({
   workbookAutomaticallyConverted: false,
 });
 
-export const FISCAL_RULE_PROFILE = 'FACTUEZ-01-03-IGV18-20260826-v3';
+export const FISCAL_RULE_PROFILE = 'FACTUEZ-01-03-TAX10-20-30-20261123-v4';
 export const FISCAL_RULE_COVERAGE = Object.freeze([
   { capability: '01/03 · venta interna onerosa · IGV 18% · PEN/USD', status: 'LOCAL_PROFILE_VALIDATED' },
   { capability: 'Identidad, numeración, fechas, XML text y aritmética decimal', status: 'LOCAL_PROFILE_VALIDATED' },
   { capability: 'Boleta PEN sin identificación hasta S/700; superior exige identidad', status: 'LOCAL_PROFILE_VALIDATED' },
   { capability: 'USD sin identificación · conversión y umbral · Selva/Tacna', status: 'UNSUPPORTED_FAIL_CLOSED' },
-  { capability: 'Exoneradas, inafectas, gratuitas, exportación y regímenes especiales', status: 'UNSUPPORTED_FAIL_CLOSED' },
+  { capability: 'Afectaciones 20 exonerada y 30 inafecta con tasa cero; política por RUC/sede y autorización productiva explícita', status: 'LOCAL_PROFILE_VALIDATED' },
+  { capability: 'Gratuitas, exportación, IVAP y otros regímenes especiales', status: 'UNSUPPORTED_FAIL_CLOSED' },
   { capability: 'Contado explícito; factura 01 al crédito con saldo y cuotas exactas PEN/USD', status: 'LOCAL_PROFILE_VALIDATED' },
   { capability: 'Crédito en boleta 03, ISC, ICBPER, retenciones, detracciones, percepciones, descuentos y anticipos', status: 'UNSUPPORTED_FAIL_CLOSED' },
   { capability: '07/08/09, RC/RA: validadores dedicados fuera de este perfil Invoice', status: 'SEPARATE_PROFILE_REQUIRED' },
@@ -35,11 +36,11 @@ const UNIT_SUBSET = new Set(['GLL', 'LTR', 'NIU', 'KGM', 'M3', 'HUR', 'ZZ']);
 const xmlIllegal = /[^\u0009\u000a\u000d\u0020-\ud7ff\ue000-\ufffd\u{10000}-\u{10ffff}]/u;
 type ObjectValue = Record<string, unknown>;
 const object = (value: unknown): value is ObjectValue => Boolean(value && typeof value === 'object' && !Array.isArray(value));
-const SNAPSHOT_KEYS = ['companyId', 'branchId', 'environment', 'documentId', 'documentTypeCode', 'series', 'number', 'fullNumber', 'issueDate', 'currencyCode', 'paymentTerms', 'operationTypeCode', 'issuer', 'customer', 'lines', 'totals', 'printPresentation', 'printOperation'] as const;
+const SNAPSHOT_KEYS = ['companyId', 'branchId', 'environment', 'documentId', 'documentTypeCode', 'series', 'number', 'fullNumber', 'issueDate', 'currencyCode', 'paymentTerms', 'operationTypeCode', 'issuer', 'customer', 'lines', 'totals', 'printPresentation', 'printOperation', 'taxPolicy'] as const;
 const PARTY_KEYS = ['identityType', 'identityNumber', 'legalName', 'address'] as const;
 const ISSUER_KEYS = [...PARTY_KEYS, 'tradeName', 'ubigeo', 'establishmentCode'] as const;
 const LINE_KEYS = ['lineNumber', 'productCode', 'description', 'unitCode', 'quantity', 'unitValue', 'unitPriceWithTax', 'taxAffectationCode', 'igvRate', 'lineExtensionAmount', 'igvAmount', 'totalAmount'] as const;
-const TOTAL_KEYS = ['taxableAmount', 'igvAmount', 'payableAmount'] as const;
+const TOTAL_KEYS = ['taxableAmount', 'exemptAmount', 'unaffectedAmount', 'igvAmount', 'payableAmount'] as const;
 
 /** Shared with the XML/local entry points: unsupported fiscal data is never discarded. */
 export function validateInvoiceSupportedFields(input: unknown): FiscalRuleIssue[] {
@@ -246,7 +247,7 @@ export function validateFiscalSnapshot(input: unknown, options: { mode: FiscalVa
   const customerDni = customer.identityType === '1' && typeof customer.identityNumber === 'string' && /^\d{8}$/.test(customer.identityNumber) && customer.identityNumber !== '00000000';
   if (invoice ? !customerRuc : !(unidentified || customerRuc || customerDni)) fail('CUSTOMER_IDENTITY', 'customer', 'Identificación fuera del perfil 01/03; extranjeros requieren perfil dedicado');
   if (!Array.isArray(input.lines) || !input.lines.length || input.lines.length > 500) { fail('LINES_COUNT', 'lines', 'Se requieren de 1 a 500 líneas'); return result(); }
-  const computedTotals: Array<{ lineExtensionAmount: string; igvAmount: string; totalAmount: string }> = [];
+  const computedTotals: Array<{ lineExtensionAmount: string; igvAmount: string; totalAmount: string; taxAffectationCode:unknown }> = [];
   for (const [index, candidate] of input.lines.entries()) {
     const path = `lines[${index}]`;
     if (!object(candidate)) { fail('LINE_SHAPE', path, 'La línea debe ser un objeto'); continue; }
@@ -254,21 +255,26 @@ export function validateFiscalSnapshot(input: unknown, options: { mode: FiscalVa
     text(candidate.description, `${path}.description`, 500);
     if (candidate.productCode !== undefined) text(candidate.productCode, `${path}.productCode`, 64);
     if (typeof candidate.unitCode !== 'string' || !UNIT_SUBSET.has(candidate.unitCode)) fail('UNIT_PROFILE', `${path}.unitCode`, 'Unidad fuera del subconjunto GLL/LTR/NIU/KGM/M3/HUR/ZZ', 'UNSUPPORTED');
-    if (candidate.taxAffectationCode !== '10' || typeof candidate.igvRate !== 'string' || !['18', '18.00'].includes(candidate.igvRate)) fail('TAX_PROFILE', path, 'Este perfil sólo calcula oneroso afectación 10 e IGV 18%', 'UNSUPPORTED');
+    const supportedTax = typeof candidate.igvRate === 'string' && (real ? candidate.taxAffectationCode === '10' && ['18','18.00'].includes(candidate.igvRate) || ['20','30'].includes(String(candidate.taxAffectationCode)) && ['0','0.00'].includes(candidate.igvRate) : ['10','20','30'].includes(String(candidate.taxAffectationCode)) && (candidate.taxAffectationCode === '10' ? /^(?:[0-9]|[1-9][0-9])(?:\.\d{1,2})?$/.test(candidate.igvRate) && Number(candidate.igvRate)>0 : ['0','0.00'].includes(candidate.igvRate)));
+    if (!supportedTax) fail('TAX_PROFILE',path,real?'Perfil oficial: afectaci?n 10 al 18 %; otros tratamientos requieren perfil validado':'Tratamiento o tasa local inv?lidos','UNSUPPORTED');
     const decimals = [money(candidate.quantity, `${path}.quantity`, 6, true), money(candidate.unitPriceWithTax, `${path}.unitPriceWithTax`, 6, true),
       money(candidate.unitValue, `${path}.unitValue`, 6), ...['lineExtensionAmount', 'igvAmount', 'totalAmount'].map(key => money(candidate[key], `${path}.${key}`))];
-    if (decimals.some(value => value === undefined) || candidate.taxAffectationCode !== '10' || typeof candidate.igvRate !== 'string' || !['18', '18.00'].includes(candidate.igvRate)) continue;
-    const computed = calculateTaxLine({ quantity: candidate.quantity as string, unitPriceWithTax: candidate.unitPriceWithTax as string, igvRate: candidate.igvRate });
+    if (decimals.some(value => value === undefined) || !supportedTax) continue;
+    const computed = calculateTaxLine({ quantity: candidate.quantity as string, unitPriceWithTax: candidate.unitPriceWithTax as string, igvRate: candidate.igvRate as string });
     if (parseDecimal(computed.totalAmount, 2) === 0n) fail('ZERO_ROUNDED_TOTAL', path, 'Línea redondeada a cero fuera del perfil oneroso');
     for (const key of ['unitValue', 'lineExtensionAmount', 'igvAmount', 'totalAmount'] as const)
       if (parseDecimal(candidate[key] as string) !== parseDecimal(computed[key])) fail('LINE_ARITHMETIC', `${path}.${key}`, 'Importe difiere del cálculo exacto por línea');
-    computedTotals.push(computed);
+    computedTotals.push({...computed,taxAffectationCode:candidate.taxAffectationCode});
   }
   if (!object(input.totals)) { fail('TOTALS_SHAPE', 'totals', 'Totales requeridos'); return result(); }
   const totals = input.totals;
   for (const key of ['taxableAmount', 'igvAmount', 'payableAmount']) money(totals[key], `totals.${key}`);
   if (computedTotals.length === input.lines.length) {
-    const expected = { taxableAmount: addMoney(computedTotals.map(line => line.lineExtensionAmount)), igvAmount: addMoney(computedTotals.map(line => line.igvAmount)), payableAmount: addMoney(computedTotals.map(line => line.totalAmount)) };
+    const expected = { taxableAmount: addMoney(computedTotals.filter(l=>l.taxAffectationCode==='10').map(line => line.lineExtensionAmount)), igvAmount: addMoney(computedTotals.map(line => line.igvAmount)), payableAmount: addMoney(computedTotals.map(line => line.totalAmount)) };
+    for (const [key,code] of [['exemptAmount','20'],['unaffectedAmount','30']] as const) {
+      const expectedBase=addMoney(computedTotals.filter(l=>l.taxAffectationCode===code).map(l=>l.lineExtensionAmount));
+      if (totals[key] !== undefined || expectedBase!=='0.00') {const amount=money(totals[key],`totals.${key}`);if(amount!==undefined&&amount!==parseDecimal(expectedBase,2))fail('TOTAL_ARITHMETIC',`totals.${key}`,'Base tributaria incorrecta');}
+    }
     for (const key of ['taxableAmount', 'igvAmount', 'payableAmount'] as const) {
       const amount = money(totals[key], `totals.${key}`);
       if (amount !== undefined && amount !== parseDecimal(expected[key], 2)) fail('TOTAL_ARITHMETIC', `totals.${key}`, 'Total difiere de la suma exacta de líneas');

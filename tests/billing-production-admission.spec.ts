@@ -33,7 +33,7 @@ function fixture(environment = 'PRODUCTION') {
     branch: [{ id: BRANCH, companyId: 7, active: true, name: 'SYNTHETIC BRANCH', address: 'TEST ADDRESS', establishmentCode: '0000' }],
     emissionPoint: [{ id: POINT, companyId: 7, branchId: BRANCH, active: true, code: 'CAJA01', name: 'SYNTHETIC POINT' }],
     seriesCounter: [{ id: SERIES, companyId: 7, emissionPointId: POINT, active: true, series: 'F001', documentType: 'INVOICE', nextNumber: 1n }],
-    document: [], outboxEvent: [], idempotencyRecord: [], configurationAudit: [], dailySummary: [],
+    document: [], outboxEvent: [], idempotencyRecord: [], configurationAudit: [], dailySummary: [], shift: [],
   };
   let inTransaction = false;
   function matches(row: any, where: any = {}): boolean {
@@ -55,6 +55,7 @@ function fixture(environment = 'PRODUCTION') {
       findMany: vi.fn(async ({ where }: any) => structuredClone(state[name].filter((row: any) => matches(row, where)))),
       count: vi.fn(async ({ where }: any) => state[name].filter((row: any) => matches(row, where)).length),
       create: vi.fn(async ({ data }: any) => { const row = structuredClone(data); state[name].push(row); return structuredClone(row); }),
+      updateMany: vi.fn(async ({ where, data }: any) => {let count=0;for(const row of state[name].filter((r:any)=>matches(r,where))){for(const [key,value] of Object.entries(data) as any)row[key]=value&&typeof value==='object'&&'increment'in value?(row[key]??0)+value.increment:value;count++;}return {count};}),
       update: vi.fn(async ({ where, data }: any) => {
         const row = find(where); if (!row) throw { code: 'P2025' };
         for (const [key, value] of Object.entries(data) as any) row[key] = value && typeof value === 'object' && 'increment' in value ? row[key] + (typeof row[key] === 'bigint' ? BigInt(value.increment) : value.increment) : value;
@@ -78,6 +79,7 @@ function fixture(environment = 'PRODUCTION') {
     });
     vi.stubGlobal('fetch', transport); return transport;
   };
+  if(environment==='BETA')vi.stubGlobal('fetch',vi.fn(async(url:string)=>{expect(url).toBe('http://sunat-service:3003/api/v1/setup/sunat/7/PRODUCTION/dispatch');return Response.json({ruc:RUC,environment:'PRODUCTION',enabled:true});}));
   return { state, tx, prisma, service, admin, context, admit };
 }
 beforeEach(() => {
@@ -227,7 +229,8 @@ describe('Empty issuer production transition and quiet catalogue capability', ()
     expect(f.state.configurationAudit[0]).toMatchObject({ action: 'issuer.environment.changed', actorId: ACTOR, metadata: { companyId: 7, issuerRuc: RUC, environment: 'PRODUCTION', previousEnvironment: 'BETA', changedFields: ['environment'] } });
     expect(f.tx.$queryRawUnsafe.mock.calls.map((call: any[]) => call[0].match(/FROM "(\w+)"/)![1])).toEqual(['CompanySettings', 'Branch', 'EmissionPoint', 'SeriesCounter']);
     expect(f.tx.$queryRawUnsafe.mock.calls.every((call: any[]) => call[0].includes('FOR UPDATE') && call[1] === 7)).toBe(true);
-    expect(f.tx.seriesCounter.update).not.toHaveBeenCalled(); unchanged(f); expect(fetch).not.toHaveBeenCalled();
+    expect(f.tx.seriesCounter.update).not.toHaveBeenCalled(); unchanged(f); expect(fetch).toHaveBeenCalledOnce();
+    expect(f.tx.seriesCounter.updateMany).toHaveBeenCalledWith(expect.objectContaining({data:{environment:'PRODUCTION',masterRevision:{increment:1}}}));
   });
   it.each(['no-user', 'not-admin', 'assigned', 'no-setup', 'no-sunat', 'flag', 'crud-flag'])('rejects unauthorized transition %s before opening a transaction', async reason => {
     const f = fixture('BETA'), req = request();

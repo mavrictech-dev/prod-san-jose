@@ -30,6 +30,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly fieldErrors?: Record<string,string>,
   ) {
     super(message);
   }
@@ -57,6 +58,7 @@ async function request<T>(
         ? body.message.join(", ")
         : (body?.message ?? `Solicitud fallida (${response.status})`),
       response.status,
+      body?.fieldErrors && typeof body.fieldErrors==='object' && Object.values(body.fieldErrors).every(value=>typeof value==='string') ? body.fieldErrors : undefined,
     );
   return body as T;
 }
@@ -465,13 +467,13 @@ export function useWorkspace() {
   if (!context) throw new Error("WorkspaceProvider ausente");
   return context;
 }
-export function useResource<T>(path: string, poll = false) {
+export function useResource<T>(path: string | undefined, poll = false) {
   const { api, user } = useWorkspace();
   const [data, setData] = useState<T>();
   const [error, setError] = useState<string>();
   const [version, setVersion] = useState(0);
   useEffect(() => {
-    if (!user) return;
+    if (!user || !path) {setData(undefined);setError(undefined);return;}
     const controller = new AbortController();
     let busy = false;
     setData(undefined);

@@ -1,4 +1,4 @@
-import { PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, type ProductionNotesAnySnapshot } from '@factuez/contracts';
+import { PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, PRODUCTION_NOTES_MIXED_PROFILE, type ProductionNotesAnySnapshot } from '@factuez/contracts';
 import type { ProductionPdfEvidence } from './production';
 import { dateParts, type PrintFormat } from './types';
 
@@ -9,14 +9,14 @@ export async function renderProductionNotePdf(snapshot: ProductionNotesAnySnapsh
   evidence: ProductionNotePdfEvidence,
   draw: (snapshot: ProductionNotesAnySnapshot, format: PrintFormat, qa: undefined, evidence: ProductionPdfEvidence) => Promise<Buffer>,
 ): Promise<Buffer> {
-  const type = snapshot?.documentTypeCode, extended=snapshot?.profile===PRODUCTION_NOTES_EXTENDED_PROFILE, rc=snapshot?.reference?.documentTypeCode==='03';
+  const type = snapshot?.documentTypeCode, extended=snapshot?.profile===PRODUCTION_NOTES_EXTENDED_PROFILE||snapshot?.profile===PRODUCTION_NOTES_MIXED_PROFILE, rc=snapshot?.reference?.documentTypeCode==='03';
   const number=rc?/^B[A-Z0-9]{3}-[1-9]\d{0,7}$/:/^F[A-Z0-9]{3}-[1-9]\d{0,7}$/;
   const reasons=extended?(type==='07'?['01','02','03','04','05','06','07','08','09','10']:['01','02','03']):(type==='07'?['01']:['02']);
   const summary=evidence?.receiptSummary, hash=(v:unknown)=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v);
   if(rc ? !extended||!summary||!/^RC-\d{8}-[1-9]\d{0,4}$/.test(summary.identifier)||![summary.individualXmlSha256,summary.individualZipSha256,summary.summaryXmlSha256,summary.summaryZipSha256].every(hash)||
      (evidence.status==='PENDING'?(summary.cdrXmlSha256!==undefined||summary.cdrZipSha256!==undefined):![summary.cdrXmlSha256,summary.cdrZipSha256].every(hash)) : evidence!=null && 'receiptSummary' in evidence) throw Error('Evidencia del RC de nota incompleta');
   if (!snapshot || snapshot.environment !== 'PRODUCTION' || snapshot.currencyCode !== 'PEN' || snapshot.operationTypeCode !== '0101' ||
-      ![PRODUCTION_NOTES_PROFILE,PRODUCTION_NOTES_EXTENDED_PROFILE].includes(snapshot.profile) || !['07', '08'].includes(type) ||
+      ![PRODUCTION_NOTES_PROFILE,PRODUCTION_NOTES_EXTENDED_PROFILE,PRODUCTION_NOTES_MIXED_PROFILE].includes(snapshot.profile) || !['07', '08'].includes(type) ||
       !reasons.includes(snapshot.reasonCode) || snapshot.adjustment?.documentTypeCode !== type ||
       snapshot.adjustment.reasonCode !== snapshot.reasonCode || snapshot.adjustment.reasonDescription !== snapshot.reasonDescription ||
       !snapshot.reference || !['01','03'].includes(snapshot.reference.documentTypeCode) || !number.test(snapshot.reference.fullNumber) ||

@@ -4,8 +4,8 @@ const {spawnSync}=require('node:child_process');const {readFileSync,writeFileSyn
 const target=process.argv[2];if(process.argv.length!==3)throw Error('NEW_TARGET_REQUIRED');
 const result=spawnSync(process.execPath,[join(__dirname,'export-production-schemas.cjs'),target],{stdio:'inherit'});if(result.status!==0)process.exit(result.status??1);
 const extra={
- 'billing-service':['production-batches-schema.sql','production-guides.sql'],
- 'sunat-service':['production-notes-rc-schema.sql','production-batches-schema.sql','production-guides.sql']
+ 'billing-service':['production-batches-schema.sql'],
+ 'sunat-service':['production-notes-rc-schema.sql','production-batches-schema.sql']
 };
 const manifestPath=join(target,'manifest.json'),manifest=JSON.parse(readFileSync(manifestPath));
 for(const e of manifest.files){

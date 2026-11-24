@@ -3,10 +3,10 @@ import type { ProductionGuidesBillingDb } from './production-guides-owner';
 import { ProductionGuidesOwner } from './production-guides-owner';
 /** Host-owned scheduling. Explicit protected in-process/mTLS capabilities, never public HTTP URLs or payload bearer tokens. */
 export class ProductionGuidesBillingRuntime {
- private timer?:ReturnType<typeof setInterval>;private running=false;private autoStart=false;
+ private timer?:ReturnType<typeof setInterval>;private running=false;private task?:Promise<unknown>;private autoStart=false;
  enableLifecycle(enabled:boolean){this.autoStart=enabled;return this;}
- onApplicationBootstrap(){if(this.autoStart&&this.enabled()){this.timer=setInterval(()=>{if(this.running)return;this.running=true;void this.flush().catch(()=>undefined).finally(()=>{this.running=false;});},2000);this.timer.unref();}}
- onModuleDestroy(){if(this.timer)clearInterval(this.timer);}
+ onApplicationBootstrap(){if(this.autoStart&&this.enabled()){this.timer=setInterval(()=>{if(this.running)return;this.running=true;this.task=this.flush().catch(()=>undefined).finally(()=>{this.running=false;});},2000);this.timer.unref();}}
+ async onModuleDestroy(){if(this.timer)clearInterval(this.timer);await this.task;}
 
  constructor(private readonly db:ProductionGuidesBillingDb,private readonly owner:ProductionGuidesOwner,private readonly receiver:{ingest(e:ProductionGuidesIssued):Promise<unknown>},private readonly enabled=()=>false){}
  async flush(limit=20){if(!this.enabled())return 0;return this.db.$transaction(async tx=>{

@@ -3,8 +3,8 @@ import type { TLSSocket } from 'node:tls';
 import { inspect } from 'node:util';
 export type ProductionGuidesPrivateTls={ca:Buffer;cert:Buffer;key:Buffer;serverFingerprint:string};
 export const PRODUCTION_GUIDES_PRIVATE_PATHS=Object.freeze([
- '/internal/production-guides/billing/current','/internal/production-guides/billing/grant-current','/internal/production-guides/billing/reference-owner','/internal/production-guides/billing/status',
- '/internal/production-guides/sunat/grant-evidence','/internal/production-guides/sunat/admit','/internal/production-guides/sunat/ingest','/internal/production-guides/sunat/status','/internal/production-guides/sunat/artifact','/internal/production-guides/sunat/pdf','/internal/production-guides/sunat/reference-evidence'
+ '/internal/production-guides/identity/current','/internal/production-guides/billing/catalogue-source','/internal/production-guides/billing/current','/internal/production-guides/billing/grant-current','/internal/production-guides/billing/reference-owner','/internal/production-guides/billing/status',
+ '/internal/production-guides/sunat/readiness','/internal/production-guides/sunat/grant-evidence','/internal/production-guides/sunat/admit','/internal/production-guides/sunat/ingest','/internal/production-guides/sunat/status','/internal/production-guides/sunat/artifact','/internal/production-guides/sunat/pdf','/internal/production-guides/sunat/reference-evidence'
 ]);
 export function productionGuidesPrivatePeer(request:{socket:TLSSocket},pins:readonly string[]){
  const s=request.socket,pin=s?.encrypted&&s.authorized&&s.getPeerCertificate().fingerprint256?.replaceAll(':','').toLowerCase();

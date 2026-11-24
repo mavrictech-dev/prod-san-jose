@@ -46,3 +46,5 @@ __pycache__/
 # Delivery repository: no development documentation or installation state.
 /docs/
 /.installation/
+
+/.qa/

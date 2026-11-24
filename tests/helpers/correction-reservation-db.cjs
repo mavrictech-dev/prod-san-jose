@@ -3,6 +3,7 @@ const assert=require('node:assert/strict'),{spawn,spawnSync}=require('node:child
 const {readFileSync}=require('node:fs'),{createRequire}=require('node:module'),{resolve}=require('node:path'),{Duplex}=require('node:stream');
 // Fixed target and labelled ownership: no caller-provided paths, URLs, DBs or RUCs.
 async function withCorrectionDatabase(work){
+  if(process.env.NATIVE_TEST_POSTGRES_BIN)return require('./native-postgres.cjs').withNativeCorrection(work);
   const root=resolve(__dirname,'../..'),service=resolve(root,'services/billing-service'),local=createRequire(resolve(service,'package.json'));
   local('reflect-metadata');const {Pool}=local('pg'),{PrismaPg}=local('@prisma/adapter-pg'),{PrismaClient}=local('./dist/generated/prisma/client');
   const run=randomUUID(),name='factuez-correction-holds-'+run.slice(0,8),label='factuez.correction.holds.test='+run,password=randomBytes(24).toString('hex');

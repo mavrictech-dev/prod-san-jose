@@ -1,0 +1,7 @@
+ALTER TABLE "SeriesCounter" ADD COLUMN IF NOT EXISTS "environment" "SunatEnvironment";
+-- A counter containing both environments is not safe to infer. Stop for review.
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM "Document" GROUP BY "seriesCounterId" HAVING count(DISTINCT "immutableSnapshot"->>'environment')>1) THEN RAISE EXCEPTION 'counter contains mixed historical environments; review required'; END IF; END $$;
+UPDATE "SeriesCounter" s SET "environment"=COALESCE((SELECT (d."immutableSnapshot"->>'environment')::"SunatEnvironment" FROM "Document" d WHERE d."seriesCounterId"=s."id" AND d."immutableSnapshot"->>'environment' IN ('BETA','PRODUCTION') LIMIT 1),c."environment") FROM "CompanySettings" c WHERE c."id"=s."companyId" AND s."environment" IS NULL;
+ALTER TABLE "SeriesCounter" ALTER COLUMN "environment" SET DEFAULT 'BETA', ALTER COLUMN "environment" SET NOT NULL;
+DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='tax_policy_branch_owner_fk') THEN ALTER TABLE "BillingTaxPolicy" ADD CONSTRAINT tax_policy_branch_owner_fk FOREIGN KEY ("branchId","companyId") REFERENCES "Branch"("id","companyId") ON DELETE RESTRICT; END IF; END $$;
+DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='product_tax_branch_owner_fk') THEN ALTER TABLE "BillingProductTax" ADD CONSTRAINT product_tax_branch_owner_fk FOREIGN KEY ("branchId","companyId") REFERENCES "Branch"("id","companyId") ON DELETE RESTRICT; END IF; END $$;

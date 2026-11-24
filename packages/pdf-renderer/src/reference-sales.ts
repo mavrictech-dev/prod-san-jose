@@ -82,7 +82,7 @@ export function buildReferenceSale(layout: LocalPdfLayout, s: Sale, presentation
   layout.space(5);
   const totals: [string, string][] = [
     ...(!note ? [['Sub Total', lineBucket(lines)] as [string, string]] : []),
-    ['Op. Gravada', money(s.totals.taxableAmount)], ['I.G.V', money(s.totals.igvAmount)],
+    ['Op. Gravada', money(s.totals.taxableAmount)], ...(s.totals.exemptAmount ? [['Op. Exonerada',money(s.totals.exemptAmount)] as [string,string]] : []), ...(s.totals.unaffectedAmount ? [['Op. Inafecta',money(s.totals.unaffectedAmount)] as [string,string]] : []), ['I.G.V', money(s.totals.igvAmount)],
     ['Op. Inafecta', lineBucket(lines, ['30', '31', '32', '33', '34', '35', '36', '37'])],
     ['Op. Exonerada', lineBucket(lines, ['20', '21'])], ['Op. Exportación', lineBucket(lines, ['40'])],
     ['', '___________'], ['Importe Total', money(s.totals.payableAmount)],

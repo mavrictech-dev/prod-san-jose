@@ -36,7 +36,7 @@ export class OutboxPublisher implements OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      const events = await this.prisma.outboxEvent.findMany({ where: { publishedAt: null }, orderBy: { occurredAt: 'asc' }, take: 50 });
+      const events = await this.prisma.outboxEvent.findMany({ where: { publishedAt: null, eventType: { in: [EventNames.documentIssued, EventNames.betaSupplementRequested] } }, orderBy: { occurredAt: 'asc' }, take: 50 });
       for (const event of events) {
         if(this.stopped)break;
         if (![EventNames.documentIssued, EventNames.betaSupplementRequested].includes(event.eventType as typeof EventNames.documentIssued))

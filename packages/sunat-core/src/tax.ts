@@ -71,6 +71,9 @@ export interface DocumentLineInput extends TaxLineInput {
 }
 
 export function calculateDocumentTotals(lines: DocumentLineInput[]) {
+  for (const line of lines) {
+    if (!['10','20','30'].includes(line.taxAffectationCode) || line.taxAffectationCode!=='10' && parseDecimal(line.igvRate,2)!==0n) throw new Error('Tratamiento tributario inv?lido');
+  }
   const calculated = lines.map((line, index) => ({
     lineNumber: index + 1,
     productCode: line.productCode,
@@ -85,7 +88,8 @@ export function calculateDocumentTotals(lines: DocumentLineInput[]) {
   return {
     lines: calculated,
     totals: {
-      taxableAmount: addMoney(calculated.map((line) => line.lineExtensionAmount)),
+      taxableAmount: addMoney(calculated.filter(line=>line.taxAffectationCode==='10').map((line) => line.lineExtensionAmount)),
+      ...(calculated.some(line=>line.taxAffectationCode!=='10') ? {exemptAmount:addMoney(calculated.filter(l=>l.taxAffectationCode==='20').map(l=>l.lineExtensionAmount)),unaffectedAmount:addMoney(calculated.filter(l=>l.taxAffectationCode==='30').map(l=>l.lineExtensionAmount))}:{}),
       igvAmount: addMoney(calculated.map((line) => line.igvAmount)),
       payableAmount: addMoney(calculated.map((line) => line.totalAmount)),
     },

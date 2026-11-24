@@ -6,6 +6,7 @@ import { ProductionGuidesOwner } from './production-guides-owner';
 export const PRODUCTION_GUIDES_BILLING_PRIVATE_PEERS='PRODUCTION_GUIDES_BILLING_PRIVATE_PEERS';
 export class ProductionGuidesSunatPrivateClient {
  constructor(private readonly http:ProductionGuidesPrivateHttp){}
+ readiness(scope:{companyId:number;issuerRuc:string}){return this.http.post<any>('/internal/production-guides/sunat/readiness',scope);}
  admit(snapshot:Snapshot,grant:Grant){return this.http.post<void>('/internal/production-guides/sunat/admit',{snapshot,grant});}
  grantEvidence(scope:ProductionGuidesScope,profiles:Grant['profiles'],credentialRevision:number){return this.http.post<Pick<Grant,'credentialRevision'|'certificateFingerprint'|'rulesSha256'|'xsdSha256'>>('/internal/production-guides/sunat/grant-evidence',{scope,profiles,credentialRevision});}
  ingest(event:Issued){return this.http.post('/internal/production-guides/sunat/ingest',event);}
@@ -17,6 +18,7 @@ export class ProductionGuidesSunatPrivateClient {
 export class ProductionGuidesBillingPrivateController {
  constructor(private readonly owner:ProductionGuidesOwner,@Inject(PRODUCTION_GUIDES_BILLING_PRIVATE_PEERS)private readonly peers:readonly string[]){}
  private peer(r:any){try{productionGuidesPrivatePeer(r,this.peers);}catch{throw new ForbiddenException('Puerto privado SUNAT requerido');}}
+ @Post('catalogue-source') catalogue(@Body() scope:{companyId:number;issuerRuc:string},@Req() r:any){this.peer(r);return this.owner.catalogueSource(scope);}
  @Post('current') current(@Body() event:Issued,@Req() r:any){this.peer(r);return this.owner.current(event);}
  @Post('grant-current') grant(@Body() grant:Grant,@Req() r:any){this.peer(r);return this.owner.currentGrant(grant);}
  @Post('reference-owner') reference(@Body() requester:Snapshot,@Req() r:any){this.peer(r);return this.owner.referenceOwner(requester);}

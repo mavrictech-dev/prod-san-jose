@@ -6,7 +6,8 @@ import { b2bReadOpenApiV1 } from '../packages/contracts/src/b2b-read-openapi';
 import { b2bDesignOpenApiV1 } from '../packages/contracts/src/b2b-openapi';
 import { addB2bWebhookRoutes } from '../packages/contracts/src/b2b-webhook-openapi';
 import { validB2bBinding } from '../packages/contracts/src/b2b-security';
-import { GET as landing } from '../apps/web-pwa/app/api-docs/route';
+import {GET as nativeLanding} from '../apps/web-pwa/app/api-docs/route';
+import { GET as landing } from '../apps/web-pwa/app/api-docs/b2b/route';
 import { GET as swagger } from '../apps/web-pwa/app/api-docs/swagger/route';
 import { GET as specification } from '../apps/web-pwa/app/api-docs/openapi.json/route';
 import { GET as intranet } from '../apps/web-pwa/app/api-docs/sunat.json/route';
@@ -20,6 +21,7 @@ function visit(value: any, fn: (node: any) => void) {
 }
 afterEach(() => vi.unstubAllGlobals());
 
+it('opens the human native reference from api-docs while keeping B2B separate',()=>{const response=nativeLanding(new Request('http://localhost/api-docs'));expect(response.status).toBe(307);expect(response.headers.get('Location')).toBe('http://localhost/api-reference');});
 describe('Catálogo público B2B: proyección fiel y sin activación', () => {
   it('sólo documenta los 15 métodos de lectura, los 9 de webhooks y el token de los controladores reales', () => {
     const actual = ['services/b2b-api-service/src/http.ts', 'services/b2b-api-service/src/webhooks.ts'].flatMap(file =>

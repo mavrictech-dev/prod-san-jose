@@ -34,6 +34,7 @@ services:
           - /api/v1/customers
           - /api/v1/documents
           - /api/v1/stations
+          - /api/v1/production-guides
           - /api/v1/daily-summaries
         strip_path: false
         protocols: [http, https]

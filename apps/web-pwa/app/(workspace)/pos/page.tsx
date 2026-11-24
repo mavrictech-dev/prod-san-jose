@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@factuez/ui/components/select";
-import { ApiError, useWorkspace } from "../../../features/workspace/provider";
+import { ApiError, useResource, useWorkspace } from "../../../features/workspace/provider";
 import { canRunLocalEmissionWorkflow, runLocalEmissionWorkflow } from "../../../features/workspace/local-emission-workflow";
 import { initialPayment, paymentTermsFor, paymentDraftError, type PaymentDraft } from '../../../features/workspace/payment-input';
 import {
@@ -56,7 +56,9 @@ const blankLine = (): Line => ({
 });
 const decimal = /^\d{1,12}(\.\d{1,6})?$/;
 export default function PosPage() {
-  const { api, user, branchId, catalog, setDirty, setBranch } = useWorkspace();
+  const { api, user, companyId, branchId, catalog, setDirty, setBranch } = useWorkspace();
+  const effective=useResource<{products:Array<{id:string;sku:string;description:string;unitCode:string;taxAffectationCode:string;defaultUnitPrice:string|null;igvRate:string;taxAllowed:boolean}>}>(companyId&&branchId?`/api/v1/stations/companies/${companyId}/effective-products?branchId=${branchId}`:undefined);
+  const products=effective.data?.products.filter(p=>p.taxAllowed)??[];
   const intentKey = `factuez:pending:${user?.sub}`;
   const recovered = useRef(false);
   const points =
@@ -264,6 +266,7 @@ export default function PosPage() {
         action={
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Fuel className="size-5" />
+      {effective.error&&<ErrorState message={effective.error} retry={effective.reload}/>}
             {catalog?.branches.find((branch) => branch.id === branchId)?.name ??
               "Selecciona una sede arriba"}
           </div>
@@ -504,7 +507,7 @@ export default function PosPage() {
                     value={line.productId ?? "manual"}
                     disabled={locked}
                     onValueChange={(value) => {
-                      const product = catalog?.products.find(
+                      const product = products.find(
                         (item) => item.id === value,
                       );
                       updateLine(
@@ -541,7 +544,7 @@ export default function PosPage() {
                       <SelectItem value="manual">
                         Ítem libre / servicio
                       </SelectItem>
-                      {catalog?.products.map((product) => (
+                      {products.map((product) => (
                         <SelectItem value={product.id} key={product.id}>
                           {product.description}
                         </SelectItem>

@@ -11,7 +11,7 @@ import {Card,CardContent,CardHeader,CardTitle,CardDescription} from '@factuez/ui
 import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription,DialogFooter} from '@factuez/ui/components/dialog';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@factuez/ui/components/select';
 
-type Line={lineNumber:number;description:string;quantity:string;unitCode:string;unitPriceWithTax:string;totalAmount:string};
+type Line={igvRate?:string;taxAffectationCode?:string;lineNumber:number;description:string;quantity:string;unitCode:string;unitPriceWithTax:string;totalAmount:string};
 type Ready={serverEnabled:boolean;profile:string;availableProfiles?:string[];originalType?:string;extendedReasons?:Record<'07'|'08',string[]>;original:{documentId:string;fullNumber:string;lines:Line[];totals:{payableAmount:string}};series:{id:string;series:string;documentTypeCode:'07'|'08'}[]};
 export function productionNoteCommand(seriesCounterId:string,type:'07'|'08',reason:string,increments:Record<string,string>){
  if(!['07','08'].includes(type)||!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(seriesCounterId)||!reason.trim()||reason.trim().length>250)throw Error('Seleccione la serie y escriba el motivo.');
@@ -28,10 +28,10 @@ export function productionNotePreview(lines:Line[],increments:Record<string,stri
  const amounts=Object.entries(increments).filter(([,value])=>value.trim()!=='').map(([key,value])=>{
   if(!/^[1-9]\d*$/.test(key)||!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,6})?$/.test(value)||!/[1-9]/.test(value))throw Error('Incremento inválido');
   const original=lines.find(line=>line.lineNumber===Number(key));if(!original)throw Error('Ítem fuera de la factura');
-  const result=calculateTaxLine({quantity:original.quantity,unitPriceWithTax:value,igvRate:'18'});if(result.totalAmount==='0.00')throw Error('El ajuste del ítem debe producir un importe mayor que cero.');return result;
+  const result=calculateTaxLine({quantity:original.quantity,unitPriceWithTax:value,igvRate:original.igvRate??'18'});if(result.totalAmount==='0.00')throw Error('El ajuste del ítem debe producir un importe mayor que cero.');return {...result,taxAffectationCode:original.taxAffectationCode??'10'};
  });
  if(!amounts.length)return undefined;
- return{taxableAmount:addMoney(amounts.map(a=>a.lineExtensionAmount)),igvAmount:addMoney(amounts.map(a=>a.igvAmount)),payableAmount:addMoney(amounts.map(a=>a.totalAmount))};
+ return{taxableAmount:addMoney(amounts.filter(a=>a.taxAffectationCode==='10').map(a=>a.lineExtensionAmount)),...(amounts.some(a=>a.taxAffectationCode!=='10')?{exemptAmount:addMoney(amounts.filter(a=>a.taxAffectationCode==='20').map(a=>a.lineExtensionAmount)),unaffectedAmount:addMoney(amounts.filter(a=>a.taxAffectationCode==='30').map(a=>a.lineExtensionAmount))}:{}),igvAmount:addMoney(amounts.map(a=>a.igvAmount)),payableAmount:addMoney(amounts.map(a=>a.totalAmount))};
 }
 const EXTENDED_PROFILE='07-08-ON-01-03-PEN-0101-IGV18-v2';
 const reasonLabels:Record<string,string>={'07:01':'Anulación de la operación','07:02':'Error en el RUC','07:03':'Corrección de descripción','07:04':'Descuento global','07:05':'Descuento por ítem','07:06':'Devolución total','07:07':'Devolución por ítem','07:08':'Bonificación monetaria','07:09':'Disminución de valor','07:10':'Otros conceptos','08:01':'Interés moratorio inafecto','08:02':'Aumento de valor','08:03':'Otros cargos'};

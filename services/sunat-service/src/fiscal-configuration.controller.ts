@@ -6,6 +6,9 @@ import { FiscalConfigurationService, type ConfigurationInput } from "./applicati
 @UseGuards(ConfigurationGuard)
 export class FiscalConfigurationController {
   constructor(private readonly configuration: FiscalConfigurationService) {}
+  @Post(':companyId/:environment/reuse')
+  @Header('Cache-Control','private, no-store')
+  reuse(@Param('companyId') companyId:string,@Param('environment') environment:string,@Body() input:unknown,@Req() request:ConfigurationRequest){return this.configuration.reuse(companyId,environment,input,request.headers.authorization!,request.user!.sub);}
   @Get(":companyId/:environment/audit")
   @Header("Cache-Control", "private, no-store")
   audit(@Param("companyId") companyId: string, @Param("environment") environment: string, @Query("page") page: string | undefined, @Req() request: ConfigurationRequest) {

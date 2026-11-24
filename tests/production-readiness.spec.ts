@@ -46,6 +46,12 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); vi.stubEnv('SUNAT_
 afterEach(() => { expect(fetch).not.toHaveBeenCalled(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.useRealTimers(); });
 
 describe('FiscalReadinessService PRODUCTION: readiness is the intersection of current independent requirements', () => {
+  it('recognizes the explicitly authorized mixed-tax profile as live production readiness',async()=>{
+    const f=fixture();f.grant.profile='01-03-PEN-0101-TAX10-20-30-v3';
+    const report=await f.inspect();expect(report.readyForProduction).toBe(true);
+    expect(report.checks).toContainEqual(expect.objectContaining({code:'OFFICIAL_ACTIVATION',status:'PASS'}));
+    expect(report.checks.find(c=>c.code==='FISCAL_PROFILE')?.detail??JSON.stringify(report.checks)).toContain('10/20/30');
+  });
   it('is READY only with exact current credentials/grant, certificate trust, CDR, XSD, server opt-in and Billing admission', async () => {
     const f = fixture(), report = await f.inspect();
     expect(report).toMatchObject({ ruc: RUC, environment: 'PRODUCTION', revision: REVISION, state: 'READY', readyForProduction: true,

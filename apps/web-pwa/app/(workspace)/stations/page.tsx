@@ -1,4 +1,5 @@
 "use client";
+import {TaxPolicyAdmin} from '../../../features/workspace/tax-policy-admin';
 import { Badge } from "@factuez/ui/components/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@factuez/ui/components/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@factuez/ui/components/table";
@@ -23,12 +24,12 @@ export default function StationsPage() {
   const branches = catalog?.branches.filter(branch => (!branchId || branch.id === branchId) && (!companyId || String(branch.companyId) === companyId)) ?? [];
   return <>
     <PageHeading eyebrow="Sistema privado · múltiples sedes" title="Sedes y maestros" description="Consulta de los emisores, sedes, puntos y series de tu alcance. El CRUD requiere administrador general." />
-    <Tabs defaultValue="branches"><TabsList className="mb-5 h-auto flex-wrap"><TabsTrigger value="issuers">Emisores RUC</TabsTrigger><TabsTrigger value="branches">Sedes y series</TabsTrigger><TabsTrigger value="products">Catálogo de productos</TabsTrigger></TabsList>
+    <Tabs defaultValue="branches"><TabsList style={{height:'auto'}} className="mb-5 h-auto flex-wrap"><TabsTrigger value="issuers">Emisores RUC</TabsTrigger><TabsTrigger value="branches">Sedes y series</TabsTrigger><TabsTrigger value="tax-policy">Política tributaria</TabsTrigger><TabsTrigger value="products">Catálogo de productos</TabsTrigger></TabsList>
       <TabsContent value="issuers"><div className="grid gap-5 lg:grid-cols-2">{catalog?.companies.filter(company => !companyId || String(company.id) === companyId).map(company => <Card key={company.id} className="shadow-none"><CardHeader><Badge variant="outline" className="w-fit font-mono">RUC {company.ruc}</Badge><CardTitle>{company.legalName}</CardTitle><CardDescription>{company.environment} · Consulta autorizada</CardDescription></CardHeader></Card>)}</div></TabsContent>
       <TabsContent value="branches"><div className="grid gap-5 lg:grid-cols-2">{branches.map(branch => <Card key={branch.id} className="shadow-none"><CardHeader><Badge variant="outline" className="w-fit">{branch.code}</Badge><CardTitle>{branch.name}</CardTitle><CardDescription>RUC {catalog?.companies.find(c => c.id === branch.companyId)?.ruc}</CardDescription><CardDescription>{branch.address || "Dirección pendiente"}</CardDescription></CardHeader><CardContent className="space-y-3">
         {catalog?.emissionPoints.filter(point => point.branchId === branch.id).map(point => <div key={point.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"><div><p className="text-sm font-medium">{point.name}</p><p className="text-xs text-muted-foreground">{point.code}</p></div><div className="flex gap-2">{point.series.map(counter => <Badge variant="secondary" key={counter.id}>{counter.series}</Badge>)}</div></div>)}
       </CardContent></Card>)}</div>{!branches.length && <Empty title="Sin sedes autorizadas" description="Solicita al administrador una asignación de sede." />}</TabsContent>
-      <TabsContent value="products"><Products /></TabsContent>
+      <TabsContent value="tax-policy"><TaxPolicyAdmin /></TabsContent><TabsContent value="products"><Products /></TabsContent>
     </Tabs>
   </>;
 }

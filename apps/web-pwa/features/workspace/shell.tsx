@@ -64,7 +64,7 @@ const menu = [
   { href: '/fiscal-lab', title: 'Laboratorio fiscal Beta', icon: FlaskConical, permission: 'sunat.configure', group: 'Administración' },
   { href: '/batches', title: 'Resúmenes y bajas', icon: FileText, permission: 'sunat.configure', group: 'Documentos' },
   { href: '/notes', title: 'Notas de crédito/débito', icon: FileText, permission: 'sunat.configure', group: 'Documentos' },
-  { href: '/guides', title: 'Guías de remisión', icon: FileText, permission: 'sunat.configure', group: 'Documentos' },
+  { href: '/guides', title: 'Guías de remisión', icon: FileText, permission: 'document.view', group: 'Documentos' },
   { href: '/mail-settings', title: 'Correo corporativo', icon: KeyRound, permission: 'document.email', group: 'Administración' },
   {
     href: "/dashboard",

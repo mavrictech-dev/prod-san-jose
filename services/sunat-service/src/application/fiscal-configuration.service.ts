@@ -72,6 +72,35 @@ export class FiscalConfigurationService {
     ], { isolationLevel: "RepeatableRead" });
     return { ...issuer, page: Number(page), pageSize, total, items };
   }
+  /** Explicit same-RUC copy. Decrypt and re-seal with destination AAD; never return secrets. */
+  async reuse(companyId:string,environment:string,input:unknown,authorization:string,actorId:string){
+    const v=input as {sourceEnvironment:string;sourceRevision:number;expectedRevision:number;groups:Array<'certificate'|'sol'|'gre'>;overwrite:boolean;confirmation:string};
+    if(!v||Object.keys(v).sort().join(',')!=='confirmation,expectedRevision,groups,overwrite,sourceEnvironment,sourceRevision'||!['BETA','PRODUCTION'].includes(v.sourceEnvironment)||v.sourceEnvironment===environment||!Number.isSafeInteger(v.sourceRevision)||v.sourceRevision<1||!Number.isSafeInteger(v.expectedRevision)||v.expectedRevision<0||!Array.isArray(v.groups)||!v.groups.length||v.groups.some(g=>!['certificate','sol','gre'].includes(g))||new Set(v.groups).size!==v.groups.length||typeof v.overwrite!=='boolean'||v.confirmation!=='REUTILIZAR CONFIGURACIÓN DEL MISMO RUC')throw new BadRequestException('Seleccione grupos, revisiones y confirme la reutilización del mismo RUC');
+    const target=await this.issuer(companyId,environment,authorization),source=await this.issuer(companyId,v.sourceEnvironment,authorization);
+    if(source.ruc!==target.ruc)throw new BadRequestException('No se permite copiar configuración entre RUC');
+    return this.prisma.$transaction(async tx=>{
+      // Lock in deterministic environment order, matching save's advisory locks.
+      for(const env of ['BETA','PRODUCTION'])await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',`${target.ruc}:${env}`);
+      const from=await tx.sunatCredentials.findUnique({where:{issuerRuc_environment:{issuerRuc:source.ruc,environment:source.environment}}}),to=await tx.sunatCredentials.findUnique({where:{issuerRuc_environment:{issuerRuc:target.ruc,environment:target.environment}}});
+      if(from?.revision!==v.sourceRevision||(to?.revision??0)!==v.expectedRevision)throw new ConflictException('Las credenciales cambiaron; actualice ambos ambientes');
+      const fields={certificate:['certificateCipher','certificatePasswordCipher'],sol:['solUsernameCipher','solPasswordCipher'],gre:['greClientIdCipher','greClientSecretCipher']} as const;
+      const aadFields={certificateCipher:'certificate',certificatePasswordCipher:'certificatePassword',solUsernameCipher:'solUsername',solPasswordCipher:'solPassword',greClientIdCipher:'greClientId',greClientSecretCipher:'greClientSecret'} as const;
+      const data:Record<string,unknown>={};
+      for(const group of v.groups){
+        if(fields[group].some(f=>!from[f]))throw new BadRequestException(`El grupo ${group} no está completo en el origen`);
+        if(!v.overwrite&&fields[group].some(f=>to?.[f]))throw new ConflictException('El destino ya está configurado. Confirme explícitamente reemplazar los grupos elegidos');
+        if(group==='certificate'){
+          const bytes=this.vault.open(from.certificateCipher!,{...source,field:'certificate'}),pass=this.vault.open(from.certificatePasswordCipher!,{...source,field:'certificatePassword'});
+          try{const metadata=await this.certificates.inspect(bytes,pass.toString('utf8'));if(metadata.fingerprint!==from.certificateFingerprint)throw new ConflictException('La metadata del certificado de origen no corresponde a sus bytes');if(target.environment==='PRODUCTION'&&(metadata.selfSigned||new Date(metadata.expiresAt)<=new Date()||!metadata.subjectRucCandidates.includes(target.ruc)))throw new BadRequestException('Producción requiere certificado vigente del mismo RUC y no autofirmado');Object.assign(data,{certificateFingerprint:metadata.fingerprint,certificateExpiresAt:metadata.expiresAt,certificateSelfSigned:metadata.selfSigned,certificateStorageKey:null});}finally{bytes.fill(0);pass.fill(0);}
+        }
+        for(const field of fields[group]){const plain=this.vault.open(from[field]!,{...source,field:aadFields[field]});try{data[field]=this.vault.seal(plain,{...target,field:aadFields[field]});}finally{plain.fill(0);}}
+      }
+      const current=await this.issuer(companyId,environment,authorization);if(current.ruc!==target.ruc||current.environment!==target.environment)throw new UnauthorizedException('El contexto autorizado cambió durante la reutilización');
+      const row=await tx.sunatCredentials.upsert({where:{issuerRuc_environment:{issuerRuc:target.ruc,environment:target.environment}},create:{issuerRuc:target.ruc,environment:target.environment,...data,revision:1},update:{...data,revision:{increment:1}}});
+      await tx.fiscalConfigurationAudit.create({data:{issuerRuc:target.ruc,environment:target.environment,actorId,fields:v.groups.map(g=>`${g}.reuse.${source.environment}`),revision:row.revision}});
+      return this.view(target,row);
+    },{timeout:30000});
+  }
   private view(issuer: { ruc: string; environment: Environment; emissionEnvironment?: string; productionInvoiceAdmission?: boolean }, row: {
     revision: number; certificateCipher: string | null; certificateFingerprint: string | null;
     certificateExpiresAt: Date | null; certificateSelfSigned: boolean | null;

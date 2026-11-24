@@ -1,3 +1,4 @@
+import { CatalogTaxService } from './catalog-tax.service';
 import { createHash, randomUUID } from "node:crypto";
 import {
   BadRequestException,
@@ -60,7 +61,7 @@ export interface IssueDocumentInput {
 
 @Injectable()
 export class IssueDocumentService {
-  constructor(private readonly prisma: PrismaService, @Optional() private readonly printBranding?: PrintBrandingService) {}
+  constructor(private readonly prisma: PrismaService, @Optional() private readonly printBranding?: PrintBrandingService, @Optional() private readonly taxPolicies?: CatalogTaxService) {}
 
   async execute(
     input: IssueDocumentInput,
@@ -131,8 +132,6 @@ export class IssueDocumentService {
       if (!line || typeof line !== 'object' || Array.isArray(line) || Object.keys(line).some(key => ![
         'productId', 'productCode', 'description', 'unitCode', 'quantity', 'unitPriceWithTax', 'taxAffectationCode', 'igvRate',
       ].includes(key))) throw new BadRequestException('Campos de ítem no soportados; no se omiten descuentos o impuestos especiales');
-      if (line && (line.taxAffectationCode !== '10' || line.igvRate !== '18'))
-        throw new BadRequestException('Perfil de desarrollo: venta gravada con IGV 18%; otras afectaciones aún no habilitadas');
       if (
         !line ||
         typeof line.description !== "string" ||
@@ -146,7 +145,7 @@ export class IssueDocumentService {
             Number(value) > 0,
         ) ||
         !["10", "20", "30"].includes(line.taxAffectationCode) ||
-        line.igvRate !== (line.taxAffectationCode === "10" ? "18" : "0")
+        (line.taxAffectationCode === "10" ? !/^(?:[0-9]|[1-9][0-9])(?:\.\d{1,2})?$/.test(line.igvRate) || Number(line.igvRate) <= 0 : !["0", "0.00"].includes(line.igvRate))
       )
         throw new BadRequestException(
           "Ítems inválidos: revise descripción, unidad, cantidades, precio y afectación",
@@ -223,6 +222,7 @@ export class IssueDocumentService {
       const company = await tx.companySettings.findUniqueOrThrow({
         where: { id: point.companyId },
       });
+      if(counter.environment!==undefined&&counter.environment!==company.environment)throw new BadRequestException('La serie pertenece a otro ambiente. Seleccione una serie productiva nueva; el historial Beta se conserva');
       const production = company.environment === 'PRODUCTION';
       if (company.environment !== 'BETA' && (!production || process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED !== 'true'))
         throw new BadRequestException('Emisión de producción bloqueada en este servidor');
@@ -238,6 +238,12 @@ export class IssueDocumentService {
           throw new B2bSecurityError(404, 'RESOURCE_NOT_FOUND');
         if (counter.nextNumber < 1n || counter.nextNumber > 99999999n) throw new B2bSecurityError(409, 'SERIES_EXHAUSTED');
       }
+      const issueTimestamp = input.issueDate ?? new Date().toISOString();
+      const official = production || context.b2b !== undefined || !/^00\d{9}$/.test(company.ruc);
+      const taxPolicy = this.taxPolicies ? await this.taxPolicies.effectiveLines(tx,company.id,point.branchId,input.lines,issueTimestamp,official) : undefined;
+      // Optional injection is retained for old isolated unit fixtures only; the AppModule always installs the policy owner.
+      if (!this.taxPolicies && input.lines.some(l=>l.taxAffectationCode!=='10'||Number(l.igvRate)!==18)) throw new BadRequestException('Política tributaria no disponible');
+      if(context.b2b&&input.lines.some(l=>l.taxAffectationCode!=='10'))throw new BadRequestException('El contrato B2B instalado sigue limitado a gravado 10 al 18 %');
       const calculated = calculateDocumentTotals(input.lines);
       const issueDate = input.issueDate ?? new Date().toISOString();
       const paymentIssues = validateInvoicePaymentTerms({ paymentTerms: input.paymentTerms,
@@ -289,6 +295,7 @@ export class IssueDocumentService {
         ...(input.paymentTerms ? { paymentTerms: input.paymentTerms } : {}),
         ...(printPresentation ? { printPresentation } : {}),
         printOperation: { branchName: point.branch.name, ...(point.branch.address ? { branchAddress: point.branch.address } : {}), emissionPointName: point.name },
+        ...(taxPolicy ? { taxPolicy } : {}),
         lines: calculated.lines,
         totals: calculated.totals,
       } as const;
@@ -335,8 +342,11 @@ export class IssueDocumentService {
           customerAddress: input.customer.address,
           customerEmail: input.customer.email,
           taxableAmount: calculated.totals.taxableAmount,
+          exemptAmount: calculated.totals.exemptAmount ?? "0.00",
+          unaffectedAmount: calculated.totals.unaffectedAmount ?? "0.00",
           igvAmount: calculated.totals.igvAmount,
           payableAmount: calculated.totals.payableAmount,
+          taxes: {create: ['10','20','30'].filter(code=>calculated.lines.some(l=>l.taxAffectationCode===code)).map(code=>({taxSchemeId:code==='20'?'9997':code==='30'?'9998':'1000',taxName:code==='20'?'EXO':code==='30'?'INA':'IGV',taxableAmount:code==='20'?calculated.totals.exemptAmount??'0.00':code==='30'?calculated.totals.unaffectedAmount??'0.00':calculated.totals.taxableAmount,taxAmount:code==='10'?calculated.totals.igvAmount:'0.00'}))},
           immutableSnapshot: JSON.parse(JSON.stringify(snapshot)),
           items: {
             create: calculated.lines.map((line, index) => ({
@@ -416,8 +426,8 @@ export class IssueDocumentService {
         if (Object.keys(p).sort().join(',') !== 'authorized,documentId,environment,issuerRuc,profile,snapshotSha256' ||
           p.authorized !== true || p.environment !== 'PRODUCTION' || p.issuerRuc !== snapshot.issuer.identityNumber ||
           p.documentId !== snapshot.documentId || !(snapshot.documentTypeCode === '03'
-            ? p.profile === '01-03-PEN-0101-IGV18-v2'
-            : ['01-PEN-0101-IGV18-v1','01-03-PEN-0101-IGV18-v2'].includes(String(p.profile))) || p.snapshotSha256 !== fiscalSnapshotSha256(snapshot))
+            ? ['01-03-PEN-0101-IGV18-v2','01-03-PEN-0101-TAX10-20-30-v3'].includes(String(p.profile))
+            : ['01-PEN-0101-IGV18-v1','01-03-PEN-0101-IGV18-v2','01-03-PEN-0101-TAX10-20-30-v3'].includes(String(p.profile))) || p.snapshotSha256 !== fiscalSnapshotSha256(snapshot))
           throw unavailable();
       })()]);
     } catch { throw unavailable(); }

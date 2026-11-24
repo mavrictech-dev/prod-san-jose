@@ -1,3 +1,4 @@
+import {startNativeGreListener} from '@factuez/service-access';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -14,6 +15,8 @@ async function bootstrap() {
   // JSON con PKCS#12 base64, acotado también por Kong. Nunca logging de bodies.
   app.useBodyParser('json', { limit: '768kb' });
   app.enableShutdownHooks();
+  await app.init();
+  await startNativeGreListener(app);
   await app.listen(Number(process.env.PORT ?? 3003), '0.0.0.0');
 }
 void bootstrap();

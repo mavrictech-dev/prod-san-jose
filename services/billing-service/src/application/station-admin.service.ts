@@ -209,15 +209,15 @@ export class StationAdminService {
       await this.audit(tx, actor, data.active === false ? 'issuer.deactivated' : data.active === true ? 'issuer.reactivated' : 'issuer.updated', current.id, current, Object.keys(data)); return this.issuerDto(result);
     });
   }
-  /** One-way transition of an unused issuer; never migrates, resets or re-labels fiscal history. */
+  /** One-way transition with isolated production series; never resets or re-labels history. */
   async configureEnvironment(value: string, input: unknown, request: AuthenticatedRequest) {
     const actor = this.authorize(request, PermissionCodes.SETUP_MANAGE);
     if (!actor.permissions.includes(PermissionCodes.SUNAT_CONFIGURE))
       throw new ForbiddenException('Se requiere también el permiso de configuración SUNAT');
     if (process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED !== 'true')
       throw new ServiceUnavailableException('Emisión de producción bloqueada en este servidor');
-    const body = object(input, ['expectedRevision', 'environment', 'confirmation']);
-    if (Object.keys(body).length !== 3 || body.environment !== 'PRODUCTION' || body.confirmation !== 'CAMBIAR EMISOR A PRODUCCIÓN')
+    const body = object(input, ['expectedRevision', 'environment', 'confirmation', 'productionSeries']);
+    if (![3,4].includes(Object.keys(body).length) || body.environment !== 'PRODUCTION' || body.confirmation !== 'CAMBIAR EMISOR A PRODUCCIÓN')
       throw new BadRequestException('Confirme explícitamente el cambio del emisor a Producción');
     return this.write(request, PermissionCodes.SETUP_MANAGE, async (tx, user) => {
       const current = await this.company(tx, companyId(value)); revision(body, current.configVersion);
@@ -225,16 +225,27 @@ export class StationAdminService {
       // Same hierarchy as issuance/CRUD; company lock prevents concurrent enrolment and issuance.
       for (const table of ['Branch', 'EmissionPoint', 'SeriesCounter'] as const)
         await tx.$queryRawUnsafe(`SELECT "id" FROM "${table}" WHERE "companyId" = $1 ORDER BY "id" FOR UPDATE`, current.id);
-      if (await tx.document.count({ where: { companyId: current.id } }) ||
-        await tx.dailySummary.count({ where: { companyId: current.id } }) ||
-        await tx.seriesCounter.count({ where: { companyId: current.id, nextNumber: { not: 1n } } }) ||
-        await tx.outboxEvent.count({ where: { OR: [
-          ...[current.id, String(current.id)].flatMap(equals => [
-            { payload: { path: ['payload', 'companyId'], equals } }, { payload: { path: ['companyId'], equals } },
-          ]),
-          { payload: { path: ['payload', 'issuerRuc'], equals: current.ruc } },
-          { payload: { path: ['payload', 'issuer', 'identityNumber'], equals: current.ruc } },
-        ] } })) throw new ConflictException('Emisor con documentos, Outbox, resúmenes o numeración consumida; no se cambia su ambiente ni historial');
+      const authorization=request.headers.authorization;
+      if(typeof authorization!=='string')throw new ForbiddenException('Sesion humana requerida');
+      let status:any;try{const response=await fetch(`${(process.env.SUNAT_INTERNAL_URL??'http://sunat-service:3003').replace(/\/$/,'')}/api/v1/setup/sunat/${current.id}/PRODUCTION/dispatch`,{headers:{Authorization:authorization},redirect:'error',signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error();status=await response.json();}catch{throw new ServiceUnavailableException('No se pudo verificar la autorizacion fiscal de Produccion');}
+      if(status.ruc!==current.ruc||status.enabled!==true)throw new BadRequestException('Complete credenciales, certificado, verificaciones y autorizacion de Produccion del mismo RUC antes de cambiar el ambiente');
+      const open=await tx.shift.count({where:{status:'OPEN',emissionPoint:{companyId:current.id}}});if(open)throw new ConflictException('Cierre los turnos del emisor antes de cambiar el ambiente');
+      const hasHistory=await tx.document.count({where:{companyId:current.id}})||await tx.dailySummary.count({where:{companyId:current.id}})||await tx.seriesCounter.count({where:{companyId:current.id,nextNumber:{not:1n}}})||await tx.outboxEvent.count({where:{OR:[
+        ...[current.id,String(current.id)].flatMap(equals=>[{payload:{path:['payload','companyId'],equals}},{payload:{path:['companyId'],equals}}]),
+        {payload:{path:['payload','issuerRuc'],equals:current.ruc}},{payload:{path:['payload','issuer','identityNumber'],equals:current.ruc}}
+      ]}});
+      const replacements=body.productionSeries;
+      if(hasHistory){
+       if(!Array.isArray(replacements)||!replacements.length||replacements.length>100)throw new ConflictException('El emisor tiene historial Beta. Seleccione series nuevas de Produccion por punto; no se reinician correlativos');
+       const seen=new Set<string>(),coverage=new Set<string>();
+       for(const entry of replacements){const item=object(entry,['pointId','documentType','series']);if(!UUID.test(String(item.pointId))||!seriesTypes.includes(item.documentType as StationSeriesType))throw new BadRequestException('Punto o tipo de serie productiva invalidos');const label=series(item.series,item.documentType as StationSeriesType);if(seen.has(label))throw new BadRequestException('Series productivas repetidas');seen.add(label);coverage.add(String(item.pointId)+':'+String(item.documentType)+':'+label[0]);
+        const point=await tx.emissionPoint.findFirst({where:{id:String(item.pointId),companyId:current.id,active:true,branch:{active:true}}});if(!point)throw new BadRequestException('Punto productivo fuera del RUC');
+        await tx.seriesCounter.create({data:{companyId:current.id,emissionPointId:point.id,documentType:item.documentType as any,series:label,environment:'PRODUCTION'}});
+       }
+       const prior=await tx.seriesCounter.findMany({where:{companyId:current.id,environment:'BETA',active:true,emissionPoint:{active:true,branch:{active:true}}},include:{emissionPoint:{select:{name:true}}}});
+       const uncovered=prior.filter(s=>!coverage.has(s.emissionPointId+':'+s.documentType+':'+s.series[0]));if(uncovered.length)throw new ConflictException('Complete nuevas series para todos los puntos/tipos activos antes del cambio: '+uncovered.map(s=>s.emissionPoint.name+' '+s.documentType+' '+s.series[0]).join(', '));
+       await tx.seriesCounter.updateMany({where:{companyId:current.id,environment:'BETA',active:true},data:{active:false,masterRevision:{increment:1}}});
+      }else await tx.seriesCounter.updateMany({where:{companyId:current.id,nextNumber:1n},data:{environment:'PRODUCTION',masterRevision:{increment:1}}});
       const result = await tx.companySettings.update({
         where: { id: current.id, configVersion: current.configVersion, environment: 'BETA' },
         data: { environment: 'PRODUCTION', configVersion: { increment: 1 } }, select: issuerSelect,
@@ -309,7 +320,7 @@ export class StationAdminService {
     const type = body.documentType as StationSeriesType; const label = series(body.series, type);
     return this.write(request, PermissionCodes.SERIES_MANAGE, async (tx, actor, production) => {
       const context = await this.point(tx, id(value), production); this.requireActive(context.company, 'Emisor'); this.requireActive(context.branch, 'Sede'); this.requireActive(context.point, 'Punto');
-      const counter = await tx.seriesCounter.create({ data: { companyId: context.company.id, emissionPointId: context.point.id, documentType: type, series: label } });
+      const counter = await tx.seriesCounter.create({ data: { companyId: context.company.id, emissionPointId: context.point.id, documentType: type, series: label, environment:context.company.environment } });
       await this.audit(tx, actor, 'series.created', counter.id, context.company, ['documentType', 'series']);
       return { id: counter.id, companyId: counter.companyId, emissionPointId: counter.emissionPointId, documentType: counter.documentType, series: counter.series, nextNumber: counter.nextNumber.toString(), active: counter.active, revision: counter.masterRevision };
     });

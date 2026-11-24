@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { FiscalDocumentSnapshot } from '../packages/contracts/src/events';
-import { PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, PRODUCTION_NOTES_PROFILES, isProductionNotesProfile, type ProductionNotesAnySnapshot, type ProductionNotesExtendedAdjustment, type ProductionNotesExtendedAcceptance } from '../packages/contracts/src/production-notes';
+import { PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_MIXED_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, PRODUCTION_NOTES_PROFILES, isProductionNotesProfile, type ProductionNotesAnySnapshot, type ProductionNotesExtendedAdjustment, type ProductionNotesExtendedAcceptance } from '../packages/contracts/src/production-notes';
 import { buildProductionNotesExtendedSnapshot as build, assertProductionNotesExtendedSnapshot as assertNote, buildProductionNotesExtendedUbl as ubl, productionNotesExtendedAdjustment as parse, assertProductionNotesAnySnapshot, buildProductionNotesAnyUbl, assertProductionNotesAnyOriginal, buildProductionNotesSnapshot, buildProductionNotesUbl, PRODUCTION_NOTES_RULES } from '../packages/sunat-core/src/production-notes-profile';
 import { calculateDocumentTotals } from '../packages/sunat-core/src/tax';
 import { fiscalSnapshotSha256, fiscalCanonical } from '../packages/sunat-core/src/fiscal-note';
@@ -127,7 +127,7 @@ describe('explicit production notes extended v2', () => {
     });
     it('requires explicit v2 and keeps profile identification exact', () => {
         expect(PRODUCTION_NOTES_EXTENDED_PROFILE).toBe('07-08-ON-01-03-PEN-0101-IGV18-v2');
-        expect(PRODUCTION_NOTES_PROFILES).toEqual([PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE]);
+        expect(PRODUCTION_NOTES_PROFILES).toEqual([PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE,PRODUCTION_NOTES_MIXED_PROFILE]);
         for (const profile of PRODUCTION_NOTES_PROFILES) expect(isProductionNotesProfile(profile)).toBe(true);
         for (const profile of [null, {}, 'BETA', 'v2', '07-08-ON-01-03-PEN-0101-IGV18-MORA30-v2']) expect(isProductionNotesProfile(profile)).toBe(false);
         expect(() => buildProductionNotesSnapshot(original(), acceptance(original()) as any, get('07', '03'), identity())).toThrow();

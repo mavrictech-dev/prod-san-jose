@@ -1,5 +1,25 @@
 # FactuEz — San José · Windows 11 Pro (pruebas)
 
+## Actualización de IGV catálogos y guías
+
+La administración incorpora **Política tributaria y GRE** y **Categorías y unidades** en Sedes y maestros. El IGV general parte de **18 %**; cada RUC configura su política y cada sede puede heredar o declarar una excepción. Los productos seleccionan categorías y medidas existentes. Las afectaciones exoneradas e inafectas requieren una política que las permita y, para emisión oficial, una autorización expresa del perfil 10/20/30.
+
+Guías de remisión abre el flujo nativo del emisor; el laboratorio queda separado en `/guides/laboratory`. La documentación principal corresponde a la API nativa; la referencia B2B queda en `/api-docs/b2b` y no habilita por sí sola un consumidor SERVICE.
+
+Para una instalación **ya preparada**, ejecutar desde su carpeta, con Docker Desktop activo:
+
+```powershell
+git pull --ff-only
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\infra\deployment\windows-test\Install-Test.ps1 -Action Build
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\infra\deployment\windows-test\Install-Test.ps1 -Action Update
+```
+
+Update detiene Billing y SUNAT, respalda sus bases y secretos en la carpeta privada de instalación, aplica cambios aditivos por propietario y reinicia con las imágenes compiladas. Conserva los volúmenes, usuarios, claves y correlativos. No repetir Prepare. `CheckUpdate` permite diagnosticar migraciones pendientes antes de Update; ese diagnóstico termina con código distinto de cero cuando hay trabajo pendiente.
+
+**Elegir Producción en Configuración SUNAT sólo selecciona el ambiente de las credenciales.** La página muestra también el ambiente real de emisión. Se pueden reutilizar grupos del mismo RUC entre ambientes con confirmación, revisión y nuevo cifrado, sin volver a escribir secretos ni mostrarlos en el navegador. El paso efectivo a Producción exige autorización vigente, turnos cerrados y series nuevas cuando hay historial Beta.
+
+La transmisión requiere habilitar el servidor y después cada emisor/actor. La provisión GRE genera únicamente su identidad privada de transporte; los certificados fiscales y archivos públicos de confianza se configuran aparte. Ver [pasos de activación, endpoints y evidencia de pruebas](api-contracts/IMPLEMENTACION_IGV_CATALOGOS_GRE.md) y el [plan de implementación](api-contracts/PLAN_IGV_CATALOGOS_GRE.md). Subir código a GitHub no actualiza la PC ni activa envíos a SUNAT.
+
 Repositorio de entrega independiente, sin carpeta `docs` ni historial del repositorio de desarrollo. Incluye la aplicación, Swagger y contratos API. El perfil Windows instala el **core local de pruebas**, no una habilitación fiscal productiva ni todas las variantes B2B pendientes.
 
 ## Preparar el equipo una sola vez

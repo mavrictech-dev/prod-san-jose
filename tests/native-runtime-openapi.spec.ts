@@ -112,8 +112,8 @@ describe('Native runtime OpenAPI follows published controllers', () => {
     const line = schema.properties.lines.items;
     expect(line.properties.quantity.type).toBe('string');
     expect(line.properties.unitPriceWithTax.type).toBe('string');
-    expect(line.properties.taxAffectationCode.const).toBe('10');
-    expect(line.properties.igvRate.const).toBe('18');
+    expect(line.properties.taxAffectationCode.enum).toEqual(['10','20','30']);
+    expect(new RegExp(line.properties.igvRate.pattern).test('18.00')).toBe(true);
     expect(Object.keys(line.properties).sort()).toEqual(['productId', 'productCode', 'description', 'unitCode', 'quantity', 'unitPriceWithTax', 'taxAffectationCode', 'igvRate'].sort());
     const key = paths['/api/v1/documents'].post.parameters.find((p: any) => p.name === 'Idempotency-Key');
     expect(key).toMatchObject({ in: 'header', required: true, schema: { pattern: '^[a-zA-Z0-9_-]{1,100}$' } });

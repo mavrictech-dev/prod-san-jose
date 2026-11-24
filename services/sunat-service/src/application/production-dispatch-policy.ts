@@ -8,8 +8,9 @@ import { loadPinnedPublicFile } from '../infrastructure/crypto/certificate-trust
 
 export const PRODUCTION_INVOICE_PROFILE = '01-PEN-0101-IGV18-v1';
 export const PRODUCTION_RECEIPT_PROFILE = '01-03-PEN-0101-IGV18-v2';
+export const PRODUCTION_MIXED_TAX_PROFILE = '01-03-PEN-0101-TAX10-20-30-v3';
 export function productionDocumentTypes(profile: string): Array<'01' | '03'> {
-  return profile === PRODUCTION_RECEIPT_PROFILE ? ['01', '03'] : profile === PRODUCTION_INVOICE_PROFILE ? ['01'] : [];
+  return [PRODUCTION_RECEIPT_PROFILE,PRODUCTION_MIXED_TAX_PROFILE].includes(profile) ? ['01', '03'] : profile === PRODUCTION_INVOICE_PROFILE ? ['01'] : [];
 }
 export const PRODUCTION_CONFIRMATION = 'ACTIVAR ENVÍOS REALES A SUNAT';
 const required = ['ISSUER_REAL_RUC', 'SECRET_VAULT', 'SOL_SECRETS_LOCAL', 'CERTIFICATE_KEY_PAIR', 'CERTIFICATE_RUC', 'CERTIFICATE_CHAIN', 'CERTIFICATE_REVOCATION', 'XSD_RUNTIME', 'CDR_TRUST', 'BILLING_PRODUCTION_ADMISSION'];
@@ -37,9 +38,12 @@ export class ProductionDispatchPolicy {
   async configure(companyId: string, environment: string, input: unknown, authorization: string, actorId: string) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) throw new BadRequestException('Solicitud inválida');
     const value = input as Record<string, unknown>;
-    if (Object.keys(value).some(key => !['enabled','expectedRevision','expectedVersion','registrationConfirmed','confirmation','authorizedDocumentTypes'].includes(key)) ||
+    if (Object.keys(value).some(key => !['enabled','expectedRevision','expectedVersion','registrationConfirmed','confirmation','authorizedDocumentTypes','authorizedTaxTreatments'].includes(key)) ||
       typeof value.enabled !== 'boolean' || !Number.isSafeInteger(value.expectedRevision) || Number(value.expectedRevision) < 0 ||
       !Number.isSafeInteger(value.expectedVersion) || Number(value.expectedVersion) < 0) throw new BadRequestException('Solicitud inválida');
+    const treatments=value.authorizedTaxTreatments;
+    if(treatments!==undefined&&JSON.stringify(treatments)!=='["10"]'&&JSON.stringify(treatments)!=='["10","20","30"]')throw new BadRequestException('Seleccione tratamientos 10 o 10/20/30 explícitamente');
+    if(Array.isArray(treatments)&&treatments.length>1&&JSON.stringify(value.authorizedDocumentTypes)!=='["01","03"]')throw new BadRequestException('El perfil tributario 10/20/30 incluye factura y boleta; confirme ambos tipos');
     const selected = value.authorizedDocumentTypes;
     if (selected !== undefined && (!Array.isArray(selected) ||
         !(JSON.stringify(selected) === '["01"]' || JSON.stringify(selected) === '["01","03"]')))
@@ -63,7 +67,7 @@ export class ProductionDispatchPolicy {
       const credentials = await tx.sunatCredentials.findUnique({ where: { issuerRuc_environment: { issuerRuc: config.ruc, environment: 'PRODUCTION' } }, select: { revision: true, certificateFingerprint: true } });
       if ((credentials?.revision ?? 0) !== value.expectedRevision || (value.enabled && credentials?.certificateFingerprint !== fingerprint)) throw new ConflictException('La configuración cambió');
       const data = { enabled: value.enabled as boolean, credentialRevision: config.revision, certificateFingerprint: fingerprint ?? '0'.repeat(64),
-        profile: value.enabled ? (Array.isArray(selected) && selected.includes('03') ? PRODUCTION_RECEIPT_PROFILE : PRODUCTION_INVOICE_PROFILE) : before.profile, actorId, registrationAttestedAt: value.enabled ? new Date() : null, version: before.version + 1 };
+        profile: value.enabled ? (Array.isArray(treatments)&&treatments.length>1 ? PRODUCTION_MIXED_TAX_PROFILE : Array.isArray(selected) && selected.includes('03') ? PRODUCTION_RECEIPT_PROFILE : PRODUCTION_INVOICE_PROFILE) : before.profile, actorId, registrationAttestedAt: value.enabled ? new Date() : null, version: before.version + 1 };
       if (before.version === 0) await tx.fiscalDispatchAuthorization.create({ data: { issuerRuc: config.ruc, environment: 'PRODUCTION', ...data } });
       else {
         const changed = await tx.fiscalDispatchAuthorization.updateMany({ where: { issuerRuc: config.ruc, environment: 'PRODUCTION', version: before.version }, data });
@@ -83,8 +87,8 @@ export class ProductionDispatchPolicy {
     await this.assertCurrent(candidate, config.revision);
     const report = await this.readiness.inspect(companyId, 'PRODUCTION', authorization);
     if (required.some(code => !report.checks.some(check => check.code === code && check.status === 'PASS'))) throw new BadRequestException('El emisor no supera las verificaciones de emisión');
-    await this.assertCurrent(candidate, config.revision);
-    return { authorized: true, environment: 'PRODUCTION', issuerRuc: config.ruc, profile: candidate.documentTypeCode === '03' ? PRODUCTION_RECEIPT_PROFILE : PRODUCTION_INVOICE_PROFILE,
+    const grant = await this.assertCurrent(candidate, config.revision);
+    return { authorized: true, environment: 'PRODUCTION', issuerRuc: config.ruc, profile: grant.profile,
       documentId: candidate.documentId, snapshotSha256: fiscalSnapshotSha256(candidate) };
   }
   /** Private worker call; no client DTO or flag can supply this authority. */
@@ -93,11 +97,13 @@ export class ProductionDispatchPolicy {
     if (!productionWorkflowEnabled()) throw new Error('Despacho de producción deshabilitado');
     const ruc = snapshot.issuer.identityNumber;
     const grant = await this.prisma.fiscalDispatchAuthorization.findUnique({ where: { issuerRuc_environment: { issuerRuc: ruc, environment: 'PRODUCTION' } } });
+    if(snapshot.lines.some(l=>l.taxAffectationCode!=='10')&&grant?.profile!==PRODUCTION_MIXED_TAX_PROFILE)throw new BadRequestException('Autorice explícitamente el perfil 10/20/30 antes de emitir exonerados o inafectos; no se reservó correlativo');
     const credentials = await this.prisma.sunatCredentials.findUnique({ where: { issuerRuc_environment: { issuerRuc: ruc, environment: 'PRODUCTION' } },
       select: { revision: true, certificateFingerprint: true, certificateExpiresAt: true, certificateSelfSigned: true } });
     if (!grant?.enabled || !productionDocumentTypes(grant.profile).includes(snapshot.documentTypeCode as '01' | '03') || !grant.registrationAttestedAt || !credentials ||
       credentials.certificateSelfSigned !== false || !credentials.certificateExpiresAt || credentials.certificateExpiresAt <= new Date() ||
       grant.credentialRevision !== credentials.revision || grant.certificateFingerprint !== credentials.certificateFingerprint ||
       (expectedRevision !== undefined && credentials.revision !== expectedRevision)) throw new Error('Autorización fiscal ausente, revocada o desactualizada');
+    return grant;
   }
 }

@@ -242,11 +242,12 @@
         "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
         "INITIAL_ADMIN_PASSWORD_FILE": "/run/secrets/initial_admin_password",
         "SUNAT_ENVIRONMENT": "BETA",
-        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
-        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "${SUNAT_PRODUCTION_WORKFLOW_ENABLED:-false}",
         "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
         "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+        "NATIVE_GRE_CONFIG_FILE": "${NATIVE_GRE_CONFIG_IDENTITY:-}",
+        "NATIVE_GRE_ENABLED": "${NATIVE_GRE_ENABLED:-false}",
+        "NATIVE_GRE_WORKERS_ENABLED": "${NATIVE_GRE_WORKERS_ENABLED:-false}"
       },
       "secrets": [
         "redis_password",
@@ -291,7 +292,18 @@
           "SERVICE_NAME": "@factuez/identity-service",
           "SERVICE_PATH": "services/identity-service"
         }
-      }
+      },
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "../../../.installation/windows-test/gre/identity",
+          "target": "/run/gre",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        }
+      ]
     },
     "billing-service": {
       "image": "factuez-windows-test/billing-service:local",
@@ -372,19 +384,20 @@
         "PRINT_SETTINGS_ENABLED": "true",
         "PRINT_BRANDING_ROOT": "/data/print-branding",
         "STATION_MASTER_CRUD_ENABLED": "true",
-        "BILLING_PRODUCTION_ISSUANCE_ENABLED": "false",
-        "BILLING_PRODUCTION_NOTES_ENABLED": "false",
+        "BILLING_PRODUCTION_ISSUANCE_ENABLED": "${BILLING_PRODUCTION_ISSUANCE_ENABLED:-false}",
+        "BILLING_PRODUCTION_NOTES_ENABLED": "${BILLING_PRODUCTION_NOTES_ENABLED:-false}",
         "WORKSPACE_LIVE_ENABLED": "true",
         "PRODUCTION_NOTES_OWNER_KEY_FILE": "/run/secrets/production_notes_owner_key",
         "INTERNAL_SERVICE_TOKEN_FILE": "/run/secrets/internal_service_token",
         "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
         "FACTUEZ_DEMO_SEED": "false",
         "SUNAT_ENVIRONMENT": "BETA",
-        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
-        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "${SUNAT_PRODUCTION_WORKFLOW_ENABLED:-false}",
         "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
         "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+        "NATIVE_GRE_CONFIG_FILE": "${NATIVE_GRE_CONFIG_BILLING:-}",
+        "NATIVE_GRE_ENABLED": "${NATIVE_GRE_ENABLED:-false}",
+        "NATIVE_GRE_WORKERS_ENABLED": "${NATIVE_GRE_WORKERS_ENABLED:-false}"
       },
       "secrets": [
         "redis_password",
@@ -434,6 +447,15 @@
           "target": "/data/print-branding",
           "volume": {
             "nocopy": true
+          }
+        },
+        {
+          "type": "bind",
+          "source": "../../../.installation/windows-test/gre/billing",
+          "target": "/run/gre",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
           }
         }
       ],
@@ -529,8 +551,8 @@
         "PRINT_SETTINGS_ENABLED": "true",
         "WORKSPACE_LIVE_ENABLED": "true",
         "SUNAT_WORKER_CONCURRENCY": "2",
-        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
-        "SUNAT_PRODUCTION_NOTES_ENABLED": "false",
+        "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "${SUNAT_PRODUCTION_WORKFLOW_ENABLED:-false}",
+        "SUNAT_PRODUCTION_NOTES_ENABLED": "${SUNAT_PRODUCTION_NOTES_ENABLED:-false}",
         "SUNAT_OPENSSL_PATH": "/usr/bin/openssl",
         "SUNAT_CRL_BUNDLE_FILE": "/run/factuez/pki/crls.pem",
         "SUNAT_CDR_SIGNER_CERT_FILE": "/run/factuez/pki/cdr-signers.pem",
@@ -538,10 +560,15 @@
         "PRODUCTION_NOTES_OWNER_KEY_FILE": "/run/secrets/production_notes_owner_key",
         "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
         "SUNAT_ENVIRONMENT": "BETA",
-        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
         "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
         "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+        "NATIVE_GRE_CONFIG_FILE": "${NATIVE_GRE_CONFIG_SUNAT:-}",
+        "NATIVE_GRE_ENABLED": "${NATIVE_GRE_ENABLED:-false}",
+        "NATIVE_GRE_WORKERS_ENABLED": "${NATIVE_GRE_WORKERS_ENABLED:-false}",
+        "SUNAT_TRUST_STORE_FILE": "/run/factuez/pki/issuer-roots.pem",
+        "SUNAT_TRUST_STORE_SHA256": "${SUNAT_TRUST_STORE_SHA256:-}",
+        "SUNAT_CRL_BUNDLE_SHA256": "${SUNAT_CRL_BUNDLE_SHA256:-}",
+        "SUNAT_CDR_SIGNER_CERT_SHA256": "${SUNAT_CDR_SIGNER_CERT_SHA256:-}"
       },
       "secrets": [
         "redis_password",
@@ -604,6 +631,24 @@
           "target": "/data/private",
           "volume": {
             "nocopy": true
+          }
+        },
+        {
+          "type": "bind",
+          "source": "../../../.installation/windows-test/gre/sunat",
+          "target": "/run/gre",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
+          }
+        },
+        {
+          "type": "bind",
+          "source": "../../../.installation/windows-test/pki",
+          "target": "/run/factuez/pki",
+          "read_only": true,
+          "bind": {
+            "create_host_path": false
           }
         }
       ],
@@ -704,10 +749,8 @@
         "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
         "SUNAT_ENVIRONMENT": "BETA",
         "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
-        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
         "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false"
       },
       "secrets": [
         "redis_password",
@@ -839,10 +882,8 @@
         "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
         "SUNAT_ENVIRONMENT": "BETA",
         "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
-        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
         "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false"
       },
       "secrets": [
         "redis_password",
@@ -969,10 +1010,8 @@
         "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
         "SUNAT_ENVIRONMENT": "BETA",
         "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
-        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
         "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false"
       },
       "secrets": [
         "redis_password",
@@ -1104,10 +1143,8 @@
         "IDENTITY_JWKS_URL": "http://identity-service:3001/.well-known/jwks.json",
         "SUNAT_ENVIRONMENT": "BETA",
         "SUNAT_PRODUCTION_WORKFLOW_ENABLED": "false",
-        "SUNAT_PRODUCTION_GUIDES_ENABLED": "false",
         "SUNAT_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
-        "BILLING_PRODUCTION_GUIDES_ENABLED": "false"
+        "BILLING_PRODUCTION_BATCHES_ENABLED": "false"
       },
       "secrets": [
         "redis_password",

@@ -41,15 +41,16 @@ export function validateLocalInvoice(document: FiscalDocumentSnapshot, options: 
     (document.customer.identityType === '6' && /^\d{11}$/.test(document.customer.identityNumber)))) fail();
   for (const [index, line] of document.lines.entries()) {
     text(line.description, 500); if (!/^[A-Z0-9]{2,3}$/.test(line.unitCode) || line.lineNumber !== index + 1 ||
-      line.taxAffectationCode !== '10' || !['18', '18.00'].includes(line.igvRate)) fail();
+      (document.taxPolicy && /^00\d{9}$/.test(document.issuer.identityNumber) ? !['10','20','30'].includes(line.taxAffectationCode) || line.taxAffectationCode!=='10' && !['0','0.00'].includes(line.igvRate) : line.taxAffectationCode !== '10' || !['18','18.00'].includes(line.igvRate))) fail();
     decimal(line.quantity, true); decimal(line.unitPriceWithTax, true); decimal(line.unitValue);
     const computed = calculateTaxLine(line);
     for (const key of ['unitValue', 'lineExtensionAmount', 'igvAmount', 'totalAmount'] as const) {
       decimal(line[key]); if (parseDecimal(computed[key]) !== parseDecimal(line[key])) fail();
     }
   }
-  const totals = { taxableAmount: addMoney(document.lines.map(l => l.lineExtensionAmount)),
+  const totals = { taxableAmount: addMoney(document.lines.filter(l=>l.taxAffectationCode==='10').map(l => l.lineExtensionAmount)),
     igvAmount: addMoney(document.lines.map(l => l.igvAmount)), payableAmount: addMoney(document.lines.map(l => l.totalAmount)) };
+  for (const [key,code] of [['exemptAmount','20'],['unaffectedAmount','30']] as const) { const expected=addMoney(document.lines.filter(l=>l.taxAffectationCode===code).map(l=>l.lineExtensionAmount));if((document.totals[key]??'0.00')!==expected)fail();}
   for (const key of ['taxableAmount', 'igvAmount', 'payableAmount'] as const) {
     decimal(document.totals[key]); if (parseDecimal(document.totals[key]) !== parseDecimal(totals[key])) fail();
   }

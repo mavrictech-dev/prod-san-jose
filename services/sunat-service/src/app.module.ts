@@ -1,3 +1,11 @@
+import {ProductionGuidesCatalogueAdmin,ProductionGuidesCatalogueController} from './production-guides-catalogue';
+import {productionGuidesSunatHost} from './production-guides-host';
+import {ProductionGuidesService} from './production-guides-service';
+import {ProductionGuidesSunatRuntime} from './production-guides-runtime';
+import {PRODUCTION_GUIDES_SUNAT_CONTROLLERS} from './production-guides.module';
+import {ProductionGuidesStore} from './production-guides-store';
+import {PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,PRODUCTION_GUIDES_GRANT_EVIDENCE,PRODUCTION_GUIDES_READINESS} from './production-guides-private';
+import {NativeGreListenerLifecycle} from '@factuez/service-access';
 import {PRODUCTION_NOTES_SUNAT_PROVIDERS,PRODUCTION_NOTES_SUNAT_CONTROLLERS} from './production-notes.module';
 import {ProductionNotesArtifactsService} from './application/production-notes-artifacts.service';
 import { FiscalRuntimeOpenApiController } from './runtime-openapi.controller';
@@ -61,8 +69,14 @@ import { FiscalFinancialPreviewController } from './fiscal-financial-preview.con
 import { CurrentPdfService } from './application/current-pdf.service';
 
 @Module({
-  controllers: [...PRODUCTION_NOTES_SUNAT_CONTROLLERS, FiscalRuntimeOpenApiController, ProductionAdmissionController, ProductionDispatchController, HealthController, FiscalArtifactsController, FiscalConfigurationController, LocalXmlValidationController, FiscalCircuitQaController, FiscalBatchQaController, NotesQaController, GreQaController, FiscalReadinessController, FiscalRulesPreviewController, SupplementTrackingController, FiscalFinancialPreviewController],
-  providers: [
+  controllers: [ProductionGuidesCatalogueController,...PRODUCTION_GUIDES_SUNAT_CONTROLLERS,...PRODUCTION_NOTES_SUNAT_CONTROLLERS, FiscalRuntimeOpenApiController, ProductionAdmissionController, ProductionDispatchController, HealthController, FiscalArtifactsController, FiscalConfigurationController, LocalXmlValidationController, FiscalCircuitQaController, FiscalBatchQaController, NotesQaController, GreQaController, FiscalReadinessController, FiscalRulesPreviewController, SupplementTrackingController, FiscalFinancialPreviewController],
+  providers: [{provide:ProductionGuidesCatalogueAdmin,inject:[PrismaService,FiscalConfigurationService,'NATIVE_GRE_ASSEMBLY'],useFactory:(db:PrismaService,fiscal:FiscalConfigurationService,a:any)=>new ProductionGuidesCatalogueAdmin(db,fiscal,a.catalogueSource??(async()=>{throw Error('GRE_PRIVATE_RUNTIME_REQUIRED');}))},{provide:'NATIVE_GRE_ASSEMBLY',inject:[PrismaService],useFactory:productionGuidesSunatHost},
+    {provide:ProductionGuidesService,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.service},
+    {provide:ProductionGuidesSunatRuntime,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.runtime??{}},
+    {provide:PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.privatePeers},
+    {provide:'NATIVE_GRE_CLEANUP',inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>({onModuleDestroy:async()=>{await a.runtime?.onModuleDestroy();a.close();}})},
+{provide:ProductionGuidesStore,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.store},{provide:PRODUCTION_GUIDES_GRANT_EVIDENCE,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.grantEvidence},{provide:PRODUCTION_GUIDES_READINESS,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.readiness},
+{provide:'NATIVE_GRE_LISTENER',useClass:NativeGreListenerLifecycle},
     ...PRODUCTION_NOTES_SUNAT_PROVIDERS, ProductionNotesArtifactsService,
     FiscalIssuanceGuard, ProductionDispatchPolicy, ProductionIssuanceRepository, ProductionIssuanceService,
     PrismaService,

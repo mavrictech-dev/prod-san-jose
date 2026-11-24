@@ -1,4 +1,6 @@
 "use client";
+import {TaxPolicyAdmin} from './tax-policy-admin';
+import {ProductMasters} from './product-masters';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { StationAdminCatalog, StationSeriesType } from '@factuez/contracts';
 import { Building2, CircleCheck, CirclePause, LoaderCircle, MapPin, Pencil, Plus, RefreshCw, Search, ShieldCheck } from 'lucide-react';
@@ -126,7 +128,7 @@ function StationAdminScope({ products }: { products: ReactNode }) {
         <Button disabled={loading || busy || !companies.some(c => c.active)} onClick={() => open({ kind: 'branch', mode: 'create' })}><Plus className="size-4" />Nueva sede</Button></div>} />
     {notice && <div role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</div>}
     <Tabs defaultValue="branches">
-      <TabsList className="mb-5 h-auto max-w-full flex-wrap"><TabsTrigger value="issuers">Emisores RUC</TabsTrigger><TabsTrigger value="branches">Sedes, puntos y series</TabsTrigger><TabsTrigger value="products">Catálogo de productos</TabsTrigger></TabsList>
+      <TabsList style={{height:'auto'}} className="mb-5 h-auto max-w-full flex-wrap"><TabsTrigger value="issuers">Emisores RUC</TabsTrigger><TabsTrigger value="branches">Sedes, puntos y series</TabsTrigger><TabsTrigger value="tax-policy">Política tributaria y GRE</TabsTrigger><TabsTrigger value="product-masters">Categorías y unidades</TabsTrigger><TabsTrigger value="products">Catálogo de productos</TabsTrigger></TabsList>
       <div className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4">
         <div className="min-w-40 flex-1 space-y-2"><Label htmlFor="master-search">Buscar maestros</Label><div className="relative"><Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input id="master-search" className="pl-9" value={search} placeholder="RUC, sede, punto o serie…" onChange={e => setSearch(e.target.value)} /></div></div>
         <div className="space-y-2"><Label>Emisor</Label><Select value={companyFilter} onValueChange={value => { setCompanyFilter(value); setBranchFilter('all'); }}><SelectTrigger aria-label="Filtrar maestros por emisor" className="w-60"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">{catalog?.capabilities.betaOnly ? 'Todos los emisores Beta' : 'Todos los emisores'}</SelectItem>{companies.map(c => <SelectItem value={String(c.id)} key={c.id}>{c.ruc} · {c.legalName}{c.active ? '' : ' (inactivo)'}</SelectItem>)}</SelectContent></Select></div>
@@ -174,7 +176,7 @@ function StationAdminScope({ products }: { products: ReactNode }) {
           <div className="flex items-start gap-2 rounded-xl border p-4 text-xs leading-relaxed text-muted-foreground"><ShieldCheck className="size-4 shrink-0" /><p>Desactivar conserva el historial y bloquea nuevas emisiones. No se trasladan puntos ni series a otro RUC. Sólo se puede renombrar una serie sin comprobantes y con siguiente correlativo 1; el correlativo nunca se edita ni se reinicia. La serie inactiva sigue reservada a su RUC y tipo.</p></div>
         </div></TabsContent>
       </>}
-      <TabsContent value="products">{products}</TabsContent>
+      <TabsContent value="tax-policy"><TaxPolicyAdmin /></TabsContent><TabsContent value="product-masters"><ProductMasters /></TabsContent><TabsContent value="products">{products}</TabsContent>
     </Tabs>
     <Dialog open={!!dialog} onOpenChange={value => { if (!value) close(); }}><DialogContent showCloseButton={!busy} className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
       <DialogHeader><DialogTitle>{statusMode ? dialog?.mode === 'deactivate' ? `Desactivar ${dialogName}` : `Reactivar ${dialogName}` : dialog?.kind === 'assign' ? 'Cambiar emisor de la sede' : dialog?.mode === 'create' ? `Crear ${dialogName}` : `Editar ${dialogName}`}</DialogTitle>

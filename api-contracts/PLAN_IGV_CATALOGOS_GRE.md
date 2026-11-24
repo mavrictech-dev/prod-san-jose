@@ -4,7 +4,7 @@ Fecha: 23 de noviembre de 2026. Repositorio de entrega: `mavrictech-dev/prod-san
 
 ## Resultado esperado
 
-El administrador selecciona la región de operación, configura el tratamiento tributario de cada emisor y escoge categorías y unidades existentes al registrar productos. El formulario distingue el código SUNAT de afectación de la tasa porcentual. Una tasa personalizada de 17 % debe aparecer como porcentaje, nunca como código de afectación. Para la selva se permite elegir un tratamiento exonerado cuando corresponde al emisor y operación, manteniendo productos gravados.
+El administrador gestiona región, tratamiento tributario y tasa desde un módulo por RUC y sede. La tasa predeterminada es 18 %, configurable con vigencia, revisión y auditoría. La sede hereda del RUC o declara una excepción; cada punto usa la política de su sede. Al registrar productos se seleccionan categorías y unidades existentes. El formulario distingue el código SUNAT de afectación de la tasa porcentual. Para la selva se permite elegir un tratamiento exonerado cuando corresponde al emisor y operación, manteniendo productos gravados.
 
 La pantalla Guías de remisión debe ofrecer el flujo real disponible para el RUC seleccionado, mostrar los requisitos pendientes y usar endpoints documentados. El laboratorio continúa identificado como pruebas. Ni guardar credenciales ni mostrar una operación en Swagger equivale a habilitarla o a obtener aceptación SUNAT.
 
@@ -38,8 +38,8 @@ Fuentes oficiales consultadas el 23 de noviembre de 2026:
 - Región natural por sede/emisor: Costa, Sierra o Selva; mantener ubigeo como identificación territorial precisa. La región no sustituye departamento, provincia ni distrito.
 - Política por emisor con tratamiento habilitado, tasa predeterminada, vigencia y revisión. Cambios administrativos auditados y con control de concurrencia.
 - Producto compartido con categoría, unidad y tratamiento de referencia; la tasa efectiva depende del emisor activo. No propagar una exoneración de un RUC al catálogo de todos los RUC.
-- Separar en el modal Afectación IGV y Tasa IGV (%). Mostrar por ejemplo `10 — Gravado` y `17 % — Personalizada` o `20 — Exonerado` y `0 %`. Las opciones de afectación disponibles deben coincidir con los perfiles de emisión soportados.
-- Tasas configurables como decimales exactos, con límites y validación; conservar 18 % como valor inicial del régimen general. Registrar 17 % como solicitud comercial personalizada, sin presentarlo como tasa legal general.
+- Separar en el modal Afectación IGV y Tasa IGV (%). Mostrar por ejemplo `10 — Gravado` y `18 %` o `20 — Exonerado` y `0 %`. Administrar las asignaciones de producto en el módulo tributario del RUC/sede. Las opciones disponibles deben coincidir con los perfiles de emisión soportados.
+- Tasas configurables como decimales exactos, con límites y validación; conservar 18 % como valor inicial del régimen general. Las tasas personalizadas se identifican expresamente y no se presentan como tasa legal general.
 - En Selva, permitir configurar por producto gravado o exonerado bajo la política del emisor. Sin IGV significa un tratamiento explícito con tasa cero, nunca un dato ausente interpretado silenciosamente.
 - La emisión oficial valida la combinación código/tasa/régimen y vigencia. Una tasa personalizada no admitida por el perfil fiscal produce una explicación accionable antes de reservar correlativo; el modo local de pruebas debe quedar claramente identificado.
 
@@ -111,6 +111,14 @@ Almacenar secretos cifrados por RUC y ambiente. El navegador recibe sólo presen
 
 ## Diseño de pantallas
 
+### Paso real a producción y conservación de credenciales
+
+El selector de Configuración SUNAT elige el ambiente de credenciales; no cambia por sí solo el ambiente de emisión del RUC. Mostrar por separado ambiente real del emisor, ambiente editado y habilitación efectiva de cada servicio. La vista abre en el ambiente real del emisor y se sincroniza al cambiar de RUC.
+
+Ofrecer reutilización explícita por grupos entre ambientes del mismo RUC, ejecutada en servidor con revisiones de origen/destino, autorización vigente, auditoría y nuevo cifrado para el destino. No devolver secretos ni sobrescribir grupos configurados sin confirmación. Campos vacíos conservan lo guardado; únicamente un retiro explícito puede eliminarlo.
+
+El paso a producción comprueba requisitos del emisor, autorización de envío y turnos cerrados. Si hay historial Beta, se crean series nuevas para cubrir los puntos y tipos activos, conservando contadores y snapshots anteriores. Los documentos y trabajos Beta no se reinterpretan ni se envían como oficiales. Sólo se anuncia el cambio después de recibir y recargar el estado persistido del servidor.
+
 ### Configuración tributaria
 
 Módulo administrativo por emisor con región natural, ubicación, régimen, tasa (%) y vigencia. Mostrar explicación breve de Selva y exoneración, vista previa de importe base/impuesto/total y revisión actual. Guardar exige permiso y detecta ediciones simultáneas.
@@ -123,7 +131,7 @@ Selectores para categoría, unidad y afectación con nombre y código. Tasa (%) 
 
 La ruta principal usa el RUC/sede activos y muestra listado, nueva guía, series, destinatario, origen/destino, motivo, fechas, bienes, peso, transporte y estado. Los perfiles efectivos se limitan a los validados por el motor existente; una modalidad no soportada debe explicarse antes de emitir. Credenciales guardadas, validación local, habilitación y aceptación son estados diferentes. El laboratorio queda separado con etiqueta Pruebas y no reemplaza el flujo del RUC real.
 
-Verificar escritorio y móvil, carga, catálogo vacío, fallo de red, permisos, región Selva, tasa 17 % personalizada y guía sin autorización. Evitar que una selección visual habilite transmisión externa automáticamente.
+Verificar escritorio y móvil, carga, catálogo vacío, fallo de red, permisos, región Selva, tasa 18 % predeterminada, tasa personalizada y guía sin autorización. Evitar que una selección visual habilite transmisión externa automáticamente.
 
 ## Entregas y dependencias
 
@@ -141,7 +149,7 @@ Las entregas 2–3 dependen de los catálogos y la política; la interfaz de gu�
 ## Pruebas de aceptación
 
 1. El usuario no puede introducir 18 como código de afectación: el selector ofrece etiquetas y la tasa se captura aparte.
-2. Un administrador guarda 17 % personalizado y el modal lo presenta como porcentaje; persiste tras reiniciar. La emisión oficial rechaza una combinación no validada antes de reservar un número.
+2. Un administrador configura la tasa del RUC y una excepción de sede, con 18 % por defecto; el modal muestra el porcentaje efectivo y persiste tras reiniciar. La emisión oficial rechaza una combinación no validada antes de reservar un número.
 3. Selva permite elegir productos gravados y exonerados bajo la política del emisor. Exonerado calcula impuesto cero; seleccionar Selva por sí solo no exonera otras operaciones.
 4. Cambiar el RUC no arrastra una política fiscal de otro emisor. Cambiar región o tasa no modifica originales históricos.
 5. Categorías existentes repetidas por espacios/mayúsculas no producen nuevas categorías equivalentes; unidades se seleccionan de un catálogo único.

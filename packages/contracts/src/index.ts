@@ -15,3 +15,6 @@ export * from './production-notes';
 export * from './production-guides';
 
 export * from './production-batches';
+
+export * from './catalog-tax';
+export * from './catalog-gre-openapi';

@@ -101,7 +101,8 @@ export type ProductionNotesOwnerProof = {
 
 /** Explicit opt-in. v1 remains the default transport/admission contract. */
 export const PRODUCTION_NOTES_EXTENDED_PROFILE = '07-08-ON-01-03-PEN-0101-IGV18-v2';
-export type ProductionNotesProfile = typeof PRODUCTION_NOTES_PROFILE | typeof PRODUCTION_NOTES_EXTENDED_PROFILE;
+export const PRODUCTION_NOTES_MIXED_PROFILE = '07-08-ON-01-03-PEN-0101-TAX10-20-30-v3';
+export type ProductionNotesProfile = typeof PRODUCTION_NOTES_MIXED_PROFILE | typeof PRODUCTION_NOTES_PROFILE | typeof PRODUCTION_NOTES_EXTENDED_PROFILE;
 export type ProductionNotesReceiptSummary = {
     identifier: string;
     summaryXmlSha256: string;
@@ -133,7 +134,7 @@ export type ProductionNotesExtendedAdjustment = ProductionNotesReason & (
     | { documentTypeCode: '08'; reasonCode: '03'; lines: { originalLineNumber: number; quantity: string; unitPriceAdjustmentWithTax: string; description: string }[] }
 );
 export type ProductionNotesExtendedSnapshot = Omit<ProductionNotesSnapshot, 'profile' | 'adjustment' | 'reference' | 'originalAcceptance' | 'totals'> & {
-    profile: typeof PRODUCTION_NOTES_EXTENDED_PROFILE;
+    profile: typeof PRODUCTION_NOTES_EXTENDED_PROFILE | typeof PRODUCTION_NOTES_MIXED_PROFILE;
     adjustment: ProductionNotesExtendedAdjustment;
     reference: Omit<ProductionNotesSnapshot['reference'], 'documentTypeCode'> & { documentTypeCode: '01' | '03' };
     originalAcceptance: ProductionNotesExtendedAcceptance;
@@ -142,7 +143,7 @@ export type ProductionNotesExtendedSnapshot = Omit<ProductionNotesSnapshot, 'pro
 export type ProductionNotesAnySnapshot = ProductionNotesSnapshot | ProductionNotesExtendedSnapshot;
 export type ProductionNotesAnyAdjustment = ProductionNotesAdjustment | ProductionNotesExtendedAdjustment;
 
-export const PRODUCTION_NOTES_PROFILES = [PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE] as const;
+export const PRODUCTION_NOTES_PROFILES = [PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, PRODUCTION_NOTES_MIXED_PROFILE] as const;
 export function isProductionNotesProfile(value: unknown): value is ProductionNotesProfile {
     return typeof value === 'string' && (PRODUCTION_NOTES_PROFILES as readonly string[]).includes(value);
 }

@@ -1,6 +1,7 @@
 "use client";
 import { ProductionNotesActivation } from '../../../features/workspace/production-notes-activation';
 import { ProductionActivation } from '../../../features/workspace/production-activation';
+import {CredentialReuse} from '../../../features/workspace/credential-reuse';
 import { useEffect, useRef, useState } from "react";
 import { KeyRound, LoaderCircle, ShieldCheck, Save } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@factuez/ui/components/card";
@@ -26,6 +27,7 @@ export default function SunatSettingsPage() {
   const { user, catalog, companyId, dirty, can } = useWorkspace();
   const [environment, setEnvironment] = useState("BETA");
   const company = catalog?.companies.find(company => String(company.id) === companyId);
+  useEffect(()=>setEnvironment(company?.environment??'BETA'),[company?.id,company?.environment]);
   if (!can("sunat.configure") || user?.scope.kind !== "GLOBAL" || !user.roles.includes("ADMIN"))
     return <ErrorState message="Esta configuración requiere un administrador general." />;
   return <>
@@ -33,7 +35,7 @@ export default function SunatSettingsPage() {
       description="Administra el certificado digital y los accesos de cada empresa." />
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-card p-4">
       <div><p className="text-sm font-medium">{company?.legalName ?? "Seleccione un emisor"}</p>
-        <p className="text-xs text-muted-foreground">RUC {company?.ruc ?? "—"} · Emisor elegido en la cabecera del sistema</p></div>
+        <p className="text-xs text-muted-foreground">RUC {company?.ruc ?? "—"} · Ambiente real del emisor: {company?.environment??'sin seleccionar'}</p><p className="text-xs text-muted-foreground">El selector sólo elige el almacén de credenciales. La autorización de cada servicio se configura por separado.</p></div>
       <Select value={environment} onValueChange={setEnvironment} disabled={dirty}>
         <SelectTrigger className="w-52" aria-label="Ambiente de credenciales"><SelectValue /></SelectTrigger>
         <SelectContent><SelectItem value="BETA">Beta / pruebas</SelectItem><SelectItem value="PRODUCTION">Producción</SelectItem></SelectContent>
@@ -41,6 +43,7 @@ export default function SunatSettingsPage() {
     </div>
     {company ? <ConfigurationForm key={`${company.id}:${environment}`} company={company} environment={environment} />
       : <ErrorState message="Seleccione explícitamente un emisor en la cabecera antes de configurar SUNAT. Si aún no existe, créelo en Sedes y maestros." />}
+    {company&&<CredentialReuse key={`reuse:${company.id}:${environment}`} companyId={company.id} environment={environment}/>}
     {company && environment === "PRODUCTION" && <ProductionActivation key={`dispatch:${company.id}`} companyId={company.id} />}
     {company && environment === "PRODUCTION" && <ProductionNotesActivation key={`notes:${company.id}`} companyId={company.id} />}
     {company && <FiscalReadiness key={`readiness:${company.id}:${environment}`} companyId={company.id} environment={environment} />}

@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Inject, Inj
 import { createHash, X509Certificate } from 'node:crypto';
 import forge from 'node-forge';
 import { isDeepStrictEqual } from 'node:util';
-import { PRODUCTION_NOTES_ISSUED, PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, type ProductionNotesAnySnapshot, type FiscalDocumentSnapshot } from '@factuez/contracts';
+import { PRODUCTION_NOTES_ISSUED, PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, PRODUCTION_NOTES_MIXED_PROFILE, type ProductionNotesAnySnapshot, type FiscalDocumentSnapshot } from '@factuez/contracts';
 import { buildInvoiceUbl, fiscalSnapshotSha256 } from '@factuez/sunat-core';
 import { PdfPreviewCache, PDF_RENDERER_VERSION, type PrintFormat, type ProductionNotePdfEvidence } from '@factuez/pdf-renderer';
 import { PrismaService } from '../infrastructure/prisma.service';
@@ -137,7 +137,7 @@ export class ProductionNotesArtifactsService implements OnModuleDestroy {
 
   private async verified(id: string, authorization: string, mode: 'RAW' | 'PDF') {
     const permitted = await this.billing(id, authorization), note = structuredClone(permitted.immutableSnapshot);
-    if (note.environment !== 'PRODUCTION' || !['07', '08'].includes(note.documentTypeCode) || ![PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE].includes(note.profile))
+    if (note.environment !== 'PRODUCTION' || !['07', '08'].includes(note.documentTypeCode) || ![PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE,PRODUCTION_NOTES_MIXED_PROFILE].includes(note.profile))
       throw new ConflictException('Entrega limitada a notas productivas de perfiles autorizados');
     const row = await this.repository.load(id);
     if (!row?.payload?.payload?.original) throw new ConflictException('Nota sin dispatch propietario; requiere conciliación');

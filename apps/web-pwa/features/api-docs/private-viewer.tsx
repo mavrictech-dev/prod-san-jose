@@ -12,7 +12,7 @@ function AuthorizedViewer(){
  const resource=useResource<Record<string,unknown>>('/api/v1/setup/sunat/reference');
  const html=useMemo(()=>resource.data?privateSwaggerDocument(resource.data,crypto.randomUUID()):undefined,[resource.data]);
  return <><PageHeading eyebrow="API PRIVADA" title="API de FactuEz" description="Sesión, emisión, consultas, maestros, formatos, XML/CDR y correo. Acceso según los permisos de cada operación; OAuth de aplicaciones se documenta en el catálogo B2B."/>
-  <div className="mb-4 flex flex-wrap gap-2"><Button variant="outline" onClick={resource.reload}>Actualizar documentación</Button><Button variant="outline" asChild><a href="/api-docs" target="_blank" rel="noopener noreferrer">Documentación B2B</a></Button></div>
+  <div className="mb-4 flex flex-wrap gap-2"><Button variant="outline" onClick={resource.reload}>Actualizar documentación</Button><Button variant="outline" asChild><a href="/api-docs/b2b" target="_blank" rel="noopener noreferrer">Documentación B2B</a></Button></div>
   {resource.error?<ErrorState message={resource.error} retry={resource.reload}/>:!html?<Loading/>:<iframe title="Swagger de la API nativa de FactuEz" sandbox="allow-scripts allow-same-origin" srcDoc={html} className="h-[75dvh] w-full rounded-xl border bg-white"/>}</>;
 }
 export function PrivateApiViewer(){

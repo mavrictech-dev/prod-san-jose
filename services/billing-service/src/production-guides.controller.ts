@@ -1,4 +1,4 @@
-import { Body,Controller,Get,Header,Headers,Param,Post,Req,Res,UseGuards } from '@nestjs/common';
+import { Body,Controller,ForbiddenException,Get,Header,Headers,Param,Post,Query,Req,Res,UseGuards } from '@nestjs/common';
 import { PermissionCodes } from '@factuez/contracts';
 import { JwtPermissionGuard,RequiredPermissions,type AuthenticatedRequest } from './auth/jwt-permission.guard';
 import { ProductionGuidesOwner } from './production-guides-owner';
@@ -8,10 +8,18 @@ import type { ProductionGuidesArtifactKind } from '@factuez/contracts/production
 export class ProductionGuidesBillingController {
  constructor(private readonly owner:ProductionGuidesOwner){}
  private actor(r:AuthenticatedRequest){return {userId:r.user!.sub,scope:r.user!.scope};}
+ @Get('capabilities') @RequiredPermissions(PermissionCodes.DOCUMENT_VIEW) @Header('Cache-Control','private, no-store')
+ capabilities(@Query('pointId') pointId:string,@Req() r:AuthenticatedRequest){return this.owner.capabilities(pointId,this.actor(r));}
+ @Get() @RequiredPermissions(PermissionCodes.DOCUMENT_VIEW) @Header('Cache-Control','private, no-store')
+ list(@Query('pointId') pointId:string,@Query('cursor') cursor:string|undefined,@Req() r:AuthenticatedRequest){return this.owner.list(pointId,cursor,this.actor(r));}
+ @Get('carrier-reference') @RequiredPermissions(PermissionCodes.DOCUMENT_VIEW) @Header('Cache-Control','private, no-store')
+ reference(@Query('seriesCounterId') seriesId:string,@Query('issuerRuc') issuerRuc:string,@Query('series') series:string,@Query('number') number:string,@Req() r:AuthenticatedRequest){return this.owner.carrierReference(seriesId,{issuerRuc,series,number},this.actor(r));}
+ @Get('operations/:id') @RequiredPermissions(PermissionCodes.DOCUMENT_VIEW) @Header('Cache-Control','private, no-store')
+ operation(@Param('id') id:string,@Req() r:AuthenticatedRequest){return this.owner.operation(id,this.actor(r));}
  @Post('series') @RequiredPermissions(PermissionCodes.SUNAT_CONFIGURE)
  createSeries(@Body() body:unknown,@Req() r:AuthenticatedRequest){return this.owner.createSeries(body,this.actor(r));}
  @Get('series/point/:id') @RequiredPermissions(PermissionCodes.DOCUMENT_VIEW) @Header('Cache-Control','private, no-store')
- series(@Param('id') id:string,@Req() r:AuthenticatedRequest){return this.owner.series(id,this.actor(r));}
+ series(@Param('id') id:string,@Query('actorId') actorId:string|undefined,@Req() r:AuthenticatedRequest){if(actorId&&actorId!==r.user!.sub&&!r.user!.permissions.includes(PermissionCodes.SUNAT_CONFIGURE))throw new ForbiddenException();return this.owner.series(id,this.actor(r),actorId);}
  @Post() @RequiredPermissions(PermissionCodes.DOCUMENT_ISSUE)
  issue(@Body() body:unknown,@Headers('idempotency-key') key:string,@Req() r:AuthenticatedRequest){return this.owner.issue(body,key,this.actor(r));}
  @Post('series/:id/grants') @RequiredPermissions(PermissionCodes.SUNAT_CONFIGURE)

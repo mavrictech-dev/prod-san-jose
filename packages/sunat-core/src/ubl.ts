@@ -1,7 +1,7 @@
 import type { FiscalDocumentSnapshot } from '@factuez/contracts';
 import { limaIssueDate } from './local-validation';
 import { validateInvoicePaymentTerms, validateInvoiceSupportedFields, type FiscalValidationMode } from './fiscal-rules';
-import { formatScaled, parseDecimal } from './tax';
+import { addMoney, formatScaled, parseDecimal } from './tax';
 
 function xml(value: string): string {
   if (typeof value !== 'string' || /[^\u0009\u000a\u000d\u0020-\ud7ff\ue000-\ufffd\u{10000}-\u{10ffff}]/u.test(value)) throw new Error('Texto XML inválido');
@@ -16,7 +16,7 @@ export function buildInvoiceUbl(document: FiscalDocumentSnapshot, options: { mod
   if (!['PEN', 'USD'].includes(document.currencyCode) || !['01', '03'].includes(document.documentTypeCode)) throw new Error('Cabecera XML inválida');
   const profileIssues = [...validateInvoiceSupportedFields(document), ...validateInvoicePaymentTerms(document, options)];
   if (profileIssues.length) throw new Error(`Snapshot fuera del perfil Invoice: ${profileIssues.map(issue => `${issue.code}@${issue.path}`).join(', ')}`);
-  if (document.operationTypeCode !== '0101' || document.lines.some(line => line.taxAffectationCode !== '10' || !['18', '18.00'].includes(line.igvRate)))
+  if (document.operationTypeCode !== '0101' || document.lines.some(line => options.mode==='REAL_PREPARATION' ? !['10','20','30'].includes(line.taxAffectationCode) || (line.taxAffectationCode==='10' ? !['18','18.00'].includes(line.igvRate) : !['0','0.00'].includes(line.igvRate)) : !['10','20','30'].includes(line.taxAffectationCode) || (line.taxAffectationCode!=='10' && !['0','0.00'].includes(line.igvRate))))
     throw new Error('Perfil tributario XML no implementado: sólo operación 0101, afectación 10 e IGV 18%');
   for (const line of document.lines) {
     if (!Number.isSafeInteger(line.lineNumber) || line.lineNumber < 1 ||
@@ -38,6 +38,10 @@ export function buildInvoiceUbl(document: FiscalDocumentSnapshot, options: { mod
   // metadata belongs to REAL_PREPARATION, not a rewrite of archived QA XML.
   const modern = options.mode === 'REAL_PREPARATION';
   const currency = document.currencyCode;
+  const mixed = document.lines.some(l=>l.taxAffectationCode!=='10');
+  const lineBase = addMoney(document.lines.map(l=>l.lineExtensionAmount));
+  const scheme = (code:string) => code==='20'?'<cac:TaxScheme><cbc:ID>9997</cbc:ID><cbc:Name>EXO</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>':code==='30'?'<cac:TaxScheme><cbc:ID>9998</cbc:ID><cbc:Name>INA</cbc:Name><cbc:TaxTypeCode>FRE</cbc:TaxTypeCode></cac:TaxScheme>':'<cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>';
+  const mixedSubtotals = ['10','20','30'].filter(code=>document.lines.some(l=>l.taxAffectationCode===code)).map(code=>{const ls=document.lines.filter(l=>l.taxAffectationCode===code);return `<cac:TaxSubtotal><cbc:TaxableAmount currencyID="${currency}">${addMoney(ls.map(l=>l.lineExtensionAmount))}</cbc:TaxableAmount><cbc:TaxAmount currencyID="${currency}">${addMoney(ls.map(l=>l.igvAmount))}</cbc:TaxAmount><cac:TaxCategory>${scheme(code)}</cac:TaxCategory></cac:TaxSubtotal>`;}).join('');
   const taxScheme = '<cac:TaxScheme><cbc:ID schemeID="UN/ECE 5153" schemeAgencyID="6">1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>';
   const registrationAddress = `<cac:RegistrationAddress><cbc:ID schemeAgencyName="PE:INEI" schemeName="Ubigeos">${xml(document.issuer.ubigeo)}</cbc:ID><cbc:AddressTypeCode>${xml(document.issuer.establishmentCode)}</cbc:AddressTypeCode>${document.issuer.address ? `<cac:AddressLine><cbc:Line>${xml(document.issuer.address)}</cbc:Line></cac:AddressLine>` : ''}<cac:Country><cbc:IdentificationCode>PE</cbc:IdentificationCode></cac:Country></cac:RegistrationAddress>`;
 
@@ -55,7 +59,7 @@ export function buildInvoiceUbl(document: FiscalDocumentSnapshot, options: { mod
         <cbc:TaxAmount currencyID="${document.currencyCode}">${line.igvAmount}</cbc:TaxAmount>
         <cac:TaxCategory><cbc:Percent>${line.igvRate}</cbc:Percent>
           <cbc:TaxExemptionReasonCode>${xml(line.taxAffectationCode)}</cbc:TaxExemptionReasonCode>
-          <cac:TaxScheme><cbc:ID>1000</cbc:ID><cbc:Name>IGV</cbc:Name><cbc:TaxTypeCode>VAT</cbc:TaxTypeCode></cac:TaxScheme>
+          ${scheme(line.taxAffectationCode)}
         </cac:TaxCategory>
       </cac:TaxSubtotal>
     </cac:TaxTotal>
@@ -79,8 +83,8 @@ ${modern ? `  <cac:Signature><cbc:ID>signatureFactuEz</cbc:ID><cac:SignatoryPart
   <cac:AccountingCustomerParty><cac:Party><cac:PartyIdentification><cbc:ID schemeID="${xml(document.customer.identityType)}">${xml(document.customer.identityNumber)}</cbc:ID></cac:PartyIdentification>
     <cac:PartyLegalEntity><cbc:RegistrationName>${xml(document.customer.legalName)}</cbc:RegistrationName></cac:PartyLegalEntity>
   </cac:Party></cac:AccountingCustomerParty>${paymentTerms}
-  <cac:TaxTotal><cbc:TaxAmount currencyID="${currency}">${document.totals.igvAmount}</cbc:TaxAmount>${modern ? `<cac:TaxSubtotal><cbc:TaxableAmount currencyID="${currency}">${document.totals.taxableAmount}</cbc:TaxableAmount><cbc:TaxAmount currencyID="${currency}">${document.totals.igvAmount}</cbc:TaxAmount><cac:TaxCategory>${taxScheme}</cac:TaxCategory></cac:TaxSubtotal>` : ''}</cac:TaxTotal>
-  <cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="${document.currencyCode}">${document.totals.taxableAmount}</cbc:LineExtensionAmount>
+  <cac:TaxTotal><cbc:TaxAmount currencyID="${currency}">${document.totals.igvAmount}</cbc:TaxAmount>${mixed ? mixedSubtotals : modern ? `<cac:TaxSubtotal><cbc:TaxableAmount currencyID="${currency}">${document.totals.taxableAmount}</cbc:TaxableAmount><cbc:TaxAmount currencyID="${currency}">${document.totals.igvAmount}</cbc:TaxAmount><cac:TaxCategory>${taxScheme}</cac:TaxCategory></cac:TaxSubtotal>` : ''}</cac:TaxTotal>
+  <cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="${document.currencyCode}">${mixed ? lineBase : document.totals.taxableAmount}</cbc:LineExtensionAmount>
 ${modern ? `    <cbc:TaxInclusiveAmount currencyID="${currency}">${document.totals.payableAmount}</cbc:TaxInclusiveAmount>\n` : ''}    <cbc:PayableAmount currencyID="${document.currencyCode}">${document.totals.payableAmount}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>${lines}
 </Invoice>`;

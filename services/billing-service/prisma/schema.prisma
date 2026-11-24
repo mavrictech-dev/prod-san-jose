@@ -146,6 +146,7 @@ model Shift {
 }
 
 model SeriesCounter {
+  environment SunatEnvironment @default(BETA)
   companyId       Int
   id              String       @id @default(uuid()) @db.Uuid
   emissionPointId String       @db.Uuid
@@ -179,6 +180,9 @@ model FuelProduct {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  categoryId String? @db.Uuid
+  categoryMaster ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  unitMaster ProductUnit @relation(fields: [unitCode], references: [code], onDelete: Restrict, onUpdate: Restrict)
   items DocumentItem[]
 }
 
@@ -510,4 +514,20 @@ model ConfigurationAudit {
   entityId  String @db.VarChar(120)
   metadata  Json
   createdAt DateTime @default(now())
+}
+
+model ProductCategory {
+ id String @id @default(uuid()) @db.Uuid
+ name String @db.VarChar(80)
+ normalizedKey String @unique @db.VarChar(80)
+ active Boolean @default(true)
+ revision Int @default(1)
+ products FuelProduct[]
+}
+model ProductUnit {
+ code String @id @db.VarChar(3)
+ description String @db.VarChar(120)
+ active Boolean @default(true)
+ revision Int @default(1)
+ products FuelProduct[]
 }

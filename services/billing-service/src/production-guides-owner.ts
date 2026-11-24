@@ -9,7 +9,7 @@ export interface ProductionGuidesBillingDb extends ProductionGuidesRaw { $transa
 export type ProductionGuidesActor={userId:string;scope:AccessScope};
 export type ProductionGuidesBillingOptions={enabled:()=>boolean; signer:ProductionGuidesSigner; ownerVerifier:ProductionGuidesVerifier; statusVerifier:ProductionGuidesVerifier;
  actorCurrent:(userId:string)=>Promise<{scope:AccessScope;active:boolean;canIssue:boolean}>;
- sunat:ProductionGuidesReadPort & {admit(snapshot:Snapshot,grant:Grant):Promise<void>;grantEvidence(scope:import('@factuez/contracts/production-guides').ProductionGuidesScope,profiles:Grant['profiles'],credentialRevision:number):Promise<Pick<Grant,'credentialRevision'|'certificateFingerprint'|'rulesSha256'|'xsdSha256'>>}; now?:()=>string};
+ sunat:ProductionGuidesReadPort & {admit(snapshot:Snapshot,grant:Grant):Promise<void>;grantEvidence(scope:import('@factuez/contracts/production-guides').ProductionGuidesScope,profiles:Grant['profiles'],credentialRevision:number):Promise<Pick<Grant,'credentialRevision'|'certificateFingerprint'|'rulesSha256'|'xsdSha256'>>}; readiness?:(scope:{companyId:number;issuerRuc:string})=>Promise<any>; now?:()=>string};
 const latest=`SELECT "payload" FROM "ProductionGuidesGrant" WHERE "seriesCounterId"=$1::uuid AND "actorId"=$2::uuid ORDER BY "version" DESC LIMIT 1`;
 /** Native company/branch/point/counter ownership is reloaded on every command/read. */
 export class ProductionGuidesOwner {
@@ -20,11 +20,16 @@ export class ProductionGuidesOwner {
   uuid(id);uuid(actor.userId);
   const rows=await tx.$queryRawUnsafe<any[]>(`SELECT s."id" AS "seriesCounterId",s."series",s."nextNumber",p."id" AS "pointId",b."id" AS "branchId",b."establishmentCode",c."id" AS "companyId",c."ruc" AS "issuerRuc",c."legalName",c."configVersion",b."masterRevision" AS "branchRevision",p."masterRevision" AS "pointRevision",s."masterRevision" AS "seriesRevision"
    FROM "SeriesCounter" s JOIN "EmissionPoint" p ON p."id"=s."emissionPointId" AND p."companyId"=s."companyId" JOIN "Branch" b ON b."id"=p."branchId" AND b."companyId"=p."companyId" JOIN "CompanySettings" c ON c."id"=s."companyId"
-   WHERE s."id"=$1::uuid AND s."active" AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' AND s."documentType"='DESPATCH_ADVICE' ${write?'FOR UPDATE OF s FOR SHARE OF p,b,c':''}`,id);
+   WHERE s."id"=$1::uuid AND s."active" AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' AND s."environment"='PRODUCTION' AND s."documentType"='DESPATCH_ADVICE' ${write?'FOR UPDATE OF s FOR SHARE OF p,b,c':''}`,id);
   const n=rows[0];if(!n||!n.establishmentCode||!allowsResource(actor.scope,n.branchId,n.pointId,n.seriesCounterId))throw new ForbiddenException('Guía fuera de sede, establecimiento o alcance');return n;
  }
  private async grant(tx:ProductionGuidesRaw,counter:string,actor:string){return (await tx.$queryRawUnsafe<{payload:Grant}[]>(latest,counter,actor))[0]?.payload;}
  private scope(n:any){return {companyId:n.companyId,issuerRuc:n.issuerRuc,branchId:n.branchId,pointId:n.pointId,seriesCounterId:n.seriesCounterId,establishmentCode:n.establishmentCode};}
+ async catalogueSource(scope:{companyId:number;issuerRuc:string}){
+  if(!Number.isSafeInteger(scope.companyId)||!/^\d{11}$/.test(scope.issuerRuc))throw new BadRequestException();
+  const owner=(await this.db.$queryRawUnsafe<any[]>('SELECT id FROM "CompanySettings" WHERE id=$1 AND ruc=$2 AND active',scope.companyId,scope.issuerRuc))[0];if(!owner)throw new NotFoundException();
+  const goods=await this.db.$queryRawUnsafe<any[]>('SELECT p.sku AS code,p.description,p."unitCode" FROM "FuelProduct" p JOIN "ProductCategory" c ON c.id=p."categoryId" JOIN "ProductUnit" u ON u.code=p."unitCode" WHERE p.active AND c.active AND u.active ORDER BY p.sku');return {goods};
+ }
  private checkGrant(g:Grant|undefined,n:any,actor:string,profile:string){
   if(!g||!g.enabled||g.actorId!==actor||hash(this.scope(n))!==hash(Object.fromEntries(Object.keys(this.scope(n)).map(k=>[k,(g as any)[k]])))||!g.profiles.includes(profile as any)||Date.parse(g.expiresAt)<=Date.parse(this.clock()))throw new ForbiddenException('Concesión GRE vigente requerida');
   return g;
@@ -37,13 +42,48 @@ export class ProductionGuidesOwner {
    const n=(await tx.$queryRawUnsafe<any[]>(`SELECT p."id",p."companyId",p."branchId",p."masterRevision" FROM "EmissionPoint" p JOIN "Branch" b ON b."id"=p."branchId" AND b."companyId"=p."companyId" JOIN "CompanySettings" c ON c."id"=p."companyId" WHERE p."id"=$1::uuid AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' AND b."establishmentCode"~'^[0-9]{4}$' FOR SHARE OF p,b,c`,v.pointId))[0];
    if(!n||!allowsResource(actor.scope,n.branchId,n.id))throw new ForbiddenException('Punto fuera del alcance');
    if(n.masterRevision!==v.expectedPointRevision)throw new ConflictException('Punto cambio');
-   const id=randomUUID();await tx.$executeRawUnsafe('INSERT INTO "SeriesCounter" ("id","companyId","emissionPointId","documentType","series","updatedAt") VALUES ($1::uuid,$2,$3::uuid,\'DESPATCH_ADVICE\',$4,now())',id,n.companyId,n.id,v.series);
+   const id=randomUUID();await tx.$executeRawUnsafe('INSERT INTO "SeriesCounter" ("id","companyId","emissionPointId","documentType","series","environment","updatedAt") VALUES ($1::uuid,$2,$3::uuid,\'DESPATCH_ADVICE\',$4,\'PRODUCTION\',now())',id,n.companyId,n.id,v.series);
    return {id,companyId:n.companyId,pointId:n.id,documentType:'DESPATCH_ADVICE',guideType:v.series[0]==='V'?'31':'09',series:v.series,nextNumber:'1'};
   });
  }
- async series(pointId:string,actor:ProductionGuidesActor){
-  uuid(pointId);uuid(actor.userId);const rows=await this.db.$queryRawUnsafe<any[]>(`SELECT s."id",s."series",s."nextNumber",p."id" AS "pointId",p."branchId",b."establishmentCode",p."masterRevision" AS "pointRevision",c."ruc" FROM "SeriesCounter" s JOIN "EmissionPoint" p ON p."id"=s."emissionPointId" JOIN "Branch" b ON b."id"=p."branchId" JOIN "CompanySettings" c ON c."id"=s."companyId" WHERE p."id"=$1::uuid AND s."documentType"='DESPATCH_ADVICE' AND s."series"~'^[TV][A-Z0-9]{3}$' AND s."active" AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' ORDER BY s."series"`,pointId);
-  return {serverEnabled:this.options?.enabled()===true,series:await Promise.all(rows.filter(n=>allowsResource(actor.scope,n.branchId,n.pointId,n.id)).map(async n=>({id:n.id,series:n.series,guideType:n.series[0]==='V'?'31':'09',nextNumber:String(n.nextNumber),pointRevision:n.pointRevision,establishmentCode:n.establishmentCode,issuerRuc:n.ruc,grant:await this.grant(this.db,n.id,actor.userId)??null})))};
+ private async point(pointId:string,actor:ProductionGuidesActor){
+  uuid(pointId);uuid(actor.userId);const n=(await this.db.$queryRawUnsafe<any[]>(`SELECT p."id",p."companyId",p."branchId",p."masterRevision",b."establishmentCode",c."ruc",c."environment" FROM "EmissionPoint" p JOIN "Branch" b ON b."id"=p."branchId" AND b."companyId"=p."companyId" JOIN "CompanySettings" c ON c."id"=p."companyId" WHERE p."id"=$1::uuid AND p."active" AND b."active" AND c."active"`,pointId))[0];
+  if(!n||!allowsResource(actor.scope,n.branchId,n.id))throw new ForbiddenException('Punto fuera del alcance');return n;
+ }
+ async capabilities(pointId:string,actor:ProductionGuidesActor){
+  const n=await this.point(pointId,actor),blockers:string[]=[];
+  const schema=(await this.db.$queryRawUnsafe<any[]>(`SELECT to_regclass('"ProductionGuidesReservation"') IS NOT NULL AS ready`))[0]?.ready;
+  if(!schema)blockers.push('Migración GRE Billing pendiente');if(n.environment!=='PRODUCTION')blockers.push('El emisor debe estar configurado en Producción; el laboratorio BETA está separado');
+  if(!/^[0-9]{4}$/.test(n.establishmentCode??''))blockers.push('Código de establecimiento SUNAT de la sede pendiente');
+  if(!this.options)blockers.push('Runtime privado GRE no configurado: mTLS, firma propietaria e Identity pendientes');
+  if(!this.options?.enabled())blockers.push('Transmisión y workers requieren activación explícita del servidor');
+  let fiscal:any=null;if(this.options?.readiness)try{fiscal=await this.options.readiness({companyId:n.companyId,issuerRuc:n.ruc});blockers.push(...fiscal.blockers);}catch{blockers.push('Runtime SUNAT privado no disponible');}
+  const series=schema?(await this.series(pointId,actor)).series:[];
+  if(!series.length)blockers.push('Configure una serie T para 09 o V para 31');
+  if(!series.some(s=>s.grant?.enabled&&Date.parse(s.grant.expiresAt)>Date.parse(this.clock())))blockers.push('Concesión vigente por actor/serie/perfil pendiente');
+  return {implemented:true,installed:!!this.options,enabled:this.options?.enabled()===true,ready:blockers.length===0,blockers,companyId:n.companyId,issuerRuc:n.ruc,branchId:n.branchId,pointId,pointRevision:n.masterRevision,establishmentCode:n.establishmentCode,environment:n.environment,profiles:['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1'],series,fiscal,b2b:{installed:false,contract:'El contrato B2B 01/03 BETA es independiente; el runtime nativo no instala un adaptador B2B GRE'}};
+ }
+ async list(pointId:string,cursor:string|undefined,actor:ProductionGuidesActor){
+  const n=await this.point(pointId,actor);if(cursor)uuid(cursor);
+  const rows=await this.db.$queryRawUnsafe<any[]>(`SELECT r."documentId",r."operationId",r."state",r."revision",d."fullNumber",d."issueDate",d."customerLegalName",d."seriesCounterId" FROM "ProductionGuidesReservation" r JOIN "Document" d ON d."id"=r."documentId" WHERE d."emissionPointId"=$1::uuid AND ($2::uuid IS NULL OR r."documentId">$2::uuid) AND ($3::boolean OR d."seriesCounterId"=ANY($4::uuid[])) ORDER BY r."documentId" LIMIT 51`,pointId,cursor??null,actor.scope.kind==='GLOBAL',actor.scope.kind==='ASSIGNED'?actor.scope.series:[]);
+  const visible=rows.filter(r=>allowsResource(actor.scope,n.branchId,pointId,r.seriesCounterId));
+  return {items:visible.slice(0,50),nextCursor:rows.length>50?rows[49].documentId:null};
+ }
+ async carrierReference(seriesId:string,ref:{issuerRuc:string;series:string;number:string},actor:ProductionGuidesActor){
+  const options=this.enabled(),n=await this.native(this.db,seriesId,actor);
+  if(!n.series.startsWith('V')||!/^\d{11}$/.test(ref.issuerRuc)||!/^T[A-Z0-9]{3}$/.test(ref.series)||!/^[1-9][0-9]{0,7}$/.test(ref.number))throw new BadRequestException('Referencia GRE 09 inválida');
+  const row=(await this.db.$queryRawUnsafe<any[]>(`SELECT r."event" FROM "ProductionGuidesReservation" r JOIN "Document" d ON d."id"=r."documentId" JOIN "CompanySettings" c ON c."id"=d."companyId" WHERE c."ruc"=$1 AND d."series"=$2 AND d."number"=$3::bigint`,ref.issuerRuc,ref.series,ref.number))[0];
+  const e=row?.event as Issued|undefined;if(!e)throw new NotFoundException('Referencia no disponible');const s=validateProductionGuidesSnapshot(e.snapshot),b=s.body as any;
+  if(s.profile!=='GRE09_PUBLIC01_V1'||b.carrier.ruc!==n.issuerRuc||b.carrier.legalName!==n.legalName)throw new NotFoundException('Referencia no disponible para este transportista');
+  const status=await options.sunat.status(e);if(!status.officialCdrVerified||status.source!=='SUNAT_OFFICIAL'||!['ACCEPTED','ACCEPTED_WITH_OBSERVATIONS'].includes(status.state))throw new ConflictException('La referencia requiere CDR oficial verificado');
+  const projection={schemaVersion:'factuez.carrier-reference09-owner.v1',documentId:s.documentId,documentType:'09',issuer:s.issuer,series:s.series,number:s.number,...Object.fromEntries(['issueDate','transferDate','sender','recipient','origin','destination','carrier','grossWeight','weightUnit','items','transportMode','regulatedGoods'].map(k=>[k,b[k]]))};
+  return {projection,reference09:{documentId:s.documentId,issuerRuc:s.issuer.ruc,series:s.series,number:s.number,snapshotSha256:hash(projection)}};
+ }
+ async operation(id:string,actor:ProductionGuidesActor){uuid(id);const row=(await this.db.$queryRawUnsafe<any[]>('SELECT "documentId" FROM "ProductionGuidesReservation" WHERE "operationId"=$1::uuid',id))[0];if(!row)throw new NotFoundException('Reserva no encontrada; revise el listado antes de reintentar');await this.load(row.documentId,actor);return {documentId:row.documentId};}
+ async series(pointId:string,actor:ProductionGuidesActor,grantActor=actor.userId){
+  uuid(grantActor);
+  uuid(pointId);uuid(actor.userId);const rows=await this.db.$queryRawUnsafe<any[]>(`SELECT s."id",s."series",s."nextNumber",p."id" AS "pointId",p."branchId",b."establishmentCode",p."masterRevision" AS "pointRevision",c."ruc" FROM "SeriesCounter" s JOIN "EmissionPoint" p ON p."id"=s."emissionPointId" JOIN "Branch" b ON b."id"=p."branchId" JOIN "CompanySettings" c ON c."id"=s."companyId" WHERE p."id"=$1::uuid AND s."environment"='PRODUCTION' AND s."documentType"='DESPATCH_ADVICE' AND s."series"~'^[TV][A-Z0-9]{3}$' AND s."active" AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' ORDER BY s."series"`,pointId);
+  return {serverEnabled:this.options?.enabled()===true,series:await Promise.all(rows.filter(n=>allowsResource(actor.scope,n.branchId,n.pointId,n.id)).map(async n=>({id:n.id,series:n.series,guideType:n.series[0]==='V'?'31':'09',nextNumber:String(n.nextNumber),pointRevision:n.pointRevision,establishmentCode:n.establishmentCode,issuerRuc:n.ruc,grant:await this.grant(this.db,n.id,grantActor)??null})))};
  }
  /** Append-only CAS. Exposed only through SUNAT_CONFIGURE + native scope guard. No default grant. */
  async configure(seriesId:string,raw:unknown,actor:ProductionGuidesActor){

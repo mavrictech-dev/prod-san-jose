@@ -7,7 +7,7 @@ import { ProductionGuidesService,type ProductionGuidesSunatOptions } from './pro
 import { ProductionGuidesSunatController } from './production-guides.controller';
 import { createProductionGuidesSunat,type ProductionGuidesSunatAssemblyInput } from './production-guides-assembly';
 import { ProductionGuidesSunatRuntime } from './production-guides-runtime';
-import { ProductionGuidesSunatPrivateController,PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,PRODUCTION_GUIDES_GRANT_EVIDENCE } from './production-guides-private';
+import { ProductionGuidesSunatPrivateController,PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,PRODUCTION_GUIDES_GRANT_EVIDENCE,PRODUCTION_GUIDES_READINESS } from './production-guides-private';
 export const PRODUCTION_GUIDES_SUNAT_OPTIONS='PRODUCTION_GUIDES_SUNAT_OPTIONS';
 export type ProductionGuidesAssembly={service:ProductionGuidesSunatOptions;statusSigner:ProductionGuidesSigner};
 export const PRODUCTION_GUIDES_SUNAT_PROVIDERS=[
@@ -18,7 +18,7 @@ export const PRODUCTION_GUIDES_SUNAT_CONTROLLERS=[ProductionGuidesSunatControlle
 @Module({}) export class ProductionGuidesSunatModule {
  static native(input:ProductionGuidesSunatAssemblyInput):DynamicModule{
   const a=createProductionGuidesSunat(input);return {module:ProductionGuidesSunatModule,controllers:PRODUCTION_GUIDES_SUNAT_CONTROLLERS,
-   providers:[FiscalIssuanceGuard,{provide:ProductionGuidesService,useValue:a.service},{provide:ProductionGuidesStore,useValue:a.store},{provide:ProductionGuidesSunatRuntime,useValue:a.runtime},{provide:PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,useValue:a.privatePeers},{provide:PRODUCTION_GUIDES_GRANT_EVIDENCE,useValue:a.grantEvidence},{provide:'PRODUCTION_GUIDES_SUNAT_CLEANUP',useValue:{onModuleDestroy:a.close}}],exports:[ProductionGuidesService,ProductionGuidesStore,ProductionGuidesSunatRuntime]};
+   providers:[{provide:PRODUCTION_GUIDES_READINESS,useValue:a.readiness},FiscalIssuanceGuard,{provide:ProductionGuidesService,useValue:a.service},{provide:ProductionGuidesStore,useValue:a.store},{provide:ProductionGuidesSunatRuntime,useValue:a.runtime},{provide:PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,useValue:a.privatePeers},{provide:PRODUCTION_GUIDES_GRANT_EVIDENCE,useValue:a.grantEvidence},{provide:'PRODUCTION_GUIDES_SUNAT_CLEANUP',useValue:{onModuleDestroy:a.close}}],exports:[ProductionGuidesService,ProductionGuidesStore,ProductionGuidesSunatRuntime]};
  }
- static register(options?:ProductionGuidesAssembly):DynamicModule{return {module:ProductionGuidesSunatModule,controllers:PRODUCTION_GUIDES_SUNAT_CONTROLLERS,providers:[PrismaService,FiscalIssuanceGuard,{provide:PRODUCTION_GUIDES_SUNAT_OPTIONS,useValue:options??null},{provide:PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,useValue:[]},{provide:PRODUCTION_GUIDES_GRANT_EVIDENCE,useValue:async()=>{throw Error('GRE_CONFIGURATION_DISABLED');}},...PRODUCTION_GUIDES_SUNAT_PROVIDERS],exports:[ProductionGuidesStore,ProductionGuidesService]};}
+ static register(options?:ProductionGuidesAssembly):DynamicModule{return {module:ProductionGuidesSunatModule,controllers:PRODUCTION_GUIDES_SUNAT_CONTROLLERS,providers:[{provide:PRODUCTION_GUIDES_READINESS,useValue:async()=>({ready:false,blockers:['Runtime no configurado']})},PrismaService,FiscalIssuanceGuard,{provide:PRODUCTION_GUIDES_SUNAT_OPTIONS,useValue:options??null},{provide:PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,useValue:[]},{provide:PRODUCTION_GUIDES_GRANT_EVIDENCE,useValue:async()=>{throw Error('GRE_CONFIGURATION_DISABLED');}},...PRODUCTION_GUIDES_SUNAT_PROVIDERS],exports:[ProductionGuidesStore,ProductionGuidesService]};}
 }

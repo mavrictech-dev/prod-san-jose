@@ -1,3 +1,11 @@
+import {productionGuidesBillingHost} from './production-guides-host';
+import {ProductionGuidesOwner} from './production-guides-owner';
+import {ProductionGuidesBillingRuntime} from './production-guides-runtime';
+import {PRODUCTION_GUIDES_BILLING_CONTROLLERS} from './production-guides.module';
+import {PRODUCTION_GUIDES_BILLING_PRIVATE_PEERS} from './production-guides-private';
+import {NativeGreListenerLifecycle} from '@factuez/service-access';
+import {CatalogTaxController} from './catalog-tax.controller';
+import {CatalogTaxService} from './application/catalog-tax.service';
 import {PRODUCTION_NOTES_BILLING_PROVIDERS,PRODUCTION_NOTES_BILLING_CONTROLLERS} from './production-notes.module';
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -24,8 +32,13 @@ import { FinancialLedgerCandidateService } from './application/financial-ledger-
 
 @Module({
   imports: [ScheduleModule.forRoot()],
-  controllers: [...PRODUCTION_NOTES_BILLING_CONTROLLERS, DocumentsController, StationsController, ProductsController, ClientIntakeController, PrintSettingsController, HealthController],
-  providers: [
+  controllers: [...PRODUCTION_GUIDES_BILLING_CONTROLLERS,CatalogTaxController,...PRODUCTION_NOTES_BILLING_CONTROLLERS, DocumentsController, StationsController, ProductsController, ClientIntakeController, PrintSettingsController, HealthController],
+  providers: [{provide:'NATIVE_GRE_ASSEMBLY',inject:[PrismaService],useFactory:productionGuidesBillingHost},
+    {provide:ProductionGuidesOwner,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.owner},
+    {provide:ProductionGuidesBillingRuntime,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.runtime??{}},
+    {provide:PRODUCTION_GUIDES_BILLING_PRIVATE_PEERS,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.privatePeers},
+    {provide:'NATIVE_GRE_CLEANUP',inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>({onModuleDestroy:async()=>{await a.runtime?.onModuleDestroy();a.close();}})},
+{provide:'NATIVE_GRE_LISTENER',useClass:NativeGreListenerLifecycle},CatalogTaxService,
     ...PRODUCTION_NOTES_BILLING_PROVIDERS,
     PrismaService,
     StationAdminService,

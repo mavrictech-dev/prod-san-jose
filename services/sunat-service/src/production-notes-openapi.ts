@@ -16,4 +16,4 @@ export function productionNoteAdjustmentSchema() {
  variant('08','03',{lines:line({quantity,unitPriceAdjustmentWithTax:quantity,description:text})})
  ]};
 }
-export const productionNotesProfiles=['07-08-ON-01-PEN-0101-IGV18-v1','07-08-ON-01-03-PEN-0101-IGV18-v2'];
+export const productionNotesProfiles=['07-08-ON-01-PEN-0101-IGV18-v1','07-08-ON-01-03-PEN-0101-IGV18-v2','07-08-ON-01-03-PEN-0101-TAX10-20-30-v3'];

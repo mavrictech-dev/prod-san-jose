@@ -73,6 +73,7 @@ export interface FiscalDocumentSnapshot {
   /** Opcional para eventos antiguos. Sólo presentación; congelada por Billing. */
   printPresentation?: FrozenPrintPresentationV1;
   printOperation?: PrintOperationSnapshot;
+  taxPolicy?: {companyId:number;branchId:string;revision:number;source:string;policy:import('./catalog-tax').TaxPolicy;assignments:unknown[]};
   operationTypeCode: string;
   issuer: FiscalPartySnapshot & {
     tradeName?: string;
@@ -83,6 +84,8 @@ export interface FiscalDocumentSnapshot {
   lines: FiscalLineSnapshot[];
   totals: {
     taxableAmount: string;
+    exemptAmount?: string;
+    unaffectedAmount?: string;
     igvAmount: string;
     payableAmount: string;
   };

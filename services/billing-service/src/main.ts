@@ -1,3 +1,4 @@
+import {startNativeGreListener} from '@factuez/service-access';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -13,6 +14,8 @@ async function bootstrap() {
   // Logo original <=256 KB codificado en base64; DTOs siguen acotados por campo.
   app.useBodyParser('json', { limit: '512kb' });
   app.enableShutdownHooks();
+  await app.init();
+  await startNativeGreListener(app);
   await app.listen(Number(process.env.PORT ?? 3002), '0.0.0.0');
 }
 

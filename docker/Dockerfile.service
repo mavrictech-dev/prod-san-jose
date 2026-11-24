@@ -15,6 +15,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.js
 COPY apps ./apps
 COPY packages ./packages
 COPY services ./services
+COPY scripts ./scripts
 
 RUN pnpm install --frozen-lockfile
 

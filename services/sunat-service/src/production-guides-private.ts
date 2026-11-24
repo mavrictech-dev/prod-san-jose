@@ -4,10 +4,12 @@ import { ProductionGuidesPrivateHttp,productionGuidesPrivatePeer } from '@factue
 import { productionGuidesBytesHash as hash,productionGuidesExact as exact } from '@factuez/sunat-core/dist/production-guides';
 import { ProductionGuidesService } from './production-guides-service';
 export const PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS='PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS';
+export const PRODUCTION_GUIDES_READINESS='PRODUCTION_GUIDES_READINESS';
 export const PRODUCTION_GUIDES_GRANT_EVIDENCE='PRODUCTION_GUIDES_GRANT_EVIDENCE';
 export type ProductionGuidesGrantEvidence=(scope:ProductionGuidesScope,profiles:Grant['profiles'],revision:number)=>Promise<Pick<Grant,'credentialRevision'|'certificateFingerprint'|'rulesSha256'|'xsdSha256'>>;
 export class ProductionGuidesBillingPrivateClient {
  constructor(private readonly http:ProductionGuidesPrivateHttp){}
+ catalogueSource(scope:{companyId:number;issuerRuc:string}){return this.http.post<{goods:{code:string;description:string;unitCode:string}[]}>('/internal/production-guides/billing/catalogue-source',scope);}
  current(event:Issued){return this.http.post<Grant>('/internal/production-guides/billing/current',event);}
  currentGrant(grant:Grant){return this.http.post<Grant>('/internal/production-guides/billing/grant-current',grant);}
  referenceOwner(requester:Snapshot){return this.http.post<Issued>('/internal/production-guides/billing/reference-owner',requester);}
@@ -15,8 +17,9 @@ export class ProductionGuidesBillingPrivateClient {
 }
 @Controller('internal/production-guides/sunat')
 export class ProductionGuidesSunatPrivateController {
- constructor(private readonly service:ProductionGuidesService,@Inject(PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS)private readonly peers:readonly string[],@Inject(PRODUCTION_GUIDES_GRANT_EVIDENCE)private readonly evidence:ProductionGuidesGrantEvidence){}
+ constructor(private readonly service:ProductionGuidesService,@Inject(PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS)private readonly peers:readonly string[],@Inject(PRODUCTION_GUIDES_GRANT_EVIDENCE)private readonly evidence:ProductionGuidesGrantEvidence,@Inject(PRODUCTION_GUIDES_READINESS)private readonly readiness:(scope:{companyId:number;issuerRuc:string})=>Promise<unknown>){}
  private peer(r:any){try{productionGuidesPrivatePeer(r,this.peers);}catch{throw new ForbiddenException('Puerto privado Billing requerido');}}
+ @Post('readiness') ready(@Body() scope:{companyId:number;issuerRuc:string},@Req() r:any){this.peer(r);exact(scope,['companyId','issuerRuc']);if(!Number.isSafeInteger(scope.companyId)||!/^\d{11}$/.test(scope.issuerRuc))throw new BadRequestException();return this.readiness(scope);}
  @Post('grant-evidence') grant(@Body() body:{scope:ProductionGuidesScope;profiles:Grant['profiles'];credentialRevision:number},@Req() r:any){this.peer(r);exact(body,['scope','profiles','credentialRevision']);return this.evidence(body.scope,body.profiles,body.credentialRevision);}
  @Post('admit') async admit(@Body() body:{snapshot:Snapshot;grant:Grant},@Req() r:any){this.peer(r);exact(body,['snapshot','grant']);await this.service.admit(body.snapshot,body.grant);return {accepted:true};}
  @Post('ingest') ingest(@Body() event:Issued,@Req() r:any){this.peer(r);return this.service.ingest(event);}

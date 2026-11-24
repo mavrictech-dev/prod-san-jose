@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, type FiscalDocumentSnapshot, type ProductionNotesAnySnapshot as ProductionNotesSnapshot, type ProductionNotesAnyAdmission as ProductionNotesAdmission } from '@factuez/contracts';
+import { PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, PRODUCTION_NOTES_MIXED_PROFILE, type FiscalDocumentSnapshot, type ProductionNotesAnySnapshot as ProductionNotesSnapshot, type ProductionNotesAnyAdmission as ProductionNotesAdmission } from '@factuez/contracts';
 import { assertProductionNotesAnySnapshot as assertProductionNotesSnapshot, signProductionNotesOwner, fiscalSnapshotSha256 } from '@factuez/sunat-core';
 import { PrismaService } from '../infrastructure/prisma.service';
 import { FiscalConfigurationService } from './fiscal-configuration.service';
@@ -7,9 +7,9 @@ import { FiscalReadinessService } from './fiscal-readiness.service';
 import { ProductionNotesEvidenceService } from './production-notes-evidence.service';
 export const PRODUCTION_NOTES_CONFIRMATION = 'AUTORIZAR NOTAS REALES 07 Y 08 SOBRE FACTURA 01';
 export const PRODUCTION_NOTES_EXTENDED_CONFIRMATION = 'AUTORIZAR NOTAS REALES 07 Y 08 SOBRE FACTURAS Y BOLETAS';
-const profiles = [PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE];
+const profiles = [PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE,PRODUCTION_NOTES_MIXED_PROFILE];
 const supportedReasons = (profile: string) => profile === PRODUCTION_NOTES_PROFILE ? { '07': ['01'], '08': ['02'] } : { '07': ['01','02','03','04','05','06','07','08','09','10'], '08': ['01','02','03'] };
-const allowsProfile = (grant: string, note: string) => profiles.includes(note as typeof PRODUCTION_NOTES_PROFILE) && (grant === note || grant === PRODUCTION_NOTES_EXTENDED_PROFILE && note === PRODUCTION_NOTES_PROFILE);
+const allowsProfile = (grant: string, note: string) => profiles.includes(note as typeof PRODUCTION_NOTES_PROFILE) && (grant === note || grant===PRODUCTION_NOTES_MIXED_PROFILE || grant === PRODUCTION_NOTES_EXTENDED_PROFILE && note === PRODUCTION_NOTES_PROFILE);
 export const productionNotesEnabled = () => process.env.SUNAT_PRODUCTION_NOTES_ENABLED === 'true' && process.env.SUNAT_PRODUCTION_WORKFLOW_ENABLED === 'true';
 export type ProductionNotesGrant = {
     issuerRuc: string;
@@ -28,7 +28,7 @@ export class ProductionNotesPolicyService {
         const profile=grant?.profile??PRODUCTION_NOTES_PROFILE;
         return { profile, issuerRuc: config.ruc, version: grant?.version ?? 0, credentialRevision: config.revision,
             availableProfiles: [{profile:PRODUCTION_NOTES_PROFILE,confirmation:PRODUCTION_NOTES_CONFIRMATION,originalTypes:['01'],supportedReasons:supportedReasons(PRODUCTION_NOTES_PROFILE)},
-                {profile:PRODUCTION_NOTES_EXTENDED_PROFILE,confirmation:PRODUCTION_NOTES_EXTENDED_CONFIRMATION,originalTypes:['01','03'],supportedReasons:supportedReasons(PRODUCTION_NOTES_EXTENDED_PROFILE)}],
+                {profile:PRODUCTION_NOTES_EXTENDED_PROFILE,confirmation:PRODUCTION_NOTES_EXTENDED_CONFIRMATION,originalTypes:['01','03'],supportedReasons:supportedReasons(PRODUCTION_NOTES_EXTENDED_PROFILE)},{profile:PRODUCTION_NOTES_MIXED_PROFILE,confirmation:PRODUCTION_NOTES_EXTENDED_CONFIRMATION,originalTypes:['01','03'],supportedReasons:supportedReasons(PRODUCTION_NOTES_MIXED_PROFILE)}],
             supportedDocumentTypes: ['07', '08'], supportedReasons:supportedReasons(profile), originalTypes:profile===PRODUCTION_NOTES_PROFILE?['01']:['01','03'], serverEnabled: productionNotesEnabled(),
             enabled: productionNotesEnabled() && profiles.includes(profile as typeof PRODUCTION_NOTES_PROFILE) && grant?.enabled === true && grant.credentialRevision === config.revision && grant.fingerprint === config.certificate.fingerprint };
     }

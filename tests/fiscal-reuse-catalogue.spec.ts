@@ -1,0 +1,37 @@
+import 'reflect-metadata';
+import {describe,it,expect,vi} from 'vitest';
+import {createRequire} from 'node:module';
+import {spawnSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
+import {resolve,join} from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {FiscalConfigurationService} from '../services/sunat-service/src/application/fiscal-configuration.service';
+import {ProductionGuidesCatalogueAdmin} from '../services/sunat-service/src/production-guides-catalogue';
+import {SecretVault} from '../services/sunat-service/src/infrastructure/crypto/secret-vault';
+import {inspectCertificate} from '../services/sunat-service/src/infrastructure/crypto/certificate-inspector';
+import {createGuideSidecarPki} from './helpers/guide-sidecar-ephemeral-pki.fixture';
+const local=createRequire(import.meta.url),{withNativePostgres}=local('./helpers/native-postgres.cjs');
+describe.skipIf(!process.env.NATIVE_TEST_POSTGRES_BIN)('same issuer credential reuse and reviewed GRE catalogue, NEW PostgreSQL only',()=>{
+ it('re-encrypts per environment, preserves omitted secrets, handles CAS/revocation/tamper, and persists reviewed master references',async()=>withNativePostgres(async({pool,root}:any)=>{
+  const service=join(root,'services/sunat-service'),req=createRequire(join(service,'package.json'));
+  const ddl=spawnSync(process.execPath,[join(service,'node_modules/prisma/build/index.js'),'migrate','diff','--from-empty','--to-schema','prisma/schema.prisma','--script'],{cwd:service,encoding:'utf8',windowsHide:true,env:{...process.env,DATABASE_URL:'postgresql://build:build@127.0.0.1:1/not_connected'}});expect(ddl.status,ddl.stderr).toBe(0);await pool.query(ddl.stdout);await pool.query(readFileSync(join(service,'prisma/updates/20261123_gre_catalogue_v1.sql'),'utf8'));
+  const {PrismaClient}=req('./dist/generated/prisma/client'),{PrismaPg}=req('@prisma/adapter-pg'),client=new PrismaClient({adapter:new PrismaPg(pool)}),key=Buffer.alloc(32,8),vault=new SecretVault(key),actor=randomUUID(),ruc='20000000001';
+  let revoked=false,revokeDuringInspection=false;vi.stubGlobal('fetch',vi.fn(async(url:string)=>{expect(url).toContain('/api/v1/documents/catalog/issuance');return new Response(JSON.stringify({companies:[{id:1,ruc,environment:'PRODUCTION'},{id:2,ruc:'20000000028',environment:'PRODUCTION'}]}),{status:revoked?403:200,headers:{'Content-Type':'application/json'}});}));
+  const certificates={inspect:async(bytes:Buffer,password:string)=>{const metadata=inspectCertificate(bytes,password);if(revokeDuringInspection)revoked=true;return metadata;}},serviceOwner=new FiscalConfigurationService(client,vault,certificates as any),authorization='Bearer SYNTHETIC';
+  const pki=createGuideSidecarPki(ruc);try{
+   await serviceOwner.save('1','BETA',{expectedRevision:0,sol:{username:'SYNTHETIC',password:'SYNTHETIC_SOL'},gre:{clientId:'SYNTHETIC_CLIENT',clientSecret:'SYNTHETIC_SECRET'},certificate:{fileName:'synthetic.p12',base64:pki.issuer.pkcs12.toString('base64'),password:pki.password}},authorization,actor);
+   const input={sourceEnvironment:'BETA',sourceRevision:1,expectedRevision:0,groups:['sol','gre'],overwrite:false,confirmation:'REUTILIZAR CONFIGURACIÓN DEL MISMO RUC'};
+   const result=await serviceOwner.reuse('1','PRODUCTION',input,authorization,actor);expect(result).toMatchObject({revision:1,solConfigured:true,greConfigured:true,certificate:{configured:false}});expect(JSON.stringify(result)).not.toMatch(/SYNTHETIC_SECRET|SYNTHETIC_SOL|Cipher/);
+   const rows=await client.sunatCredentials.findMany({where:{issuerRuc:ruc},orderBy:{environment:'asc'}}),beta=rows.find((r:any)=>r.environment==='BETA')!,prod=rows.find((r:any)=>r.environment==='PRODUCTION')!;expect(beta.greClientSecretCipher).not.toBe(prod.greClientSecretCipher);const plain=vault.open(prod.greClientSecretCipher!,{ruc,environment:'PRODUCTION',field:'greClientSecret'});expect(plain.toString()).toBe('SYNTHETIC_SECRET');plain.fill(0);expect(()=>vault.open(prod.greClientSecretCipher!,{ruc:'20000000028',environment:'PRODUCTION',field:'greClientSecret'})).toThrow();
+   await expect(serviceOwner.reuse('1','PRODUCTION',{...input,expectedRevision:1},authorization,actor)).rejects.toThrow();await expect(serviceOwner.reuse('1','PRODUCTION',{...input,sourceRevision:2,expectedRevision:1,overwrite:true},authorization,actor)).rejects.toThrow();await expect(serviceOwner.reuse('2','PRODUCTION',input,authorization,actor)).rejects.toThrow();
+   const copied=await serviceOwner.reuse('1','PRODUCTION',{...input,expectedRevision:1,groups:['certificate']},authorization,actor);expect(copied).toMatchObject({revision:2,solConfigured:true,greConfigured:true,certificate:{configured:true,fingerprint:inspectCertificate(pki.issuer.pkcs12,pki.password).fingerprint}});
+   revokeDuringInspection=true;await expect(serviceOwner.reuse('1','PRODUCTION',{...input,expectedRevision:2,groups:['certificate'],overwrite:true},authorization,actor)).rejects.toThrow();revoked=false;revokeDuringInspection=false;expect((await serviceOwner.status('1','PRODUCTION',authorization)).revision).toBe(2);
+   await client.sunatCredentials.update({where:{issuerRuc_environment:{issuerRuc:ruc,environment:'BETA'}},data:{certificateFingerprint:'a'.repeat(64)}});await expect(serviceOwner.reuse('1','PRODUCTION',{...input,expectedRevision:2,groups:['certificate'],overwrite:true},authorization,actor)).rejects.toThrow('metadata');
+   const restarted=new FiscalConfigurationService(client,new SecretVault(key),certificates as any);expect((await restarted.status('1','PRODUCTION',authorization)).greConfigured).toBe(true);expect(await client.fiscalConfigurationAudit.count({where:{issuerRuc:ruc,environment:'PRODUCTION'}})).toBe(2);
+   const source=vi.fn(async(scope:{issuerRuc:string})=>({goods:[{code:'MASTER-NIU',description:'SYNTHETIC MASTER PRODUCT',unitCode:'NIU'}]})),catalogue=new ProductionGuidesCatalogueAdmin(client,serviceOwner,source);
+   const body={expectedRevision:0,sourceUrl:'https://www.sunat.gob.pe/legislacion/superin/2022/anexo-123-2022.pdf',sourceSha256:'b'.repeat(64),reviewConfirmed:true,goodsCodes:['MASTER-NIU'],routes:[{origin:{ubigeo:'150101',address:'SYNTHETIC ORIGIN',establishmentCode:'0001'},destination:{ubigeo:'150102',address:'SYNTHETIC DESTINATION',establishmentCode:'0002'}}],vehicles:[{plate:'ABC123',registration:'SYNTHETIC REG'}],drivers:[{identityType:'1',identityNumber:'00000001',firstName:'SYNTHETIC',lastName:'DRIVER',license:'A000000001'}]};
+   const concurrent=await Promise.allSettled([catalogue.save('1',body,authorization,actor),catalogue.save('1',body,authorization,actor)]);expect(concurrent.filter(r=>r.status==='fulfilled')).toHaveLength(1);const stored=await catalogue.status('1',authorization);expect(stored).toMatchObject({revision:1,catalogue:{goods:[{code:'MASTER-NIU',description:'SYNTHETIC MASTER PRODUCT',unitCode:'NIU',classification:'NON_REGULATED'}]}});expect((await catalogue.status('2',authorization)).catalogue).toBeNull();await expect(catalogue.save('1',{...body,expectedRevision:1,goodsCodes:['ARBITRARY']},authorization,actor)).rejects.toThrow('catálogo');
+   await expect(pool.query('UPDATE "ProductionGuidesCatalogue" SET payload=\'{}\'')).rejects.toThrow('append-only');expect((await new ProductionGuidesCatalogueAdmin(client,restarted,source).status('1',authorization)).revision).toBe(1);
+  }finally{pki.issuer.pkcs12.fill(0);vault.onModuleDestroy();key.fill(0);vi.unstubAllGlobals();await client.$disconnect();}
+ }),120000);
+});

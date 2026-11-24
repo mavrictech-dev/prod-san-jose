@@ -1,3 +1,3 @@
 "use client";
-import { GreQa } from '../../../features/workspace/gre-qa';
-export default function GuidesPage(){return <GreQa/>;}
+import { ProductionGuides } from '../../../features/workspace/production-guides';
+export default function GuidesPage(){return <ProductionGuides/>;}

@@ -153,7 +153,7 @@ async function renderSalePdf(
   }
   layout.text('V. Unitario y Valor Venta: sin IGV. P. Unitario: con impuestos incluidos.', layout.ticket ? 6.8 : 7.5);
   for (const [label, value] of [
-    ['Valor de venta sin IGV', snapshot.totals.taxableAmount], ['IGV', snapshot.totals.igvAmount],
+    ['Valor de venta sin IGV', snapshot.totals.taxableAmount], ...(snapshot.totals.exemptAmount ? [['Op. Exonerada',snapshot.totals.exemptAmount]] : []), ...(snapshot.totals.unaffectedAmount ? [['Op. Inafecta',snapshot.totals.unaffectedAmount]] : []), ['IGV', snapshot.totals.igvAmount],
     [`TOTAL ${snapshot.currencyCode}`, snapshot.totals.payableAmount],
   ]) {
     const total = label.startsWith('TOTAL');
