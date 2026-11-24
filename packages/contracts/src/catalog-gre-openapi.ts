@@ -1,4 +1,4 @@
-import {PRODUCTION_GUIDES_PROFILES,GRE_GOODS_FAMILIES} from './production-guides';
+import {PRODUCTION_GUIDES_PROFILES} from './production-guides';
 /** Native human contract, independent of the narrower B2B SERVICE/OAuth contracts. */
 export function catalogGreOpenApiPaths(){
  const str={type:'string'},uuid={type:'string',format:'uuid'},revision={type:'integer',minimum:0},bool={type:'boolean'},rate={type:'string',pattern:'^(?:[0-9]|[1-9][0-9])(?:\\.[0-9]{1,2})?$'};
@@ -24,8 +24,6 @@ export function catalogGreOpenApiPaths(){
  const product=object({sku:{type:'string',maxLength:40},description:{type:'string',maxLength:250},categoryId:uuid,unitCode:{type:'string',enum:['GLL','LTR','NIU','KGM','M3','HUR','ZZ']},taxAffectationCode:{type:'string',const:'10',description:'Referencia del catálogo compartido. Asignación efectiva se administra por RUC/sede en product-taxes; 18 es una tasa, no un código.'},sunatProductCode:{type:['string','null'],pattern:'^[0-9]{8}$'},defaultUnitPrice:{type:['string','null'],pattern:'^[0-9]{1,12}(\\.[0-9]{1,6})?$'},active:bool,expectedUpdatedAt:{type:'string',format:'date-time'}},['sku','description','categoryId','unitCode','taxAffectationCode']);
  const paths:Record<string,unknown>={
   '/api/v1/setup/sunat/{companyId}/PRODUCTION/guides/catalogue':{get:op('Catálogo GRE revisado y familias del maestro actual','sunat.configure y ADMIN GLOBAL',[p('companyId','path',{type:'integer',minimum:1})]),post:op('Revisar bienes, rutas y habilitaciones por sede con evidencia vigente','sunat.configure y ADMIN GLOBAL',[p('companyId','path',{type:'integer',minimum:1})],catalogue)},
-  '/api/v1/stations/products':{get:op('Maestro de productos y familia de traslado','product.manage y ADMIN GLOBAL'),post:op('Crear producto con clasificación de traslado independiente del IGV','product.manage y ADMIN GLOBAL',[],object({...product.properties,greGoodsFamily:{type:'string',enum:GRE_GOODS_FAMILIES}},product.required))},
-  '/api/v1/stations/products/{id}':{patch:op('Editar producto con versión y clasificación GRE explícitas','product.manage y ADMIN GLOBAL',[p('id')],object({...product.properties,greGoodsFamily:{type:'string',enum:GRE_GOODS_FAMILIES}},['expectedUpdatedAt']))},
   '/api/v1/stations/product-categories':{get:op('Categorías canónicas reutilizables','product.manage o lectura autorizada'),post:op('Crear categoría única','product.manage y ADMIN GLOBAL',[],master)},
   '/api/v1/stations/product-categories/{id}':{patch:op('Editar o desactivar categoría','product.manage y ADMIN GLOBAL',[p('id')],object(master.properties,['name','expectedRevision']))},
   '/api/v1/stations/product-units':{get:op('Unidades del subconjunto validado','lectura de catálogo')},

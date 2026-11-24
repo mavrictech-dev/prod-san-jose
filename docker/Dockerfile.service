@@ -11,16 +11,22 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+RUN pnpm fetch --frozen-lockfile
 COPY apps ./apps
 COPY packages ./packages
 COPY services ./services
 COPY scripts ./scripts
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --offline --frozen-lockfile
 
 ARG SERVICE_NAME
 ARG SERVICE_PATH
 ENV SERVICE_PATH=${SERVICE_PATH}
+
+# El validador GRE ejecuta los XSL oficiales localmente, sin descargas al arrancar.
+RUN if [ "$SERVICE_NAME" = "@factuez/sunat-service" ]; then \
+    apt-get update && apt-get install -y --no-install-recommends python3 python3-lxml \
+    && rm -rf /var/lib/apt/lists/*; fi
 
 # Prisma sólo necesita una URL sintácticamente válida para generar el cliente;
 # no establece conexión durante el build de la imagen.

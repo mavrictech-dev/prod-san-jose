@@ -1,4 +1,5 @@
 import { PermissionCodes, RoleCodes } from '@factuez/contracts';
+import {GRE_GOODS_FAMILIES} from '@factuez/contracts/production-guides';
 
 /** Native human-facing controllers only: no owner RPCs, admission or QA. */
 type Schema = Record<string, unknown>;
@@ -90,7 +91,7 @@ export function nativeRuntimeOpenApiPaths() {
   const masterDescription = 'Administrador general de alcance GLOBAL. Requiere CRUD habilitado. Producción exige habilitación de emisión y sesión humana. Las bajas son lógicas; los turnos abiertos impiden desactivar. No modifica documentos emitidos ni reinicia correlativos.';
   const master = (id: string, title: string, permission: string, params: Parameter[], success: number, result: Schema, input?: Schema, detail = '') =>
     operation(id, title, 'Emisores, sedes y series', permission, params, success, result, input, masterDescription + ' ' + detail, [400, 401, 403, 404, 409, 503]);
-  const productFields = { sku: { ...str(40), minLength: 1 }, description: { ...str(250), minLength: 1 }, categoryId: uuid,
+  const productFields = { greGoodsFamily:enumeration(...GRE_GOODS_FAMILIES), sku: { ...str(40), minLength: 1 }, description: { ...str(250), minLength: 1 }, categoryId: uuid,
     sunatProductCode: nullable({ type: 'string', pattern: '^\\d{8}$' }), unitCode: { type: 'string', pattern: '^(?:[A-Z0-9]{3}|ZZ|M3)$' },
     taxAffectationCode: {type:'string',const:'10',description:'Referencia compartida. La afectacion efectiva se asigna por RUC/sede en product-taxes; la tasa se muestra como porcentaje.'},
     defaultUnitPrice: nullable(decimal), active: bool };

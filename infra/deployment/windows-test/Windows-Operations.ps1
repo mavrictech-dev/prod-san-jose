@@ -1,10 +1,10 @@
 [CmdletBinding()]
 param(
- [ValidateSet('Status','Backup','VerifyBackup','RestoreBackup','Update','RecordRelease')][string]$Action='Status',
+ [ValidateSet('Status','Backup','VerifyBackup','RestoreBackup','Update','RecordRelease','CheckImages')][string]$Action='Status',
  [string]$BackupPath='', [string]$ExternalDestination='', [switch]$ExternalDestinationReviewed,
  [string]$RecoveryPath='', [string]$RecoveryProject='', [string]$ReadinessSessionFile='',
  [string]$InstallationPath='', [string]$ComposePath='', [string]$ProjectName='factuez-san-jose-test',
- [switch]$SyntheticScope
+ [switch]$SyntheticScope, [string]$DockerDiskPath=''
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
@@ -46,13 +46,13 @@ function Docker([string[]]$Arguments){
  $errFile=Join-Path ([IO.Path]::GetTempPath()) ('factuez-ops-'+$run+'-'+[guid]::NewGuid().ToString('N')+'.stderr')
  try {
   $prior=$ErrorActionPreference;$ErrorActionPreference='Continue'
-  try{$result=@(& docker.exe @Arguments 2> $errFile);$code=$LASTEXITCODE}finally{$ErrorActionPreference=$prior}
+  try{$result=@(& docker.exe --context desktop-linux @Arguments 2> $errFile);$code=$LASTEXITCODE}finally{$ErrorActionPreference=$prior}
   if($logPath){[IO.File]::AppendAllText($logPath,((Get-Date).ToUniversalTime().ToString('o')+' docker '+$Arguments[0]+' exit='+$code+"`n"),$utf8)}
   if($code -ne 0){throw ('DOCKER_OPERATION_FAILED ('+$Arguments[0]+', exit '+$code+'). Check Docker Desktop, disk space, image availability and service state; raw output suppressed to protect secrets.')}
   return ($result -join "`n")
  }finally{if(Test-Path -LiteralPath $errFile){Remove-Item -LiteralPath $errFile -Force}}
 }
-function Compose([string[]]$Arguments){Docker (@('compose','--project-name',$ProjectName,'--env-file',(Join-Path $state 'public.env'),'--file',$compose)+$Arguments)}
+function Compose([string[]]$Arguments){$files=@('--file',$compose);$networkFile=Join-Path $state 'network.override.json';if(Test-Path -LiteralPath $networkFile){$files+=@('--file',$networkFile)};Docker (@('compose','--project-name',$ProjectName,'--env-file',(Join-Path $state 'public.env'))+$files+$Arguments)}
 function Containers {
  $ids=Docker @('ps','--all','--quiet','--filter',"label=com.docker.compose.project=$ProjectName")
  if(-not $ids){return @()}
@@ -140,7 +140,7 @@ SQL
  unset OWNER_PASSWORD
 done
 '@
-  Docker @('exec',$Name,'sh','-ec',$roleScript)|Out-Null
+  Docker @('exec',$Name,'sh','-ec',$roleScript.Replace("`r`n","`n"))|Out-Null
   foreach($db in $databases){
    $owner='factuez_'+$db
    Phase ('RESTORE_'+$owner)
@@ -161,7 +161,7 @@ function Snapshot-Release {
  foreach($service in @('billing-service','sunat-service')){foreach($p in Get-ChildItem -LiteralPath (Join-Path $root ('services/'+$service+'/prisma')) -Filter '*.sql' -File -Recurse){$files+=@{path=$p.FullName.Substring($root.Length+1).Replace('\','/');sha256=(Get-FileHash -LiteralPath $p.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}}}
  $commit=& git -C $root rev-parse HEAD 2>$null
  if($LASTEXITCODE -ne 0){$commit='UNKNOWN'}
- $changes=@(& git -C $root status --porcelain --untracked-files=no 2>$null)
+ $changes=@(& git -C $root status --porcelain --untracked-files=normal 2>$null)
  @{version=1;commit="$commit";sourceTree=$(if($changes.Count){'DIRTY'}else{'CLEAN'});files=$files}
 }
 function Assert-BuiltRelease {
@@ -170,6 +170,8 @@ function Assert-BuiltRelease {
  if(-not(Test-Path -LiteralPath $file -PathType Leaf)){throw 'Complete Build required before Update; no recorded release manifest.'}
  $release=Read-Json $file
  if($release.version -ne 1){throw 'Unsupported build release manifest.'}
+ $current=Snapshot-Release
+ if($current.sourceTree -ne 'CLEAN' -or $current.commit -cne $release.commit){throw 'Source revision changed after Build. Complete a clean Build before Update.'}
  foreach($s in @('identity-service','billing-service','sunat-service','mailer-worker','realtime-service','received-documents-service','web-pwa')){
   $expected=$release.images.$s
   $actual=Docker @('image','inspect','--format','{{.Id}}',('factuez-windows-test/'+$s+':local'))
@@ -180,6 +182,18 @@ function Assert-BuiltRelease {
   if(-not $p.StartsWith($root+[IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -or -not(Test-Path -LiteralPath $p -PathType Leaf)){throw 'Build source file missing or outside release root.'}
   if((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant() -cne $f.sha256){throw 'Deployment/migration source changed after Build. Complete Build again before Update.'}
  }
+}
+function Build-Evidence {
+ $release=Snapshot-Release
+ if($release.sourceTree -ne 'CLEAN' -or $release.commit -notmatch '^[a-f0-9]{40}$'){throw 'Commit the complete reviewed source before Build/Prepare.'}
+ $images=@{}
+ foreach($s in @('identity-service','billing-service','sunat-service','mailer-worker','realtime-service','received-documents-service','web-pwa')){
+  $metadata=@((Docker @('image','inspect',('factuez-windows-test/'+$s+':local')))|ConvertFrom-Json)[0]
+  if(-not $metadata.Config.Labels -or $metadata.Config.Labels.'org.opencontainers.image.revision' -cne $release.commit){throw ('Image revision does not match this checkout: '+$s+'. Complete Build before Prepare/Update.')}
+  $images[$s]=$metadata.Id
+ }
+ $release['images']=$images
+ return $release
 }
 function Backup([switch]$LeaveStopped) {
  Assert-Installation
@@ -216,13 +230,15 @@ function Backup([switch]$LeaveStopped) {
    Docker @('exec',$pg.Id,'pg_restore','--list',$temp)|Out-Null
    Docker @('cp',($pg.Id+':'+$temp),(Join-Path $base ('databases/'+$owner+'.dump')))|Out-Null
   }finally{Docker @('exec',$pg.Id,'rm','-f',$temp)|Out-Null}}
-  foreach($name in @('secrets','gre','pki','schemas','public.env','prepared.marker','build-release.json','previous-images.json')){$p=Join-Path $state $name;if(Test-Path -LiteralPath $p){Copy-Item -LiteralPath $p -Destination (Join-Path $base 'state') -Recurse}}
+  foreach($name in @('secrets','gre','pki','schemas','public.env','network.override.json','prepared.marker','build-release.json','previous-images.json')){$p=Join-Path $state $name;if(Test-Path -LiteralPath $p){Copy-Item -LiteralPath $p -Destination (Join-Path $base 'state') -Recurse}}
   foreach($v in $persistent){
    Phase ('ARCHIVE_'+$v)
    $source=Volume $v;Assert-MountPath $base
    Docker @('run','--rm','--pull','never','--label',"$label=$run",'--network','none','--memory','128m','--cpus','0.5','--mount',"type=volume,source=$source,target=/source,readonly",'--mount',"type=bind,source=$base,target=/backup",'--entrypoint','tar',$pgImage,'-C','/source','-cf',('/backup/volumes/'+$v+'.tar'),'.')|Out-Null
   }
   Copy-Item -LiteralPath $compose -Destination (Join-Path $base 'release/docker-compose.json')
+  Phase 'POSTGRES_IMAGE'
+  Docker @('image','save','--output',(Join-Path $base 'release/postgres-image.tar'),$pgImage)|Out-Null
   Copy-Item -LiteralPath (Join-Path $root 'infra/deployment/core-production/kong.yml') -Destination (Join-Path $base 'release/kong.yml')
   Write-Json (Join-Path $base 'release/source.json') (Snapshot-Release)
   $images=@($all|ForEach-Object {@{service=$_.Config.Labels.'com.docker.compose.service';imageId=(Image $_);configuredImage=$_.Config.Image}})
@@ -273,6 +289,13 @@ function Restore {
  if((Test-Path -LiteralPath $target) -or $target.StartsWith($state,[StringComparison]::OrdinalIgnoreCase)){throw 'Recovery target must be new and outside live installation state.'}
  if(Docker @('ps','--all','--quiet','--filter',"label=com.docker.compose.project=$RecoveryProject")){throw 'Recovery project already exists.'}
  if(Docker @('volume','ls','--quiet','--filter',"label=com.docker.compose.project=$RecoveryProject")){throw 'Recovery project volumes already exist.'}
+ try{$null=Docker @('image','inspect',$manifest.postgresImageId)}catch{
+  $archive=Join-Path ([IO.Path]::GetFullPath($BackupPath)) 'release/postgres-image.tar'
+  if(-not(Test-Path -LiteralPath $archive -PathType Leaf)){throw 'Restore requires the exact PostgreSQL image or its verified archive.'}
+  Docker @('image','load','--input',$archive)|Out-Null
+  $loaded=Docker @('image','inspect','--format','{{.Id}}',$manifest.postgresImageId)
+  if($loaded.Trim() -cne $manifest.postgresImageId){throw 'Restored PostgreSQL image identity mismatch.'}
+ }
  New-Item -ItemType Directory -Path $target|Out-Null;Protect-Directory $target
  $script:logPath=Join-Path $target 'operations.log'
  Copy-Item -LiteralPath (Join-Path $BackupPath 'state') -Destination (Join-Path $target 'state') -Recurse
@@ -292,8 +315,21 @@ function Restore {
  }catch{Write-Json (Join-Path $target 'FAILED.json') @{status='RESTORE_FAILED';project=$RecoveryProject;scope=$run;reason='Keep operations.log and the uniquely labeled recovery volumes for review; live installation untouched.'};throw}
 }
 function Status {
- if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){@{version=1;project=$ProjectName;installation='NOT_FOUND';machine='UNKNOWN';fiscalAcceptance='NOT_ESTABLISHED';fuelRegulatedGre='UNSUPPORTED';perRuc=@{availability='NOT_AUTHENTICATED';state='UNKNOWN'};action='Locate the customer installation; never Prepare/reset to repair it.'}|ConvertTo-Json -Depth 5;return}
+ if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){@{version=1;project=$ProjectName;installation='NOT_FOUND';machine='UNKNOWN';fiscalAcceptance='NOT_ESTABLISHED';fuelRegulatedGre='NOT_ESTABLISHED';perRuc=@{availability='NOT_AUTHENTICATED';state='UNKNOWN'};action='Locate the customer installation; never Prepare/reset to repair it.'}|ConvertTo-Json -Depth 5;return}
  Assert-Installation
+ $storage=@{state='UNKNOWN';minimumFreeBytes=5GB;dockerDisk='UNKNOWN'}
+ try {
+  $stateDrive=[IO.DriveInfo]::new([IO.Path]::GetPathRoot($state))
+  $storage['installationFreeBytes']=$stateDrive.AvailableFreeSpace
+  $disk=$DockerDiskPath
+  if(-not $disk){$disk=Join-Path $env:LOCALAPPDATA 'Docker/wsl/disk/docker_data.vhdx'}
+  if(Test-Path -LiteralPath $disk -PathType Leaf){
+   $hostDrive=[IO.DriveInfo]::new([IO.Path]::GetPathRoot([IO.Path]::GetFullPath($disk)))
+   $storage.dockerDisk=[IO.Path]::GetFullPath($disk)
+   $storage['dockerHostFreeBytes']=$hostDrive.AvailableFreeSpace
+   $storage.state=if($hostDrive.AvailableFreeSpace -ge 5GB -and $stateDrive.AvailableFreeSpace -ge 5GB){'AVAILABLE'}else{'LOW'}
+  }
+ }catch{$storage.state='UNKNOWN'}
  $report=[ordered]@{version=1;project=$ProjectName;checkedAtUtc=[DateTime]::UtcNow.ToString('o');machine='UNKNOWN';fiscalAcceptance='NOT_ESTABLISHED';fuelRegulatedGre='UNSUPPORTED';perRuc=@{availability='NOT_AUTHENTICATED';state='UNKNOWN'};services=@();durability=@{};pki=@();gre=@();bootstrap='UNKNOWN';authenticationKeys='UNKNOWN';webAccess='UNKNOWN';serverActivation='UNKNOWN';release=@{installed='UNKNOWN'}}
  try {
   $all=@(Containers)
@@ -340,7 +376,7 @@ function Status {
     if($mount.Count -ne 1){throw 'PERSISTENCE_MOUNT_MISMATCH'}
    }
   }catch{$report.persistence='MISSING_OR_UNVERIFIED'}
-  if($ok -and $durable -and $report.bootstrap -eq 'DISABLED' -and $report.persistence -eq 'OWNERSHIP_VERIFIED' -and $report.authenticationKeys -eq 'VERIFIED_NONROOT_PAIR' -and $report.webAccess -eq 'VERIFIED_LOCAL_LOGIN'){$report.machine='READY'}else{$report.machine='BLOCKED'}
+  if($ok -and $durable -and $report.bootstrap -eq 'DISABLED' -and $report.persistence -eq 'OWNERSHIP_VERIFIED' -and $report.authenticationKeys -eq 'VERIFIED_NONROOT_PAIR' -and $report.webAccess -eq 'VERIFIED_LOCAL_LOGIN' -and $storage.state -eq 'AVAILABLE'){$report.machine='READY'}else{$report.machine='BLOCKED'}
  }catch{$report.machine='UNKNOWN';$report['transport']='UNREACHABLE_OR_INCOMPLETE';$report['failureType']=$_.Exception.GetType().Name;$report['failure']='Inspect Docker Desktop and installation services; no activation inferred.'}
  foreach($f in @('issuer-roots.pem','crls.pem','cdr-signers.pem')){$p=Join-Path $state ('pki/'+$f);$entry=@{file=$f;present=(Test-Path -LiteralPath $p -PathType Leaf);trust='NOT_VALIDATED_BY_DIAGNOSTICS'};if($entry.present){$entry['sha256']=(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant();$entry['bytes']=(Get-Item -LiteralPath $p).Length};$report.pki+=@($entry)}
  $gre=Join-Path $state 'gre'
@@ -363,9 +399,12 @@ function Status {
    $report.perRuc=@{availability='AUTHENTICATED';state=$stateResult;checks=$checks;officialAcceptance='NOT_ESTABLISHED'}
   }catch{$report.perRuc=@{availability='UNREACHABLE_OR_UNAUTHORIZED';state='UNKNOWN'}}finally{$session=$null}
  }
+ $report.fuelRegulatedGre='CHECK_RUC_CAPABILITIES'
+ $report['storage']=$storage
  $report|ConvertTo-Json -Depth 12
 }
 if($Action -eq 'VerifyBackup'){$null=Verify $BackupPath;Write-Host 'OFFLINE_BACKUP_HASHES_VERIFIED';return}
+if($Action -eq 'CheckImages'){$null=Build-Evidence;Write-Host 'SOURCE_AND_IMAGE_REVISIONS_VERIFIED';return}
 if($Action -eq 'Status'){Status;return}
 if($Action -eq 'RestoreBackup'){Restore;return}
 Assert-Installation
@@ -374,9 +413,7 @@ try {
  try{$lock=[IO.File]::Open($lockPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)}catch{throw 'Another operation or interrupted operation owns operations.lock. Review process state/logs before manually removing a stale lock.'}
  if($Action -ne 'RecordRelease' -and (Test-Path -LiteralPath (Join-Path $state 'build.lock'))){throw 'Build in progress or interrupted. Review build.lock before updating or backing up.'}
  if($Action -eq 'RecordRelease'){
-  $release=Snapshot-Release;$images=@{}
-  foreach($s in @('identity-service','billing-service','sunat-service','mailer-worker','realtime-service','received-documents-service','web-pwa')){$id=Docker @('image','inspect','--format','{{.Id}}',('factuez-windows-test/'+$s+':local'));$images[$s]=$id.Trim()}
-  $release['images']=$images;Write-Json (Join-Path $state 'build-release.json') $release;return
+  $release=Build-Evidence;Write-Json (Join-Path $state 'build-release.json') $release;return
  }
  if($Action -eq 'Update'){Assert-BuiltRelease}
  $verified=Backup -LeaveStopped:($Action -eq 'Update')

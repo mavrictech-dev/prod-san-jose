@@ -9,7 +9,7 @@ if(process.argv.length!==3||!target||!isAbsolute(target))throw Error('Use one ab
 const output=resolve(target),parent=realpathSync(dirname(output));if(existsSync(output)||relative(parent,output).includes('..')||parent!==dirname(output))throw Error('NEW_CANONICAL_OUTPUT_REQUIRED');
 const extras={
  'identity-service':body(load('services/identity-service/src/b2b/onprem-admin.minimal.sql')),
- 'billing-service':body(load('services/billing-service/prisma/production-notes-schema.sql'))+load('services/billing-service/prisma/updates/20261123_catalog_tax_v1.sql')+load('services/billing-service/prisma/updates/20261123_counter_environment_v1.sql')+load('services/billing-service/prisma/production-guides.sql'),
+ 'billing-service':body(load('services/billing-service/prisma/production-notes-schema.sql'))+load('services/billing-service/prisma/updates/20261123_catalog_tax_v1.sql')+load('services/billing-service/prisma/updates/20261123_counter_environment_v1.sql')+load('services/billing-service/prisma/production-guides.sql')+load('services/billing-service/prisma/updates/20261124_gre_hydrocarbon_v1.sql'),
  'sunat-service':`ALTER TABLE "FiscalDispatchAuthorization" ADD CONSTRAINT "FiscalDispatchAuthorization_profile_check" CHECK ("profile" IN ('01-PEN-0101-IGV18-v1','01-03-PEN-0101-IGV18-v2','01-03-PEN-0101-TAX10-20-30-v3'));
  ALTER TABLE "FiscalDispatchAuthorization" ADD CONSTRAINT "FiscalDispatchAuthorization_environment_check" CHECK ("environment"='PRODUCTION');
  ALTER TABLE "FiscalDispatchAuthorization" ADD CONSTRAINT "FiscalDispatchAuthorization_enabled_registration_check" CHECK (NOT "enabled" OR "registrationAttestedAt" IS NOT NULL);

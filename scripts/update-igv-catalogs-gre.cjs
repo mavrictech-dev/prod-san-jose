@@ -8,7 +8,8 @@ function migrations(root,service){
  return service==='billing-service'?[
   {id:'20261123_catalog_tax_v1',sql:sql('updates/20261123_catalog_tax_v1.sql')},
   {id:'20261123_counter_environment_v1',sql:sql('updates/20261123_counter_environment_v1.sql')},
-  {id:'20261123_native_gre_billing_v1',sql:sql('production-guides.sql'),tables:['ProductionGuidesGrant','ProductionGuidesReservation','ProductionGuidesOwnerStatus']}
+  {id:'20261123_native_gre_billing_v1',sql:sql('production-guides.sql'),tables:['ProductionGuidesGrant','ProductionGuidesReservation','ProductionGuidesOwnerStatus']},
+  {id:'20261124_gre_hydrocarbon_v1',sql:sql('updates/20261124_gre_hydrocarbon_v1.sql')}
  ]:[{id:'20261123_native_gre_sunat_v1',sql:sql('production-guides.sql'),tables:['ProductionGuidesJob','ProductionGuidesArtifact','ProductionGuidesStatusOutbox']},{id:'20261123_tax_profiles_v1',sql:sql('updates/20261123_tax_profiles_v1.sql')},{id:'20261123_gre_catalogue_v1',sql:sql('updates/20261123_gre_catalogue_v1.sql'),tables:['ProductionGuidesCatalogue']}];
 }
 async function update(pool,{root,service,apply=false}){

@@ -46,7 +46,7 @@ jobs:
       - name: Fiscal regression without official transmissions
         run: pnpm exec vitest run tests/production-notes-extended-profile.spec.ts tests/production-notes-extended-policy.spec.ts tests/production-notes-dispatch.spec.ts tests/corporate-document-source.spec.ts tests/corporate-document-extended-notes.spec.ts --maxWorkers=2
       - name: Catalog tax and native GRE contract regression
-        run: pnpm exec vitest run tests/catalog-tax.spec.ts tests/mixed-tax-fiscal.spec.ts tests/native-runtime-openapi.spec.ts tests/public-api-docs.spec.ts tests/production-guides-core.spec.ts tests/production-guides-form.spec.ts tests/production-guides-transport.spec.ts --maxWorkers=2
+        run: pnpm exec vitest run tests/catalog-tax.spec.ts tests/mixed-tax-fiscal.spec.ts tests/native-runtime-openapi.spec.ts tests/public-api-docs.spec.ts tests/production-guides-core.spec.ts tests/production-guides-form.spec.ts tests/production-guides-transport.spec.ts tests/production-guides-hydrocarbon.spec.ts --maxWorkers=2
   publish:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.FACTUEZ_PUBLISH_IMAGES == 'true'
     needs: verify

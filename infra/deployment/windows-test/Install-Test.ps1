@@ -8,8 +8,8 @@ $envFile=Join-Path $state 'public.env'
 $composeFile=Join-Path $PSScriptRoot 'docker-compose.yml'
 $project='factuez-san-jose-test'
 $utf8=New-Object Text.UTF8Encoding($false)
-function Invoke-Docker([string[]]$Arguments) { & docker @Arguments; if($LASTEXITCODE -ne 0){throw 'Docker operation failed. Do not delete volumes or regenerate secrets.'} }
-function Invoke-Compose([string[]]$Arguments) { if(-not(Test-Path -LiteralPath $envFile)){throw 'Installation state missing. Locate the existing installation; never Prepare/reset to repair it.'}; Invoke-Docker (@('compose','--project-name',$project,'--env-file',$envFile,'--file',$composeFile)+$Arguments) }
+function Invoke-Docker([string[]]$Arguments) { & docker --context desktop-linux @Arguments; if($LASTEXITCODE -ne 0){throw 'Docker operation failed. Do not delete volumes or regenerate secrets.'} }
+function Invoke-Compose([string[]]$Arguments) { if(-not(Test-Path -LiteralPath $envFile)){throw 'Installation state missing. Locate the existing installation; never Prepare/reset to repair it.'}; $files=@('--file',$composeFile);$networkFile=Join-Path $state 'network.override.json';if(Test-Path -LiteralPath $networkFile){$files+=@('--file',$networkFile)}; Invoke-Docker (@('compose','--project-name',$project,'--env-file',$envFile)+$files+$Arguments) }
 function Repair-JwtFilePermissions {
  $secretFolder=Join-Path $state 'secrets'
  $repairFile=Join-Path $PSScriptRoot 'repair-jwt-permissions.cjs'
@@ -37,7 +37,7 @@ if($Action -in @('Status','Update')) {
  & (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action $Action
  return
 }
-$dockerOs=& docker info --format '{{.OSType}}'
+$dockerOs=& docker --context desktop-linux info --format '{{.OSType}}'
 if($LASTEXITCODE -ne 0 -or $dockerOs.Trim() -ne 'linux'){throw 'Start Docker Desktop in Linux containers mode first.'}
 if($Action -eq 'Build') {
  $buildLock=$null
@@ -56,12 +56,15 @@ if($Action -eq 'Build') {
  }
  $revision=& git -C $projectRoot rev-parse HEAD
  if($LASTEXITCODE -ne 0){throw 'Cannot establish build source revision.'}
+ $sourceChanges=@(& git -C $projectRoot status --porcelain --untracked-files=normal)
+ if($LASTEXITCODE -ne 0 -or $sourceChanges.Count){throw 'Build requires committed reviewed source; working tree has pending changes.'}
  foreach($service in @('identity-service','billing-service','sunat-service','mailer-worker','realtime-service','received-documents-service','web-pwa')) {
   $argsList=@('build','--platform','linux/amd64','--label',('org.opencontainers.image.revision='+$revision.Trim()),'--tag',('factuez-windows-test/'+$service+':local'))
   if($service -eq 'web-pwa'){$argsList+=@('--file','docker/Dockerfile.web-pwa','--build-arg','NEXT_PUBLIC_API_BASE_URL=','--build-arg','NEXT_PUBLIC_B2B_ADMIN_PROFILE=SSO')}
   else{$argsList+=@('--file','docker/Dockerfile.service','--build-arg',('SERVICE_NAME=@factuez/'+$service),'--build-arg',('SERVICE_PATH=services/'+$service))}
   Push-Location $projectRoot;try{Invoke-Docker ($argsList+@('.'))}finally{Pop-Location}
  }
+ & (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action CheckImages | Out-Null
  if(Test-Path -LiteralPath (Join-Path $state 'prepared.marker')){& (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action RecordRelease}
  }finally{if($buildLock){$buildLock.Dispose();Remove-Item -LiteralPath (Join-Path $state 'build.lock') -Force}}
  return
@@ -106,9 +109,12 @@ if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre',
  return
 }
 if($Action -eq 'Prepare') {
+ & (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action CheckImages | Out-Null
  foreach($image in @('identity-service','billing-service','sunat-service','mailer-worker','realtime-service','received-documents-service','web-pwa')) { Invoke-Docker -Arguments @('image','inspect',('factuez-windows-test/'+$image+':local'),'--format','{{.Id}}') }
  if(Test-Path -LiteralPath $state){throw 'Installation state exists. Never regenerate keys on an initialized installation.'}
  $priorVolumes=@(& docker volume ls --quiet --filter "label=com.docker.compose.project=$project");if($LASTEXITCODE -ne 0 -or $priorVolumes.Count -gt 0){throw 'Existing volumes found. This preparation is for a new installation only.'}
+ $networkPlan=(& (Join-Path $PSScriptRoot 'Select-LocalSubnets.ps1')) -join "`n"
+ $null=$networkPlan|ConvertFrom-Json
  $username=Read-Host 'First administrator username (example: admin.sanjose)'
  if($username -notmatch '^[a-z][a-z0-9._-]{2,79}$'){throw 'Invalid username.'}
  $fullName=Read-Host 'Administrator full name'
@@ -129,6 +135,7 @@ if($Action -eq 'Prepare') {
  $redisPassword=[IO.File]::ReadAllText((Join-Path $secrets 'redis_password')).Trim();$hash=[Security.Cryptography.SHA256]::Create();try{$redisHash=([BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($redisPassword)))).Replace('-','').ToLowerInvariant()}finally{$hash.Dispose();$redisPassword=$null}
  [IO.File]::WriteAllText((Join-Path $secrets 'redis_acl'),"user default on #${redisHash} ~* &* +@all`n",$utf8)
  [IO.File]::WriteAllText($envFile,"FIRST_ADMIN_USERNAME=${username}`nFIRST_ADMIN_FULL_NAME=${fullName}`n",$utf8)
+ [IO.File]::WriteAllText((Join-Path $state 'network.override.json'),$networkPlan+"`n",$utf8)
  $keyScript="const fs=require('node:fs'),c=require('node:crypto');const k=c.generateKeyPairSync('rsa',{modulusLength:3072,publicKeyEncoding:{type:'spki',format:'pem'},privateKeyEncoding:{type:'pkcs8',format:'pem'}});fs.writeFileSync('/install/secrets/jwt_private_key',k.privateKey,{flag:'wx',mode:0o600});fs.writeFileSync('/install/secrets/jwt_public_key',k.publicKey,{flag:'wx',mode:0o600});"
  Invoke-Docker -Arguments @('run','--rm','--network','none','--mount',"type=bind,source=$state,target=/install",'--entrypoint','node','factuez-windows-test/identity-service:local','-e',$keyScript)
  Repair-JwtFilePermissions
