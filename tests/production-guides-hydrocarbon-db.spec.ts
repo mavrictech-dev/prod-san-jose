@@ -1,0 +1,56 @@
+import {describe,it,expect,vi} from 'vitest';
+import {createRequire} from 'node:module';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {fuelSnapshot,fuelCatalogue} from './production-guides-hydrocarbon.fixture';
+import {seals,uuid,now} from './production-guides.fixture';
+import {buildProductionGuidesXml,productionGuidesHash as hash,PRODUCTION_GUIDES_XSD_SHA256} from '../packages/sunat-core/src/production-guides';
+import {ProductionGuidesOwner} from '../services/billing-service/src/production-guides-owner';
+import {ProductionGuidesBillingRuntime} from '../services/billing-service/src/production-guides-runtime';
+import {ProductionGuidesStore} from '../services/sunat-service/src/production-guides-store';
+import {ProductionGuidesService} from '../services/sunat-service/src/production-guides-service';
+import {ProductionGuidesCatalogueRules} from '../services/sunat-service/src/production-guides-crypto';
+import {validateOfficialGreXml} from '../services/sunat-service/src/production-guides-official-rules';
+import {signLocalGuideXml} from '../services/sunat-service/src/infrastructure/crypto/guide-artifact-crypto';
+import {createGuideSidecarPki,guideSidecarCdrXml,guideSidecarPackCdr} from './helpers/guide-sidecar-ephemeral-pki.fixture';
+import {renderProductionGuidesPdf} from '../services/sunat-service/src/production-guides-pdf';
+const local=createRequire(import.meta.url),{withCorrectionDatabase}=local('./helpers/correction-reservation-db.cjs');
+describe('fuel GRE on real isolated Docker PostgreSQL',()=>{
+ it('rejects fuel data before numbers/outbox, scopes new grants and persists signed XML/CDR/PDF through restart',async()=>withCorrectionDatabase(async({pool,client}:any)=>{
+  for(const f of ['services/billing-service/prisma/production-guides.sql','services/sunat-service/prisma/production-guides.sql','services/billing-service/prisma/updates/20261124_gre_hydrocarbon_v1.sql'])await pool.query(readFileSync(resolve(f),'utf8'));
+  const s=fuelSnapshot(),b=s.body as any,c=fuelCatalogue(s),k=seals(),pki=createGuideSidecarPki(s.issuer.ruc),actor={userId:s.actorId,scope:{kind:'GLOBAL' as const}};
+  await pool.query(`INSERT INTO "CompanySettings" (id,ruc,"legalName","companyType","economicActivities","taxAddress",ubigeo,"contactEmails",environment,"updatedAt") VALUES (1,$1,$2,'SYNTHETIC',ARRAY[]::text[],'SYNTHETIC','150101',ARRAY[]::text[],'PRODUCTION',now())`,[s.issuer.ruc,s.issuer.legalName]);
+  await pool.query(`INSERT INTO "Branch" (id,"companyId",code,name,"establishmentCode") VALUES ($1,1,'SYNTHETIC','SYNTHETIC','0001')`,[s.scope.branchId]);
+  await pool.query(`INSERT INTO "EmissionPoint" (id,"companyId","branchId",code,name,"updatedAt") VALUES ($1,1,$2,'SYNTHETIC','SYNTHETIC',now())`,[s.scope.pointId,s.scope.branchId]);
+  await pool.query(`INSERT INTO "SeriesCounter" (id,"companyId","emissionPointId","documentType",series,environment,"updatedAt") VALUES ($1,1,$2,'DESPATCH_ADVICE','T991','PRODUCTION',now())`,[s.scope.seriesCounterId,s.scope.pointId]);
+  await pool.query(`INSERT INTO "ProductUnit" (code,description) VALUES ('GLL','SYNTHETIC')`);
+  await pool.query(`INSERT INTO "FuelProduct" (id,sku,description,category,"unitCode","taxAffectationCode","greGoodsFamily","updatedAt") VALUES ($1,'FUEL-1','DIESEL','SYNTHETIC','GLL','10','DIESEL',now())`,[uuid(701)]);
+  const pins={credentialRevision:1,certificateFingerprint:pki.issuer.fingerprint,rulesSha256:hash(c),xsdSha256:PRODUCTION_GUIDES_XSD_SHA256};
+  const signed=(snapshot:any,xml:string)=>{const r=signLocalGuideXml({issuerRuc:snapshot.issuer.ruc,documentType:'09',fullNumber:`${snapshot.series}-${snapshot.number}`,unsignedXml:xml},pki.issuer.pkcs12,pki.password);return {xml:Buffer.from(r.xml),zip:r.zip,xmlSha256:r.xmlSha256,zipSha256:r.zipSha256,fingerprint:r.certificateFingerprintSha256,digest:r.digestValue};};
+  let service:ProductionGuidesService;
+  const owner=new ProductionGuidesOwner(client,{enabled:()=>true,signer:k.ownerSigner,ownerVerifier:k.verifier,statusVerifier:k.verifier,actorCurrent:async()=>({scope:actor.scope,active:true,canIssue:true}),sunat:{grantEvidence:async()=>pins,admit:(s,g)=>service.admit(s,g),status:e=>service.status(e),artifact:(e,a)=>service.artifact(e,a),pdf:e=>service.pdf(e)},now:()=>now});
+  const store=new ProductionGuidesStore(client,k.statusSigner,'LOCAL_SYNTHETIC'),submit=vi.fn(async()=>({ticket:uuid(799)}));
+  const transport={source:'LOCAL_SYNTHETIC' as const,submit,ticket:async()=>({state:'CDR' as const,cdrZip:guideSidecarPackCdr(pki.signCdr(guideSidecarCdrXml({issuerRuc:s.issuer.ruc,documentType:'09',fullNumber:'T991-1',requestXmlSha256:'a'.repeat(64),requestZipSha256:'b'.repeat(64),issuedAt:b.issueDate,receivedAt:now})),{issuerRuc:s.issuer.ruc,documentType:'09',fullNumber:'T991-1'})})};
+  const options={enabled:()=>true,owner:{current:(e:any)=>owner.current(e),reference09:async()=>{throw Error('UNUSED');}},referenceOwner:(s:any)=>owner.referenceOwner(s),ownerVerifier:k.verifier,crypto:{ready:async(snapshot:any,g:any)=>{await new ProductionGuidesCatalogueRules(c).validate(snapshot,g);const signedXml=signed(snapshot,buildProductionGuidesXml(snapshot).xml).xml.toString();await validateOfficialGreXml(signedXml,`${s.issuer.ruc}-09-T991-${snapshot.number}.xml`);},sign:async(snapshot:any,_g:any,xml:string)=>signed(snapshot,xml)},transport,cdr:{verify:(bytes:Buffer)=>pki.cdrVerifier.verify(bytes)},pdf:renderProductionGuidesPdf,now:()=>now};
+  service=new ProductionGuidesService(store,options);
+  const grant={expectedVersion:0,actorId:actor.userId,enabled:true,profiles:['GRE09_PRIVATE04_V1'],expectedCredentialRevision:1,expiresAt:'2026-12-31T00:00:00Z'};
+  await owner.configure(s.scope.seriesCounterId,grant,actor);
+  const request={seriesCounterId:s.scope.seriesCounterId,profile:s.profile,body:b};
+  await expect(owner.issue(request,uuid(700),actor)).rejects.toThrow('Concesión');
+  await owner.configure(s.scope.seriesCounterId,{...grant,expectedVersion:1,profiles:[s.profile]},actor);
+  for(const family of ['UNCLASSIFIED','NON_REGULATED']){
+   await pool.query('UPDATE "FuelProduct" SET "greGoodsFamily"=$1 WHERE sku=\'FUEL-1\'',[family]);
+   await expect(owner.issue(request,uuid(700),actor)).rejects.toThrow('clasificación');
+  }
+  await pool.query('UPDATE "FuelProduct" SET "greGoodsFamily"=\'DIESEL\' WHERE sku=\'FUEL-1\'');
+  for(const bad of [{...b,hydrocarbon:{...b.hydrocarbon,scopCode:'INVALID'}},{...b,hydrocarbon:{...b.hydrocarbon,senderRegistration:'OTHER-RH'}},{...b,items:[{...b.items[0],unitCode:'LTR'}]}])await expect(owner.issue({...request,body:bad},uuid(700),actor)).rejects.toThrow();
+  await expect(owner.issue(request,uuid(700),{...actor,scope:{kind:'ASSIGNED',branchIds:[],emissionPointIds:[],series:[]}})).rejects.toThrow();
+  expect((await pool.query('SELECT "nextNumber" FROM "SeriesCounter"')).rows[0].nextNumber).toBe('1');expect((await pool.query('SELECT count(*)::int n FROM "OutboxEvent"')).rows[0].n).toBe(0);
+  const r=await owner.issue(request,uuid(700),actor);expect((await owner.issue(request,uuid(700),actor)).deduplicated).toBe(true);
+  await new ProductionGuidesBillingRuntime(client,owner,service,()=>true).flush();await service.process(r.documentId);expect(submit).toHaveBeenCalledTimes(1);
+  service=new ProductionGuidesService(new ProductionGuidesStore(client,k.statusSigner,'LOCAL_SYNTHETIC'),options);
+  expect(await owner.status(r.documentId,actor)).toMatchObject({state:'ACCEPTED',source:'LOCAL_SYNTHETIC',officialCdrVerified:false});
+  const xml=await owner.artifact(r.documentId,'signed-xml',actor);expect(xml.bytes.toString()).toContain('12345678901');expect((await owner.artifact(r.documentId,'cdr-zip',actor)).bytes.length).toBeGreaterThan(0);expect((await owner.pdf(r.documentId,actor)).subarray(0,5).toString()).toBe('%PDF-');
+  expect((await pool.query('SELECT "nextNumber" FROM "SeriesCounter"')).rows[0].nextNumber).toBe('2');
+ }),120000);
+});

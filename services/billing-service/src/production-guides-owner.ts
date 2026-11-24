@@ -28,7 +28,7 @@ export class ProductionGuidesOwner {
  async catalogueSource(scope:{companyId:number;issuerRuc:string}){
   if(!Number.isSafeInteger(scope.companyId)||!/^\d{11}$/.test(scope.issuerRuc))throw new BadRequestException();
   const owner=(await this.db.$queryRawUnsafe<any[]>('SELECT id FROM "CompanySettings" WHERE id=$1 AND ruc=$2 AND active',scope.companyId,scope.issuerRuc))[0];if(!owner)throw new NotFoundException();
-  const goods=await this.db.$queryRawUnsafe<any[]>('SELECT p.sku AS code,p.description,p."unitCode" FROM "FuelProduct" p JOIN "ProductCategory" c ON c.id=p."categoryId" JOIN "ProductUnit" u ON u.code=p."unitCode" WHERE p.active AND c.active AND u.active ORDER BY p.sku');return {goods};
+  const goods=await this.db.$queryRawUnsafe<any[]>('SELECT p.sku AS code,p.description,p."unitCode",p."greGoodsFamily" FROM "FuelProduct" p JOIN "ProductCategory" c ON c.id=p."categoryId" JOIN "ProductUnit" u ON u.code=p."unitCode" WHERE p.active AND c.active AND u.active ORDER BY p.sku');return {goods};
  }
  private checkGrant(g:Grant|undefined,n:any,actor:string,profile:string){
   if(!g||!g.enabled||g.actorId!==actor||hash(this.scope(n))!==hash(Object.fromEntries(Object.keys(this.scope(n)).map(k=>[k,(g as any)[k]])))||!g.profiles.includes(profile as any)||Date.parse(g.expiresAt)<=Date.parse(this.clock()))throw new ForbiddenException('Concesión GRE vigente requerida');
@@ -61,7 +61,7 @@ export class ProductionGuidesOwner {
   const series=schema?(await this.series(pointId,actor)).series:[];
   if(!series.length)blockers.push('Configure una serie T para 09 o V para 31');
   if(!series.some(s=>s.grant?.enabled&&Date.parse(s.grant.expiresAt)>Date.parse(this.clock())))blockers.push('Concesión vigente por actor/serie/perfil pendiente');
-  return {implemented:true,installed:!!this.options,enabled:this.options?.enabled()===true,ready:blockers.length===0,blockers,companyId:n.companyId,issuerRuc:n.ruc,branchId:n.branchId,pointId,pointRevision:n.masterRevision,establishmentCode:n.establishmentCode,environment:n.environment,profiles:['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1'],series,fiscal,b2b:{installed:false,contract:'El contrato B2B 01/03 BETA es independiente; el runtime nativo no instala un adaptador B2B GRE'}};
+  return {implemented:true,installed:!!this.options,enabled:this.options?.enabled()===true,ready:blockers.length===0,blockers,companyId:n.companyId,issuerRuc:n.ruc,branchId:n.branchId,pointId,pointRevision:n.masterRevision,establishmentCode:n.establishmentCode,environment:n.environment,profiles:['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'],series,fiscal,b2b:{installed:false,contract:'El contrato B2B 01/03 BETA es independiente; el runtime nativo no instala un adaptador B2B GRE'}};
  }
  async list(pointId:string,cursor:string|undefined,actor:ProductionGuidesActor){
   const n=await this.point(pointId,actor);if(cursor)uuid(cursor);
@@ -88,7 +88,7 @@ export class ProductionGuidesOwner {
  /** Append-only CAS. Exposed only through SUNAT_CONFIGURE + native scope guard. No default grant. */
  async configure(seriesId:string,raw:unknown,actor:ProductionGuidesActor){
   const options=this.enabled();exact(raw,['expectedVersion','actorId','enabled','profiles','expectedCredentialRevision','expiresAt']);const value=structuredClone(raw) as any;
-  uuid(value.actorId);if(!Number.isSafeInteger(value.expectedVersion)||value.expectedVersion<0||typeof value.enabled!=='boolean'||!Array.isArray(value.profiles)||!value.profiles.length||new Set(value.profiles).size!==value.profiles.length||value.profiles.some((p:string)=>!['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1'].includes(p))||!Number.isSafeInteger(value.expectedCredentialRevision)||value.expectedCredentialRevision<1||!Number.isFinite(Date.parse(value.expiresAt))||Date.parse(value.expiresAt)<=Date.parse(this.clock()))throw new BadRequestException('Concesión inválida');
+  uuid(value.actorId);if(!Number.isSafeInteger(value.expectedVersion)||value.expectedVersion<0||typeof value.enabled!=='boolean'||!Array.isArray(value.profiles)||!value.profiles.length||new Set(value.profiles).size!==value.profiles.length||value.profiles.some((p:string)=>!['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'].includes(p))||!Number.isSafeInteger(value.expectedCredentialRevision)||value.expectedCredentialRevision<1||!Number.isFinite(Date.parse(value.expiresAt))||Date.parse(value.expiresAt)<=Date.parse(this.clock()))throw new BadRequestException('Concesión inválida');
   return this.db.$transaction(async tx=>{
    await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))','production-guides-grant:'+seriesId+':'+value.actorId);
    const n=await this.native(tx,seriesId,actor,true), prior=await this.grant(tx,seriesId,value.actorId);
@@ -115,6 +115,11 @@ export class ProductionGuidesOwner {
    if(BigInt(n.nextNumber)<1n||BigInt(n.nextNumber)>99999999n)throw new ConflictException('Correlativo agotado');
    const snapshot=validateProductionGuidesSnapshot({schemaVersion:'factuez.production-guides.v1',documentId:randomUUID(),operationId,actorId:actor.userId,
     scope:this.scope(n),issuer:{ruc:n.issuerRuc,legalName:n.legalName},documentType:input.profile==='GRE31_PUBLIC_SINGLE09_V1'?'31':'09',profile:input.profile,series:n.series,number:String(n.nextNumber),body:input.body,grantVersion:g.version,createdAt:this.clock(),environment:'PRODUCTION'});
+   // Current authoritative product master closes old catalogue misclassification before reservation.
+   const master=await tx.$queryRawUnsafe<any[]>('SELECT sku AS code,description,"unitCode","greGoodsFamily" FROM "FuelProduct" WHERE sku=ANY($1::text[]) AND active FOR SHARE',(snapshot.body as any).items.map((i:any)=>i.code));
+   const fuel=input.profile.startsWith('GRE09_HYDROCARBON_');
+   if(fuel&&(snapshot.body as any).items.some((i:any)=>!master.some(m=>m.code===i.code&&m.description===i.description&&m.unitCode===i.unitCode&&m.greGoodsFamily===(snapshot.body as any).hydrocarbon.family)))throw new BadRequestException('El combustible o su unidad/clasificación cambió; revise el maestro y catálogo GRE');
+   if(!fuel&&master.some(m=>!['UNCLASSIFIED','NON_REGULATED'].includes(m.greGoodsFamily)))throw new BadRequestException('Los combustibles requieren un perfil GRE de hidrocarburos y una concesión nueva');
    // Pre-number-commit gate: no signing here; SUNAT checks immutable data, production reference, config/trust/rules availability.
    await options.sunat.admit(snapshot,g);
    const payload={eventId:randomUUID(),eventType:PRODUCTION_GUIDES_ISSUED,snapshot,snapshotSha256:hash(snapshot)};

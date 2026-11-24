@@ -1,0 +1,56 @@
+[
+  {
+    "file": "rules.xlsx",
+    "url": "https://cpe.sunat.gob.pe/sites/default/files/2026-11/ValidacionesGREv20261106_publicacion_v1.0.xlsx",
+    "version": "1.0",
+    "publishedOrUpdated": "2026-11-06",
+    "retrievedAt": "2026-11-24",
+    "sha256": "5e1aed6df969afafca284e1cda228d36336ebf1ac31ea84f877f8170f584ec01",
+    "bytes": 279609
+  },
+  {
+    "file": "xsl.zip",
+    "url": "https://cpe.sunat.gob.pe/sites/default/files/2026-10/Archivos_XSL.10.zip",
+    "version": "2.0.1",
+    "publishedOrUpdated": "2026-10-01",
+    "retrievedAt": "2026-11-24",
+    "sha256": "bcaa31e7195295372e905374f6b4adcd1b40bf4ba05b989132e34c03d484aeb7",
+    "bytes": 35999
+  },
+  {
+    "file": "sfs.zip",
+    "url": "https://www2.sunat.gob.pe/facturador/SFS_v-2.6.zip",
+    "version": "2.6",
+    "publishedOrUpdated": null,
+    "retrievedAt": "2026-11-24",
+    "sha256": "217bdef390dffd7e160080634cf6ca11e81db5bb1a9b6bd096693ecdd33d1134",
+    "bytes": 93981998
+  },
+  {
+    "file": "manual.pdf",
+    "url": "https://cpe.sunat.gob.pe/sites/default/files/inline-files/Manual_Servicios_GRE%20(1)_0.pdf",
+    "version": null,
+    "publishedOrUpdated": "2022-10-04",
+    "retrievedAt": "2026-11-24",
+    "sha256": "d69739d56a1b75ce243eaa0b7ae9ce73ca4bb1eacb662c9ae34474398267a2f7",
+    "bytes": 415433
+  },
+  {
+    "file": "urls.xlsx",
+    "url": "https://cpe.sunat.gob.pe/sites/default/files/inline-files/Manual%20URL%20%E2%80%93%20GRE.xlsx",
+    "version": null,
+    "publishedOrUpdated": "2022-10-25",
+    "retrievedAt": "2026-11-24",
+    "sha256": "6137fdf18cf72d0fd98eb051350259ce407277fe290178f4f5c744910fe1e7d7",
+    "bytes": 26537
+  },
+  {
+    "file": "gre-xsd-20220713.zip",
+    "url": "https://cpe.sunat.gob.pe/sites/default/files/inline-files/Archivo%20XSD.zip",
+    "version": "2.1",
+    "publishedOrUpdated": "2022-07-13",
+    "retrievedAt": "2026-11-24",
+    "sha256": "011225702980d1f8874f7aa0940a0de782aa79dd0cc1931c90f2b8142490bcea",
+    "bytes": 3800
+  }
+]

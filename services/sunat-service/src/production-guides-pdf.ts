@@ -21,6 +21,7 @@ export async function renderProductionGuidesPdf(raw:Snapshot,result:Result):Prom
  const t=b.transport;if(t?.vehicle)text(`Vehículo: ${t.vehicle.plate} | Registro/TUC: ${t.vehicle.tuc??t.vehicle.registration}`);
  if(t?.driver)text(`Conductor: ${t.driver.firstName} ${t.driver.lastName} | Documento ${t.driver.identityNumber} | Licencia ${t.driver.license}`);
  if(b.reference09)text(`GRE remitente: ${b.reference09.issuerRuc} / ${b.reference09.series}-${b.reference09.number}`);
+ if(b.hydrocarbon){const h=b.hydrocarbon;text(`Combustible: ${h.family} | R?gimen: GRE ordinaria`);text(`SCOP: ${h.scopCode??'No requerido por revisi?n'} | Registro remitente: ${h.senderRegistration}`);if(h.carrierRegistration)text(`Registro transportista OSINERGMIN: ${h.carrierRegistration}`);if(h.vehicleAuthorization)text(`Autorizaci?n vehículo OSINERGMIN: ${h.vehicleAuthorization}`);}
  text('BIENES',12);for(const [n,i]of b.items.entries())text(`${n+1}. ${i.code} | ${i.description} | ${i.quantity} ${i.unitCode}`);
  text(`XML SHA-256: ${result.xmlSha256??'Pendiente'}`,8);text(`ZIP SHA-256: ${result.zipSha256??'Pendiente'}`,8);
  if(result.ticket)text(`Ticket: ${result.ticket}`,8);if(result.cdrZipSha256)text(`CDR ZIP SHA-256: ${result.cdrZipSha256}`,8);
