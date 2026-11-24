@@ -5,10 +5,9 @@ FROM ${NODE_BASE_IMAGE}
 
 WORKDIR /workspace
 RUN corepack enable
-ARG SERVICE_NAME
-ARG SERVICE_PATH
+# Una capa común evita repetir la descarga y revisión del mismo lockfile por servicio.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl $(if [ "$SERVICE_NAME" = "@factuez/sunat-service" ]; then echo libxml2-utils; fi) \
+    && apt-get install -y --no-install-recommends openssl libxml2-utils \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
@@ -19,6 +18,8 @@ COPY scripts ./scripts
 
 RUN pnpm install --frozen-lockfile
 
+ARG SERVICE_NAME
+ARG SERVICE_PATH
 ENV SERVICE_PATH=${SERVICE_PATH}
 
 # Prisma sólo necesita una URL sintácticamente válida para generar el cliente;
