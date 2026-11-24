@@ -1,8 +1,15 @@
 'use strict';
 // NEW purpose-specific local transport/signing keys only. Existing material is never overwritten.
-const {readFileSync,writeFileSync,mkdirSync,existsSync}=require('node:fs'),{join,resolve}=require('node:path'),{createRequire}=require('node:module'),{generateKeyPairSync,X509Certificate}=require('node:crypto');
-function provision(root,target){
- if(!target||existsSync(target))throw Error('NEW_GRE_DIRECTORY_REQUIRED: keep existing GRE identity; do not rotate it during updates');
+const {readFileSync,writeFileSync,mkdirSync,existsSync,readdirSync,lstatSync,rmdirSync}=require('node:fs'),{join,resolve}=require('node:path'),{createRequire}=require('node:module'),{generateKeyPairSync,X509Certificate}=require('node:crypto');
+function provision(root,target,options={}){
+ if(!target)throw Error('NEW_GRE_DIRECTORY_REQUIRED');
+ if(existsSync(target)){
+  // Docker creates empty bind-mount placeholders before first provisioning.
+  // Never unlink the mounted root on Windows, and never accept existing material.
+  const entries=readdirSync(target);
+  if(!options.allowEmptyPlaceholder||!lstatSync(target).isDirectory()||entries.some(name=>!['identity','billing','sunat'].includes(name)||!lstatSync(join(target,name)).isDirectory()||readdirSync(join(target,name)).length))throw Error('NEW_GRE_DIRECTORY_REQUIRED: keep existing GRE identity; do not rotate it during updates');
+  for(const name of entries)rmdirSync(join(target,name));
+ }
  const forge=createRequire(join(root,'services/sunat-service/package.json'))('node-forge');mkdirSync(target,{recursive:true,mode:0o700});
  const caKeys=forge.pki.rsa.generateKeyPair(3072),ca=forge.pki.createCertificate();ca.publicKey=caKeys.publicKey;ca.serialNumber='01';ca.validity.notBefore=new Date(Date.now()-60000);ca.validity.notAfter=new Date(Date.now()+5*365*86400000);ca.setSubject([{name:'commonName',value:'FactuEz private GRE transport CA'}]);ca.setIssuer(ca.subject.attributes);ca.setExtensions([{name:'basicConstraints',cA:true},{name:'keyUsage',keyCertSign:true,cRLSign:true}]);ca.sign(caKeys.privateKey,forge.md.sha256.create());
  const put=(file,value)=>writeFileSync(file,value,{flag:'wx',mode:0o600});put(join(target,'transport-ca-private.pem'),forge.pki.privateKeyToPem(caKeys.privateKey));
@@ -26,4 +33,4 @@ function provision(root,target){
  put(join(target,'manifest.json'),JSON.stringify({version:'factuez.native-gre.provisioning.v1',createdAt:new Date().toISOString(),transportFingerprints:material,fiscalSecretsCreated:false,transmissionActivated:false})+'\n');
  return {provisioned:true,fiscalSecretsCreated:false,transmissionActivated:false};
 }
-module.exports={provision};if(require.main===module){try{const target=process.argv[2];if(process.argv.length!==3)throw Error();console.log(JSON.stringify(provision(resolve(__dirname,'..'),resolve(target))));}catch{console.error('GRE_PROVISIONING_BLOCKED: requires a new directory, retain existing identity');process.exitCode=1;}}
+module.exports={provision};if(require.main===module){try{const target=process.argv[2],flag=process.argv[3];if(process.argv.length!==3&&!(process.argv.length===4&&flag==='--empty-placeholder'))throw Error();console.log(JSON.stringify(provision(resolve(__dirname,'..'),resolve(target),{allowEmptyPlaceholder:flag==='--empty-placeholder'})));}catch{console.error('GRE_PROVISIONING_BLOCKED: requires a new or empty placeholder directory, retain existing identity');process.exitCode=1;}}

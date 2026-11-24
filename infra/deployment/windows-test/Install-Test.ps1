@@ -80,9 +80,10 @@ if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre',
  if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing prepared installation required. Never run Prepare to upgrade.'}
  if($Action -eq 'ProvisionGre') {
   $gre=Join-Path $state 'gre'
-  # Remove only empty mount placeholders; existing keys/configuration are retained.
-  if(Test-Path -LiteralPath $gre){if(@(Get-ChildItem -LiteralPath $gre -File -Recurse).Count -gt 0){throw 'GRE identity already exists; keep it. Provisioning never rotates keys.'};foreach($side in @('identity','billing','sunat')){$empty=Join-Path $gre $side;if(Test-Path -LiteralPath $empty){Remove-Item -LiteralPath $empty}};Remove-Item -LiteralPath $gre}
-  Invoke-Docker -Arguments @('run','--rm','--pull','never','--network','none','--mount',"type=bind,source=$state,target=/install",'--entrypoint','node','factuez-windows-test/sunat-service:local','scripts/provision-native-gre.cjs','/install/gre')
+  # Keep the bind-mounted root: Docker Desktop can retain a deleted mount placeholder.
+  if(Test-Path -LiteralPath $gre){if(@(Get-ChildItem -LiteralPath $gre -File -Recurse).Count -gt 0){throw 'GRE identity already exists; keep it. Provisioning never rotates keys.'}}
+  New-Item -ItemType Directory -Force -Path $gre | Out-Null
+  Invoke-Docker -Arguments @('run','--rm','--pull','never','--network','none','--mount',"type=bind,source=$state,target=/install",'--entrypoint','node','factuez-windows-test/sunat-service:local','scripts/provision-native-gre.cjs','/install/gre','--empty-placeholder')
   Set-Acl -LiteralPath $gre -AclObject (Get-Acl -LiteralPath (Join-Path $state 'secrets'))
   Write-Host 'Private GRE identity provisioned. Existing fiscal/JWT/vault keys retained. No transmission activated.';return
  }
