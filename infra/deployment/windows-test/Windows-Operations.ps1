@@ -124,23 +124,9 @@ function Restore-Databases($Base,$Name,$PgImage,$DataVolume=''){
    try{$null=Docker @('exec',$Name,'pg_isready','-h','127.0.0.1','-U','postgres');$ready=$true;break}catch{Start-Sleep -Milliseconds 300}
   }
   if(-not $ready){throw 'ISOLATED_RESTORE_POSTGRES_NOT_READY'}
-  # Fixed shell program: no input-derived interpolation. psql quotes both identifiers and values.
-  $roleScript=@'
-set -eu
-for component in identity billing sunat mailer received; do
- owner="factuez_${component}"
- OWNER_PASSWORD="$(cat "/backup/state/secrets/${component}_db_password")"
- case "$OWNER_PASSWORD" in ''|*[!0-9a-f]*) exit 61;; esac
- export OWNER_PASSWORD
- psql -X -q --set=ON_ERROR_STOP=1 -U postgres -d postgres --set=owner="$owner" <<'SQL'
-\getenv owner_password OWNER_PASSWORD
-CREATE ROLE :"owner" LOGIN PASSWORD :'owner_password';
-SELECT format('CREATE DATABASE %I OWNER %I', :'owner', :'owner')\gexec
-SQL
- unset OWNER_PASSWORD
-done
-'@
-  Docker @('exec',$Name,'sh','-ec',$roleScript.Replace("`r`n","`n"))|Out-Null
+  # A fixed LF shell file avoids PowerShell 5 native argument quote conversion.
+  Phase 'RESTORE_ROLES'
+  Docker @('exec',$Name,'sh','/backup/release/restore-postgres-roles.sh')|Out-Null
   foreach($db in $databases){
    $owner='factuez_'+$db
    Phase ('RESTORE_'+$owner)
@@ -237,6 +223,7 @@ function Backup([switch]$LeaveStopped) {
    Docker @('run','--rm','--pull','never','--label',"$label=$run",'--network','none','--memory','128m','--cpus','0.5','--mount',"type=volume,source=$source,target=/source,readonly",'--mount',"type=bind,source=$base,target=/backup",'--entrypoint','tar',$pgImage,'-C','/source','-cf',('/backup/volumes/'+$v+'.tar'),'.')|Out-Null
   }
   Copy-Item -LiteralPath $compose -Destination (Join-Path $base 'release/docker-compose.json')
+  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'restore-postgres-roles.sh') -Destination (Join-Path $base 'release/restore-postgres-roles.sh')
   Phase 'POSTGRES_IMAGE'
   Docker @('image','save','--output',(Join-Path $base 'release/postgres-image.tar'),$pgImage)|Out-Null
   Copy-Item -LiteralPath (Join-Path $root 'infra/deployment/core-production/kong.yml') -Destination (Join-Path $base 'release/kong.yml')

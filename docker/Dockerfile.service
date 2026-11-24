@@ -30,7 +30,7 @@ RUN if [ "$SERVICE_NAME" = "@factuez/sunat-service" ]; then \
 
 # Prisma sólo necesita una URL sintácticamente válida para generar el cliente;
 # no establece conexión durante el build de la imagen.
-RUN export DATABASE_URL=postgresql://build:build@localhost:5432/build; \
+RUN export DATABASE_URL=postgresql://build:build@localhost:5432/build NODE_PATH="/workspace/${SERVICE_PATH}/node_modules"; \
     pnpm --filter "${SERVICE_NAME}^..." --recursive --if-present run build && \
     pnpm --filter "${SERVICE_NAME}" --if-present run db:generate && \
     pnpm --filter "${SERVICE_NAME}" build
