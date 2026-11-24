@@ -4,6 +4,8 @@ Este procedimiento conserva el proyecto Compose **`factuez-san-jose-test`**, la 
 
 Ejecutar desde la carpeta original del cliente, con PowerShell y Docker Desktop en contenedores Linux. No requiere Node.js ni PostgreSQL en Windows. Si no se encuentra `prepared.marker`, ubicar la carpeta instalada o su respaldo; **nunca ejecutar Prepare/reset para reparar una instalación**. No usar `down --volumes`, prune ni borrar los volúmenes.
 
+SUNAT y Mailer tienen salida a Internet por la red egress, necesaria para las conexiones oficiales autorizadas. Los gates fiscales y SMTP permanecen desactivados por defecto. Las otras redes de servicios y bases continúan internas; sólo Kong publica el puerto local. La red egress no es un filtro por hostname. Una instalación antigua que conserve una red egress interna requiere planificar el cambio de esa red con sus servicios detenidos y respaldo previo; no basta con cambiar una etiqueta de ambiente.
+
 ## Estado real y activación
 
 ```powershell

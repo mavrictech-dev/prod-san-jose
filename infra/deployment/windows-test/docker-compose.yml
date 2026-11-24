@@ -1,7 +1,7 @@
 {
   "name": "factuez-san-jose-test",
   "x-contract": {
-    "scope": "Windows 11 Pro local test installation; no official fiscal or external mail transmission",
+    "scope": "Windows local installation; fiscal and mail transmission require explicit server gates and per-RUC configuration",
     "newDatabasesOnly": true,
     "memoryBudgetBytes": 8000000000,
     "firstAdmin": "Explicit local bootstrap; disable after first login"
@@ -1451,7 +1451,7 @@
       "internal": true
     },
     "egress": {
-      "internal": true
+      "internal": false
     },
     "host-access": {
       "driver": "bridge",
