@@ -5,7 +5,7 @@ import { integrationOpenApiV1, integrationSwaggerV1, sunatAdministrationOpenApiV
 import { documentationHeaders, documentationHtml, documentationInit, swaggerAssets } from '../apps/web-pwa/app/api-docs/_lib/server';
 import { GET as integrationJson } from '../apps/web-pwa/app/api-docs/openapi.json/route';
 import { GET as sunatJson } from '../apps/web-pwa/app/api-docs/sunat.json/route';
-import { GET as html } from '../apps/web-pwa/app/api-docs/route';
+import { GET as html } from '../apps/web-pwa/app/api-docs/b2b/route';
 import { GET as asset } from '../apps/web-pwa/app/api-docs/assets/[asset]/route';
 
 function visit(value: unknown, work: (object: Record<string, any>) => void) {

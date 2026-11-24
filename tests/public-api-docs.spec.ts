@@ -21,7 +21,7 @@ function visit(value: any, fn: (node: any) => void) {
 }
 afterEach(() => vi.unstubAllGlobals());
 
-it('opens the human native reference from api-docs while keeping B2B separate',()=>{const response=nativeLanding(new Request('http://localhost/api-docs'));expect(response.status).toBe(307);expect(response.headers.get('Location')).toBe('http://localhost/api-reference');});
+it('keeps the public origin when opening the native reference behind a container proxy',()=>{const response=nativeLanding(new Request('http://0.0.0.0:3000/api-docs'));expect(response.status).toBe(307);expect(response.headers.get('Location')).toBe('/api-reference');});
 describe('Catálogo público B2B: proyección fiel y sin activación', () => {
   it('sólo documenta los 15 métodos de lectura, los 9 de webhooks y el token de los controladores reales', () => {
     const actual = ['services/b2b-api-service/src/http.ts', 'services/b2b-api-service/src/webhooks.ts'].flatMap(file =>
