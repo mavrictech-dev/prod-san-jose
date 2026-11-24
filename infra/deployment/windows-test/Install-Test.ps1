@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth','CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction','DisableProduction')][string]$Action='Status', [string]$TransmissionConfirmation='')
+param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth','RepairGre','CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction','DisableProduction')][string]$Action='Status', [string]$TransmissionConfirmation='')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -18,6 +18,16 @@ function Repair-JwtFilePermissions {
 function Assert-AuthenticationKeys {
  $check="const f=require('node:fs'),c=require('node:crypto');let p,q;try{p=f.readFileSync(process.env.JWT_PRIVATE_KEY_FILE);q=f.readFileSync(process.env.JWT_PUBLIC_KEY_FILE);const b=Buffer.from('factuez-auth-readiness');if(!c.verify('sha256',b,q,c.sign('sha256',b,p)))throw Error();console.log('AUTHENTICATION_KEYS_ACCESSIBLE');}catch{console.error('AUTHENTICATION_KEY_READINESS_FAILED');process.exitCode=1;}finally{p?.fill(0);q?.fill(0);}"
  Invoke-Compose -Arguments @('exec','--no-TTY','--user','1000:1000','identity-service','node','-e',$check)
+}
+function Repair-GreFilePermissions {
+ $gre=Join-Path $state 'gre'
+ $repairFile=Join-Path $PSScriptRoot 'repair-gre-permissions.cjs'
+ Invoke-Docker -Arguments @('run','--rm','--pull','never','--network','none','--user','0:0','--mount',"type=bind,source=$gre,target=/keys",'--mount',"type=bind,source=$repairFile,target=/repair-gre.cjs,readonly",'--entrypoint','node','factuez-windows-test/sunat-service:local','/repair-gre.cjs','/keys')
+ foreach($side in @('identity','billing','sunat')){
+  $sideRoot=Join-Path $gre $side
+  $check="const f=require('node:fs');for(const n of f.readdirSync('/keys'))f.readFileSync('/keys/'+n);console.log('GRE_KEYS_ACCESSIBLE_UID1000');"
+  Invoke-Docker -Arguments @('run','--rm','--pull','never','--network','none','--user','1000:1000','--mount',"type=bind,source=$sideRoot,target=/keys,readonly",'--entrypoint','node','factuez-windows-test/sunat-service:local','-e',$check)
+ }
 }
 function Assert-WebAccess {
  for($attempt=0;$attempt -lt 20;$attempt++) {
@@ -76,6 +86,7 @@ if($Action -ne 'Prepare'){
 }
 try {
 if(Test-Path -LiteralPath (Join-Path $state 'build.lock')){throw 'Build running or interrupted; review build.lock.'}
+if($Action -eq 'RepairGre'){Repair-GreFilePermissions;return}
 if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction','DisableProduction')) {
  if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing prepared installation required. Never run Prepare to upgrade.'}
  if($Action -eq 'ProvisionGre') {
@@ -84,6 +95,7 @@ if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre',
   if(Test-Path -LiteralPath $gre){if(@(Get-ChildItem -LiteralPath $gre -File -Recurse).Count -gt 0){throw 'GRE identity already exists; keep it. Provisioning never rotates keys.'}}
   New-Item -ItemType Directory -Force -Path $gre | Out-Null
   Invoke-Docker -Arguments @('run','--rm','--pull','never','--network','none','--mount',"type=bind,source=$state,target=/install",'--entrypoint','node','factuez-windows-test/sunat-service:local','scripts/provision-native-gre.cjs','/install/gre','--empty-placeholder')
+  Repair-GreFilePermissions
   Set-Acl -LiteralPath $gre -AclObject (Get-Acl -LiteralPath (Join-Path $state 'secrets'))
   Write-Host 'Private GRE identity provisioned. Existing fiscal/JWT/vault keys retained. No transmission activated.';return
  }

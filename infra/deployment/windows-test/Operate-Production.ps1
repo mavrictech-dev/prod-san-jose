@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
- [ValidateSet('Status','Start','Build','CheckUpdate','Update','Backup','VerifyBackup','RestoreBackup','DisableBootstrap','ProvisionGre','EnableGre','DisableGre','EnableProduction','DisableProduction')][string]$Action='Status',
+ [ValidateSet('Status','Start','Build','CheckUpdate','Update','Backup','VerifyBackup','RestoreBackup','DisableBootstrap','ProvisionGre','RepairGre','EnableGre','DisableGre','EnableProduction','DisableProduction')][string]$Action='Status',
  [string]$TransmissionConfirmation='', [string]$BackupPath='', [string]$ExternalDestination='',
  [switch]$ExternalDestinationReviewed, [string]$RecoveryPath='', [string]$RecoveryProject='', [string]$ReadinessSessionFile='', [string]$DockerDiskPath=''
 )

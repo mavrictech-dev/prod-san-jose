@@ -99,4 +99,6 @@ Build conserva IDs anteriores y registra imágenes nuevas y hashes de la fuente 
 
 ## Evidencia de esta entrega
 
+`ProvisionGre` prepara permisos para los servicios UID 1000 y comprueba la lectura de cada paquete sin mostrar claves. Si una instalación anterior tiene claves internas GRE que fueron creadas como root, `& $ops -Action RepairGre` valida los pares de claves y el manifiesto, ajusta sólo propietario/permisos y verifica que los bytes no cambien. No vuelve a generar claves ni activa transmisión. La CA privada central conserva sus permisos y no se monta en los servicios.
+
 La evidencia concreta de compilación y pruebas sintéticas se registra junto con sus límites en el informe de validación de esta revisión. No existe instalación del cliente en este checkout y no se dispone de credenciales, certificado o CDR reales autorizados. Ninguna prueba de reinicio o SIGKILL acredita por sí sola una garantía ante corte eléctrico del PC/disco/WSL; PostgreSQL exige además almacenamiento que respete fsync y una política de recuperación probada.
