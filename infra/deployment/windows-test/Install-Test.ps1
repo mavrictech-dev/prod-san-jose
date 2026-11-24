@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth','CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction')][string]$Action='Status', [string]$TransmissionConfirmation='')
+param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth','CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction','DisableProduction')][string]$Action='Status', [string]$TransmissionConfirmation='')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -9,7 +9,7 @@ $composeFile=Join-Path $PSScriptRoot 'docker-compose.yml'
 $project='factuez-san-jose-test'
 $utf8=New-Object Text.UTF8Encoding($false)
 function Invoke-Docker([string[]]$Arguments) { & docker @Arguments; if($LASTEXITCODE -ne 0){throw 'Docker operation failed. Do not delete volumes or regenerate secrets.'} }
-function Invoke-Compose([string[]]$Arguments) { if(-not(Test-Path -LiteralPath $envFile)){throw 'Run Prepare first.'}; Invoke-Docker (@('compose','--project-name',$project,'--env-file',$envFile,'--file',$composeFile)+$Arguments) }
+function Invoke-Compose([string[]]$Arguments) { if(-not(Test-Path -LiteralPath $envFile)){throw 'Installation state missing. Locate the existing installation; never Prepare/reset to repair it.'}; Invoke-Docker (@('compose','--project-name',$project,'--env-file',$envFile,'--file',$composeFile)+$Arguments) }
 function Repair-JwtFilePermissions {
  $secretFolder=Join-Path $state 'secrets'
  $repairFile=Join-Path $PSScriptRoot 'repair-jwt-permissions.cjs'
@@ -33,9 +33,19 @@ function Assert-WebAccess {
  throw 'Containers started but http://127.0.0.1:8091/login is not accessible. Run Status and check Kong port publication. Do not repeat Prepare.'
 }
 if($env:OS -ne 'Windows_NT'){throw 'Windows 11 required for this launcher.'}
+if($Action -in @('Status','Update')) {
+ & (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action $Action
+ return
+}
 $dockerOs=& docker info --format '{{.OSType}}'
 if($LASTEXITCODE -ne 0 -or $dockerOs.Trim() -ne 'linux'){throw 'Start Docker Desktop in Linux containers mode first.'}
 if($Action -eq 'Build') {
+ $buildLock=$null
+ if(Test-Path -LiteralPath (Join-Path $state 'prepared.marker')){
+  try{$buildLock=[IO.File]::Open((Join-Path $state 'build.lock'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)}catch{throw 'Build already running or interrupted; review build.lock.'}
+ }
+ try {
+ if(Test-Path -LiteralPath (Join-Path $state 'operations.lock')){throw 'Installation operation running or interrupted; review operations.lock before building.'}
  if(Test-Path -LiteralPath (Join-Path $state 'prepared.marker')) {
   $previous=@{}
   foreach($service in @('identity-service','billing-service','sunat-service','mailer-worker','realtime-service','received-documents-service','web-pwa')) {
@@ -44,14 +54,26 @@ if($Action -eq 'Build') {
   }
   [IO.File]::WriteAllText((Join-Path $state 'previous-images.json'),($previous|ConvertTo-Json),$utf8)
  }
+ $revision=& git -C $projectRoot rev-parse HEAD
+ if($LASTEXITCODE -ne 0){throw 'Cannot establish build source revision.'}
  foreach($service in @('identity-service','billing-service','sunat-service','mailer-worker','realtime-service','received-documents-service','web-pwa')) {
-  $argsList=@('build','--platform','linux/amd64','--tag',('factuez-windows-test/'+$service+':local'))
+  $argsList=@('build','--platform','linux/amd64','--label',('org.opencontainers.image.revision='+$revision.Trim()),'--tag',('factuez-windows-test/'+$service+':local'))
   if($service -eq 'web-pwa'){$argsList+=@('--file','docker/Dockerfile.web-pwa','--build-arg','NEXT_PUBLIC_API_BASE_URL=','--build-arg','NEXT_PUBLIC_B2B_ADMIN_PROFILE=SSO')}
   else{$argsList+=@('--file','docker/Dockerfile.service','--build-arg',('SERVICE_NAME=@factuez/'+$service),'--build-arg',('SERVICE_PATH=services/'+$service))}
   Push-Location $projectRoot;try{Invoke-Docker ($argsList+@('.'))}finally{Pop-Location}
- };return
+ }
+ if(Test-Path -LiteralPath (Join-Path $state 'prepared.marker')){& (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action RecordRelease}
+ }finally{if($buildLock){$buildLock.Dispose();Remove-Item -LiteralPath (Join-Path $state 'build.lock') -Force}}
+ return
 }
-if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction')) {
+$operationLock=$null
+if($Action -ne 'Prepare'){
+ if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing prepared installation required. Locate its original directory; never Prepare/reset to repair it.'}
+ try{$operationLock=[IO.File]::Open((Join-Path $state 'operations.lock'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)}catch{throw 'Installation operation running or interrupted; review operations.lock.'}
+}
+try {
+if(Test-Path -LiteralPath (Join-Path $state 'build.lock')){throw 'Build running or interrupted; review build.lock.'}
+if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction','DisableProduction')) {
  if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing prepared installation required. Never run Prepare to upgrade.'}
  if($Action -eq 'ProvisionGre') {
   $gre=Join-Path $state 'gre'
@@ -63,36 +85,22 @@ if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre',
  }
  New-Item -ItemType Directory -Force -Path (Join-Path $state 'pki') | Out-Null
  foreach($side in @('identity','billing','sunat')){New-Item -ItemType Directory -Force -Path (Join-Path $state ('gre/'+$side)) | Out-Null}
- if($Action -in @('EnableGre','EnableProduction','DisableGre')) {
-  if($Action -ne 'DisableGre' -and $TransmissionConfirmation -ne 'ACTIVAR TRANSMISION FISCAL DEL SERVIDOR'){throw 'Explicit -TransmissionConfirmation required; issuer grants remain separate.'}
+ if($Action -in @('EnableGre','EnableProduction','DisableGre','DisableProduction')) {
+  $disabling=$Action -in @('DisableGre','DisableProduction')
+  if(-not $disabling -and $TransmissionConfirmation -ne 'ACTIVAR TRANSMISION FISCAL DEL SERVIDOR'){throw 'Explicit -TransmissionConfirmation required; issuer grants remain separate.'}
   $settings=@{}
   if($Action -eq 'EnableGre') {
    if(-not(Test-Path -LiteralPath (Join-Path $state 'gre/manifest.json'))){throw 'Run ProvisionGre once; retain existing keys on future updates.'}
    $settings=@{NATIVE_GRE_ENABLED='true';NATIVE_GRE_WORKERS_ENABLED='true';NATIVE_GRE_CONFIG_IDENTITY='/run/gre/config.json';NATIVE_GRE_CONFIG_BILLING='/run/gre/config.json';NATIVE_GRE_CONFIG_SUNAT='/run/gre/config.json'}
   } elseif($Action -eq 'DisableGre') {$settings=@{NATIVE_GRE_ENABLED='false';NATIVE_GRE_WORKERS_ENABLED='false'}}
+  elseif($Action -eq 'DisableProduction') {$settings=@{BILLING_PRODUCTION_ISSUANCE_ENABLED='false';SUNAT_PRODUCTION_WORKFLOW_ENABLED='false'}}
   else {$settings=@{BILLING_PRODUCTION_ISSUANCE_ENABLED='true';SUNAT_PRODUCTION_WORKFLOW_ENABLED='true'}}
-  if($Action -ne 'DisableGre'){foreach($entry in @(@('issuer-roots.pem','SUNAT_TRUST_STORE_SHA256'),@('crls.pem','SUNAT_CRL_BUNDLE_SHA256'),@('cdr-signers.pem','SUNAT_CDR_SIGNER_CERT_SHA256'))){$file=Join-Path $state ('pki/'+$entry[0]);if(-not(Test-Path -LiteralPath $file) -or (Get-Item -LiteralPath $file).Length -eq 0){throw ('Reviewed public PKI prerequisite missing: '+$file)};$settings[$entry[1]]=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()}}
+  if(-not $disabling){foreach($entry in @(@('issuer-roots.pem','SUNAT_TRUST_STORE_SHA256'),@('crls.pem','SUNAT_CRL_BUNDLE_SHA256'),@('cdr-signers.pem','SUNAT_CDR_SIGNER_CERT_SHA256'))){$file=Join-Path $state ('pki/'+$entry[0]);if(-not(Test-Path -LiteralPath $file) -or (Get-Item -LiteralPath $file).Length -eq 0){throw ('Reviewed public PKI prerequisite missing: '+$file)};$settings[$entry[1]]=(Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()}}
   $text=[IO.File]::ReadAllText($envFile)
   foreach($key in $settings.Keys){$pattern='(?m)^'+[regex]::Escape($key)+'=.*$';$line=$key+'='+$settings[$key];if([regex]::IsMatch($text,$pattern)){$text=[regex]::Replace($text,$pattern,$line)}else{$text+="`n$line`n"}}
   [IO.File]::WriteAllText($envFile,$text,$utf8)
   Invoke-Compose -Arguments @('up','--detach','--no-deps','--no-build','--wait','--wait-timeout','180','identity-service','billing-service','sunat-service')
   Write-Host 'Server gate updated. Configure/review issuer credentials, trust, profiles and explicit actor grants in the admin module.';return
- }
- if($Action -eq 'Update') {
-  Invoke-Compose -Arguments @('stop','--timeout','90','billing-service','sunat-service')
-  $backup=Join-Path $state ('backups/'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
-  New-Item -ItemType Directory -Path $backup | Out-Null
-  Set-Acl -LiteralPath $backup -AclObject (Get-Acl -LiteralPath (Join-Path $state 'secrets'))
-  foreach($db in @('factuez_billing','factuez_sunat')) {
-   Invoke-Compose -Arguments @('exec','--no-TTY','postgres','pg_dump','-U','postgres','-d',$db,'--format=custom','--file',('/tmp/'+$db+'-before-igv-gre.dump'))
-   Invoke-Compose -Arguments @('cp',('postgres:/tmp/'+$db+'-before-igv-gre.dump'),(Join-Path $backup ($db+'.dump')))
-  }
-  Copy-Item -LiteralPath (Join-Path $state 'secrets') -Destination (Join-Path $backup 'secrets') -Recurse
-  Copy-Item -LiteralPath $envFile -Destination (Join-Path $backup 'public.env')
-  foreach($service in @('billing-service','sunat-service')) {Invoke-Compose -Arguments @('run','--rm','--no-deps','--entrypoint','node',$service,'scripts/update-igv-catalogs-gre.cjs',$service,'--apply')}
-  Invoke-Compose -Arguments @('up','--detach','--no-build','--wait','--wait-timeout','300')
-  Assert-AuthenticationKeys;Assert-WebAccess
-  Write-Host ('Update completed; backup: '+$backup+'. Transmission flags and existing keys retained.');return
  }
  foreach($service in @('billing-service','sunat-service')) {Invoke-Compose -Arguments @('run','--rm','--no-deps','--entrypoint','node',$service,'scripts/update-igv-catalogs-gre.cjs',$service,'--check')}
  return
@@ -129,6 +137,7 @@ if($Action -eq 'Prepare') {
  [IO.File]::WriteAllText((Join-Path $state 'prepared.marker'),"NEW_WINDOWS_TEST_INSTALLATION`n",$utf8)
  New-Item -ItemType Directory -Force -Path (Join-Path $state 'pki') | Out-Null
  foreach($side in @('identity','billing','sunat')){New-Item -ItemType Directory -Force -Path (Join-Path $state ('gre/'+$side)) | Out-Null}
+ & (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action RecordRelease
  Write-Host 'Prepared. Password was not printed. Continue with Start.';return
 }
 if($Action -eq 'Start') {
@@ -157,3 +166,4 @@ if($Action -eq 'DisableBootstrap') {
 }
 if($Action -eq 'Stop'){Invoke-Compose -Arguments @('stop','--timeout','90');return}
 Invoke-Compose -Arguments @('ps')
+}finally{if($operationLock){$operationLock.Dispose();Remove-Item -LiteralPath (Join-Path $state 'operations.lock') -Force}}

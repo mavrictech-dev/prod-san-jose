@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),{spawnSync}=require('node:child_proce
 assert.deepEqual(process.argv.slice(2),['--isolated-synthetic-only']);const temp=mkdtempSync(join(tmpdir(),'factuez-jwt-permissions-'));
 function docker(args,allow=false){const r=spawnSync('docker',['--context','desktop-linux',...args],{encoding:'utf8',windowsHide:true,timeout:60000,maxBuffer:1048576});if(!allow)assert.equal(r.status,0,'ISOLATED_JWT_TEST_FAILED '+r.stderr.slice(0,120));return r;}
 try{
- const image=docker(['image','inspect','factuez-stage2-qa/identity-service:prepared-v2-20261028','--format','{{.Id}}']).stdout.trim();assert.match(image,/^sha256:[a-f0-9]{64}$/);
+ const image=docker(['image','inspect',process.env.WINDOWS_TEST_IDENTITY_IMAGE??'factuez-stage2-qa/identity-service:prepared-v2-20261028','--format','{{.Id}}']).stdout.trim();assert.match(image,/^sha256:[a-f0-9]{64}$/);
  const base=['run','--rm','--pull','never','--network','none','--memory','256m','--mount','type=bind,source='+temp+',target=/keys','--entrypoint','node'];
  const generate="const f=require('node:fs'),c=require('node:crypto');const k=c.generateKeyPairSync('rsa',{modulusLength:3072,privateKeyEncoding:{type:'pkcs8',format:'pem'},publicKeyEncoding:{type:'spki',format:'pem'}});for(const [n,b]of [['jwt_private_key',k.privateKey],['jwt_public_key',k.publicKey]])f.writeFileSync('/keys/'+n,b,{mode:0o600,flag:'wx'});";
  docker([...base,'--user','0:0',image,'-e',generate]);

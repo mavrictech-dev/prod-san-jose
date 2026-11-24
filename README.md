@@ -1,4 +1,21 @@
-# FactuEz — San José · Windows 11 Pro (pruebas)
+# FactuEz — San José · Windows 11 Pro con Docker
+
+## Operación de una instalación existente
+
+Desde la carpeta original del cliente, estos comandos reutilizan el proyecto `factuez-san-jose-test`, sus volúmenes y `.installation/windows-test`:
+
+```powershell
+$ops = '.\infra\deployment\windows-test\Operate-Production.ps1'
+& $ops -Action Status
+& $ops -Action Backup -ExternalDestination 'E:\FactuEz-Respaldo' -ExternalDestinationReviewed
+& $ops -Action VerifyBackup -BackupPath 'E:\FactuEz-Respaldo\<respaldo-completo>'
+# Sólo hacia un destino nuevo y aislado; nunca sobre la instalación activa:
+& $ops -Action RestoreBackup -BackupPath 'E:\FactuEz-Respaldo\<respaldo-completo>' -RecoveryPath 'C:\FactuEz-Recuperacion' -RecoveryProject 'factuez-recovery-revision-20261124'
+```
+
+Backup verifica la restauración de las cinco bases y conserva originales, volúmenes, claves y configuración con ACL privada. Un respaldo sólo local no protege de pérdida del disco; revisar que el destino externo esté en otro disco o fuera del equipo. Ver [operación, activación y recuperación](api-contracts/WINDOWS_OPERACION_RECUPERACION.md).
+
+El estado de la máquina, los gates del servidor y la aceptación fiscal por RUC se informan por separado. Sin instalación o transporte disponible el estado es desconocido; contenedores sanos no prueban activación. **GRE regulado/combustibles continúa no soportado**: la entrada «Production» no cambia los perfiles admitidos.
 
 ## Actualización de IGV catálogos y guías
 
@@ -14,7 +31,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\infra\deployment\windo
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\infra\deployment\windows-test\Install-Test.ps1 -Action Update
 ```
 
-Update detiene Billing y SUNAT, respalda sus bases y secretos en la carpeta privada de instalación, aplica cambios aditivos por propietario y reinicia con las imágenes compiladas. Conserva los volúmenes, usuarios, claves y correlativos. No repetir Prepare. `CheckUpdate` permite diagnosticar migraciones pendientes antes de Update; ese diagnóstico termina con código distinto de cero cuando hay trabajo pendiente.
+Update detiene todos los escritores, respalda y restaura de prueba las cinco bases y los datos persistentes, aplica cambios aditivos por propietario y reinicia con las imágenes compiladas. Conserva los volúmenes, usuarios, claves y correlativos. No repetir Prepare. Para enviar también el respaldo a un destino revisado usar `Operate-Production.ps1 -Action Update -ExternalDestination 'E:\FactuEz-Respaldo' -ExternalDestinationReviewed`. `CheckUpdate` permite diagnosticar migraciones pendientes antes de Update; ese diagnóstico termina con código distinto de cero cuando hay trabajo pendiente.
 
 **Elegir Producción en Configuración SUNAT sólo selecciona el ambiente de las credenciales.** La página muestra también el ambiente real de emisión. Se pueden reutilizar grupos del mismo RUC entre ambientes con confirmación, revisión y nuevo cifrado, sin volver a escribir secretos ni mostrarlos en el navegador. El paso efectivo a Producción exige autorización vigente, turnos cerrados y series nuevas cuando hay historial Beta.
 

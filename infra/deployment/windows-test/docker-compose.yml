@@ -32,7 +32,13 @@
         "-c",
         "work_mem=8MB",
         "-c",
-        "max_connections=100"
+        "max_connections=100",
+        "-c",
+        "fsync=on",
+        "-c",
+        "synchronous_commit=on",
+        "-c",
+        "full_page_writes=on"
       ],
       "environment": {
         "TZ": "America/Lima",
