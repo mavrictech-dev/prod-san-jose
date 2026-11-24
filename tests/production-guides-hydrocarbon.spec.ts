@@ -19,7 +19,7 @@ describe('ordinary hydrocarbon GRE, current official rules offline',()=>{
    const signed=signLocalGuideXml({issuerRuc:s.issuer.ruc,documentType:'09',fullNumber:x.fullNumber,unsignedXml:x.xml},pki.issuer.pkcs12,pki.password);
    await validateOfficialGreXml(signed.xml,`${s.issuer.ruc}-09-${x.fullNumber}.xml`);xmls.push(signed.xml);
   }
-  const run=spawnSync('python',[fileURLToPath(new URL('./production-guides-xsd.py',import.meta.url))],{input:JSON.stringify({xmls}),encoding:'utf8',windowsHide:true,timeout:30000});expect(run.status,run.stderr).toBe(0);
+  const run=spawnSync(process.platform==='win32'?'python':'python3',[fileURLToPath(new URL('./production-guides-xsd.py',import.meta.url))],{input:JSON.stringify({xmls}),encoding:'utf8',windowsHide:true,timeout:30000});expect(run.status,run.stderr).toBe(0);
  },60000);
  it('requires new classification, supported physical family and SCOP',()=>{
   for(const mutate of [(b:any)=>delete b.hydrocarbon,(b:any)=>b.regulatedGoods=false,(b:any)=>b.hydrocarbon.family='GNV',(b:any)=>b.hydrocarbon.scopCode='1',(b:any)=>b.hydrocarbon.senderRegistration='',(b:any)=>b.hydrocarbon.vehicleAuthorization=null]){const s=fuelSnapshot();mutate(s.body);expect(()=>validateProductionGuidesSnapshot(s)).toThrow();}

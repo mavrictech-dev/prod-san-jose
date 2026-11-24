@@ -51,3 +51,13 @@ Las pruebas usan emisores, certificados, CDR y bases sintéticas. Cubren XML fir
 Quedan por verificar en la instalación del cliente sus RUC, certificados, accesos, registros, rutas, modalidad de transporte y respuesta oficial. No se realizaron transmisiones fiscales del cliente. No se declara cobertura de GNV móvil, GRE 31 de combustibles, GRE-BF ni aceptación real basándose en las pruebas sintéticas.
 
 Fuentes principales: [manuales GRE](https://cpe.sunat.gob.pe/node/116), [bienes fiscalizados](https://orientacion.sunat.gob.pe/427-bienes-o-insumos-fiscalizados), [Ley 32412](https://orientacion.sunat.gob.pe/15-ley-32412).
+
+## Evidencia de integración del 24/11/2026
+
+- Compilación completa: 21 tareas aprobadas; contratos y servicio SUNAT recompilados después de corregir la documentación de productos.
+- Siete suites pertinentes: 24 pruebas aprobadas tras corregir el conteo de migraciones y evitar que la documentación GRE sobrescribiera los contratos detallados de productos.
+- Imagen Linux SUNAT final, usuario 1000 y sin red: seis pruebas aprobadas, incluyendo ocho XML firmados (cuatro familias y dos modalidades) con Python/lxml del contenedor.
+- Ensayo Windows/Docker: inicialización de cinco propietarios, acceso real del administrador, bootstrap deshabilitado, checksum alterado rechazado, reinicio y SIGKILL conservando datos/correlativos, respaldo completo restaurado, verificación sin Docker, restauración aislada de originales y claves, corrupción detectada y fallo de dump sin marcador de finalización.
+- El ensayo de operaciones utiliza exclusivamente imágenes y datos de prueba identificados por etiquetas. La puesta en marcha local se verifica por separado; no se presenta como prueba en la PC del cliente ni como aceptación de SUNAT.
+
+La prueba Windows detectó y permitió corregir la conversión de argumentos de PowerShell 5 al restaurar roles; ahora usa un archivo shell fijo con finales LF. En esta PC también se detectó agotamiento de pools de red Docker; las instalaciones nuevas seleccionan subredes libres explícitas sin modificar los proyectos existentes.
