@@ -1,3 +1,4 @@
+import {nativeBillingFetch} from '@factuez/service-access/dist/native-b2b-rpc';
 import {ProductionNotesArtifactsService} from './production-notes-artifacts.service';
 import {
   Injectable,
@@ -42,7 +43,7 @@ export class ArtifactDeliveryService {
     // No se consulta su base ni se confía en IDs o RUC enviados por el cliente.
     let response: Response;
     try {
-      response = await fetch(
+      response = await nativeBillingFetch(`/api/v1/documents/${documentId}`,authorization!,()=>fetch(
         `${process.env.BILLING_INTERNAL_URL ?? "http://billing-service:3002"}/api/v1/documents/${documentId}`,
         {
           headers: {
@@ -53,7 +54,7 @@ export class ArtifactDeliveryService {
           signal: AbortSignal.timeout(5000),
           redirect: "error",
         },
-      );
+      ));
     } catch {
       throw new ServiceUnavailableException(
         "No se pudo verificar el acceso al documento",

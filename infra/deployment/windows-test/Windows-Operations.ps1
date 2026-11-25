@@ -144,7 +144,7 @@ function Restore-Databases($Base,$Name,$PgImage,$DataVolume=''){
 function Snapshot-Release {
  $paths=@('infra/deployment/windows-test','infra/deployment/core-production/kong.yml','docker/Dockerfile.service','docker/Dockerfile.web-pwa','scripts/update-igv-catalogs-gre.cjs','scripts/export-production-schemas.cjs','scripts/export-windows-test-schemas.cjs')
  $files=@(foreach($p in $paths){Get-ChildItem -LiteralPath (Join-Path $root $p) -File -Recurse|ForEach-Object {@{path=$_.FullName.Substring($root.Length+1).Replace('\','/');sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}}})
- foreach($service in @('billing-service','sunat-service')){foreach($p in Get-ChildItem -LiteralPath (Join-Path $root ('services/'+$service+'/prisma')) -Filter '*.sql' -File -Recurse){$files+=@{path=$p.FullName.Substring($root.Length+1).Replace('\','/');sha256=(Get-FileHash -LiteralPath $p.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}}}
+ foreach($service in @('identity-service','billing-service','sunat-service')){foreach($p in Get-ChildItem -LiteralPath (Join-Path $root ('services/'+$service+'/prisma')) -Filter '*.sql' -File -Recurse){$files+=@{path=$p.FullName.Substring($root.Length+1).Replace('\','/');sha256=(Get-FileHash -LiteralPath $p.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}}}
  $commit=& git -C $root rev-parse HEAD 2>$null
  if($LASTEXITCODE -ne 0){$commit='UNKNOWN'}
  $changes=@(& git -C $root status --porcelain --untracked-files=normal 2>$null)
@@ -311,6 +311,14 @@ function Status {
   $disk=$DockerDiskPath
   if(-not $disk){$disk=Join-Path $env:LOCALAPPDATA 'Docker/wsl/disk/docker_data.vhdx'}
   if(Test-Path -LiteralPath $disk -PathType Leaf){
+   # Resolve Docker's directory junction so storage alerts inspect the physical disk.
+   $disk=[IO.Path]::GetFullPath($disk)
+   $parent=Get-Item -LiteralPath ([IO.Path]::GetDirectoryName($disk))
+   if($parent.PSObject.Properties.Name -contains 'LinkType' -and $parent.LinkType -eq 'Junction'){
+    $targets=@($parent.Target);if($targets.Count -ne 1 -or -not [IO.Path]::IsPathRooted($targets[0])){throw 'DOCKER_DISK_TARGET_AMBIGUOUS'}
+    $disk=Join-Path $targets[0] ([IO.Path]::GetFileName($disk))
+    if(-not(Test-Path -LiteralPath $disk -PathType Leaf)){throw 'DOCKER_DISK_TARGET_MISSING'}
+   }
    $hostDrive=[IO.DriveInfo]::new([IO.Path]::GetPathRoot([IO.Path]::GetFullPath($disk)))
    $storage.dockerDisk=[IO.Path]::GetFullPath($disk)
    $storage['dockerHostFreeBytes']=$hostDrive.AvailableFreeSpace
@@ -321,7 +329,7 @@ function Status {
  try {
   $all=@(Containers)
   $report.services=@($all|ForEach-Object {
-   $flags=@{};foreach($item in @($_.Config.Env)){if($item -match '^((?:BILLING_PRODUCTION_ISSUANCE|SUNAT_PRODUCTION_WORKFLOW|NATIVE_GRE|NATIVE_GRE_WORKERS)_ENABLED)=(true|false)$'){$flags[$matches[1]]=$matches[2]}}
+   $flags=@{};foreach($item in @($_.Config.Env)){if($item -match '^((?:BILLING_PRODUCTION_ISSUANCE|SUNAT_PRODUCTION_WORKFLOW|BILLING_PRODUCTION_NOTES|SUNAT_PRODUCTION_NOTES|NATIVE_B2B|NATIVE_GRE|NATIVE_GRE_WORKERS)_ENABLED)=(true|false)$'){$flags[$matches[1]]=$matches[2]}}
    $health='UNKNOWN';if($_.State.PSObject.Properties.Name -contains 'Health'){$health=$_.State.Health.Status}
    $revision='UNKNOWN';if($_.Config.Labels.PSObject.Properties.Name -contains 'org.opencontainers.image.revision'){$revision=$_.Config.Labels.'org.opencontainers.image.revision'}
    @{service=$_.Config.Labels.'com.docker.compose.service';status=$_.State.Status;health=$health;imageId=$_.Image;configuredImage=$_.Config.Image;revision=$revision;flags=$flags;mounts=@($_.Mounts|ForEach-Object {@{type=$_.Type;destination=$_.Destination;source=$_.Source;writable=$_.RW}})}
@@ -408,7 +416,7 @@ try {
   try {
   Write-Json (Join-Path $state 'last-update.json') @{version=1;status='MIGRATING';backup=$verified;startedUtc=[DateTime]::UtcNow.ToString('o')}
   # Writers stay quiesced from backup through migrations; failed migration leaves them stopped.
-  foreach($service in @('billing-service','sunat-service')){Phase ('MIGRATE_'+$service);Compose @('run','--rm','--no-deps','--entrypoint','node',$service,'scripts/update-igv-catalogs-gre.cjs',$service,'--apply')|Out-Null}
+  foreach($service in @('identity-service','billing-service','sunat-service')){Phase ('MIGRATE_'+$service);Compose @('run','--rm','--no-deps','--entrypoint','node',$service,'scripts/update-igv-catalogs-gre.cjs',$service,'--apply')|Out-Null}
   Compose @('up','--detach','--no-build','--wait','--wait-timeout','300')|Out-Null
   Write-Json (Join-Path $state 'last-update.json') @{version=1;status='APPLIED';backup=$verified;finishedUtc=[DateTime]::UtcNow.ToString('o');fiscalAcceptance='NOT_ESTABLISHED'}
   Write-Host ('UPDATE_APPLIED: '+$verified+'; inspect Status and authenticated per-RUC readiness before operation.')

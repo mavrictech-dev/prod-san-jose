@@ -1,4 +1,9 @@
+import {NativeB2bCommands} from './native-b2b-commands';
+import {NativeB2bWriteController} from './native-b2b-write.controller';
 import {productionGuidesBillingHost} from './production-guides-host';
+import {NativeB2bBillingAuthority} from './native-b2b-authority';
+import {NativeB2bReads} from './native-b2b-read';
+import {NativeB2bReadController,NativeB2bBillingPrivateController} from './native-b2b-read.controller';
 import {ProductionGuidesOwner} from './production-guides-owner';
 import {ProductionGuidesBillingRuntime} from './production-guides-runtime';
 import {PRODUCTION_GUIDES_BILLING_CONTROLLERS} from './production-guides.module';
@@ -32,15 +37,15 @@ import { FinancialLedgerCandidateService } from './application/financial-ledger-
 
 @Module({
   imports: [ScheduleModule.forRoot()],
-  controllers: [...PRODUCTION_GUIDES_BILLING_CONTROLLERS,CatalogTaxController,...PRODUCTION_NOTES_BILLING_CONTROLLERS, DocumentsController, StationsController, ProductsController, ClientIntakeController, PrintSettingsController, HealthController],
-  providers: [{provide:'NATIVE_GRE_ASSEMBLY',inject:[PrismaService],useFactory:productionGuidesBillingHost},
+  controllers: [NativeB2bWriteController,NativeB2bReadController,NativeB2bBillingPrivateController,...PRODUCTION_GUIDES_BILLING_CONTROLLERS,CatalogTaxController,...PRODUCTION_NOTES_BILLING_CONTROLLERS, DocumentsController, StationsController, ProductsController, ClientIntakeController, PrintSettingsController, HealthController],
+  providers: [{provide:'NATIVE_GRE_ASSEMBLY',inject:[PrismaService,NativeB2bBillingAuthority],useFactory:productionGuidesBillingHost},
     {provide:ProductionGuidesOwner,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.owner},
     {provide:ProductionGuidesBillingRuntime,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.runtime??{}},
     {provide:PRODUCTION_GUIDES_BILLING_PRIVATE_PEERS,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.privatePeers},
     {provide:'NATIVE_GRE_CLEANUP',inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>({onModuleDestroy:async()=>{await a.runtime?.onModuleDestroy();a.close();}})},
 {provide:'NATIVE_GRE_LISTENER',useClass:NativeGreListenerLifecycle},CatalogTaxService,
     ...PRODUCTION_NOTES_BILLING_PROVIDERS,
-    PrismaService,
+    PrismaService,NativeB2bBillingAuthority,NativeB2bReads,NativeB2bCommands,
     StationAdminService,
     ProductAdminService,
     PrintBrandingService,

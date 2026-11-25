@@ -1,3 +1,4 @@
+import {nativeBillingFetch} from '@factuez/service-access/dist/native-b2b-rpc';
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException,
   OnModuleDestroy, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { createHash, X509Certificate } from 'node:crypto';
@@ -51,9 +52,9 @@ export class ProductionNotesArtifactsService implements OnModuleDestroy {
   private async billing(id: string, authorization: string) {
     let response: Response;
     try {
-      response = await fetch(`${process.env.BILLING_INTERNAL_URL ?? 'http://billing-service:3002'}/api/v1/documents/${id}`, {
+      response = await nativeBillingFetch(`/api/v1/documents/${id}`,authorization!,()=>fetch(`${process.env.BILLING_INTERNAL_URL ?? 'http://billing-service:3002'}/api/v1/documents/${id}`, {
         headers: { Authorization: authorization, Accept: 'application/json', 'Cache-Control': 'no-store' },
-        redirect: 'error', signal: AbortSignal.timeout(5000) });
+        redirect: 'error', signal: AbortSignal.timeout(5000) }));
     } catch { throw new ServiceUnavailableException('No se pudo verificar el acceso actual a la nota/original'); }
     if (response.status === 401) throw new UnauthorizedException('Inicie sesión nuevamente');
     if (response.status === 403) throw new ForbiddenException('Documento fuera de su alcance');

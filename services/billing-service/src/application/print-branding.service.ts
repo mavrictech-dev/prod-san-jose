@@ -11,6 +11,7 @@ import { PrintBrandingStore } from '../infrastructure/print-branding-store';
 import { plainObject, validatePrintDraft } from './print-branding-validation';
 import { calculateDocumentTotals } from './totals';
 import { b2bBindingsContain, validB2bPrincipal, type B2bBinding, type B2bPrincipal } from '@factuez/contracts/b2b-security';
+import type {ProductionActor} from '@factuez/service-access/dist/b2b-production-contract';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type Issuer = { id: number; ruc: string; legalName: string; tradeName?: string | null; taxAddress: string; environment: string };
@@ -42,7 +43,7 @@ export class PrintBrandingService implements OnModuleInit {
       throw new BadRequestException('Seleccione un RUC y una sede válidos.');
     const company = await this.prisma.companySettings.findUnique({ where: { id: Number(companyId) },
       select: { id: true, ruc: true, legalName: true, tradeName: true, taxAddress: true, environment: true, active: true } });
-    if (!company || company.environment !== 'BETA' || (!historicalRead && company.active === false)) throw new ForbiddenException('Emisor no disponible en el entorno de desarrollo Beta.');
+    if (!company || !['BETA','PRODUCTION'].includes(company.environment) || (!historicalRead && company.active === false)) throw new ForbiddenException('Emisor no disponible en el ambiente seleccionado.');
     const branch = branchId ? await this.prisma.branch.findFirst({ where: { id: String(branchId).toLowerCase(), companyId: company.id, ...(!historicalRead ? { active: true } : {}) },
       select: { id: true, companyId: true, name: true, address: true } }) : null;
     if (branchId && !branch) throw new ForbiddenException('La sede no pertenece al RUC seleccionado o no está activa.');
@@ -68,8 +69,14 @@ export class PrintBrandingService implements OnModuleInit {
     if (!validB2bPrincipal(principal) || !principal.scopes.includes('b2b:documents:read') || !principal.scopes.includes('b2b:artifacts:read') || !b2bBindingsContain(principal.bindings, binding))
       throw new ForbiddenException('Documento de impresión fuera de su alcance B2B.');
     const context = await this.context(String(binding.issuerId), binding.branchId, true);
-    if (context.company.ruc !== binding.issuerRuc) throw new ForbiddenException('RUC de impresión inconsistente.');
+    if (context.company.environment !== 'BETA' || context.company.ruc !== binding.issuerRuc) throw new ForbiddenException('RUC o ambiente de impresión BETA inconsistente.');
     return this.store.freeze(context.target);
+  }
+  async snapshotForProductionService(companyId:string,branchId:unknown,actor:ProductionActor){
+    if(typeof branchId!=='string'||!UUID.test(branchId))throw new BadRequestException('Seleccione la sede del documento para consultar su formato.');
+    const own=await this.context(companyId,branchId,true);
+    if(!actor.grants.some(g=>g.scope==='production:documents:read'&&g.binding.ruc===own.company.ruc&&g.binding.branchId===branchId))throw new ForbiddenException('Formato fuera del alcance de la aplicación.');
+    return this.store.freeze(own.target);
   }
   async save(companyId: string, branchId: unknown, body: unknown, user?: AccessTokenClaims) {
     this.authorize(user); const context = await this.context(companyId, branchId);
@@ -84,7 +91,7 @@ export class PrintBrandingService implements OnModuleInit {
   async freezeIssued(company: Pick<Issuer, 'id' | 'ruc' | 'environment'>, branch: Branch): Promise<FrozenPrintPresentationV1 | undefined> {
     if (process.env.PRINT_SETTINGS_ENABLED !== 'true') return undefined;
     this.enabled();
-    if (company.environment !== 'BETA' || branch.companyId !== company.id || !UUID.test(branch.id))
+    if (!['BETA','PRODUCTION'].includes(company.environment) || branch.companyId !== company.id || !UUID.test(branch.id))
       throw new ForbiddenException('Contexto de impresión no autorizado.');
     return this.store.freeze({ companyId: company.id, issuerRuc: company.ruc, branchId: branch.id,
       branchName: branch.name, ...(branch.address ? { branchAddress: branch.address } : {}) });

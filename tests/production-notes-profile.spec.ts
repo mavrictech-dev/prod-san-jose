@@ -72,7 +72,7 @@ function ownerFixture() {
     const doc: any = { id: o.documentId, companyId: 1, seriesCounterId: randomUUID(), emissionPointId: pointId, type: 'INVOICE', status: 'ISSUED', sunatStatus: 'ACCEPTED', series: o.series, number: 2n, fullNumber: o.fullNumber, customerIdentityNumber: o.customer.identityNumber, immutableSnapshot: JSON.parse(JSON.stringify(o)), emissionPoint: point };
     const state = { counter: 1n, reservations: [] as any[], outbox: [] as any[], notes: [] as any[], refs: [] as any[] };
     const actor = { userId: actorId, scope: { kind: 'GLOBAL' as const }, authorization: 'Bearer FICTITIOUS.OWNER' };
-    const tx: any = { document: { findUnique: vi.fn(async ({ where }: any) => where.id === o.documentId ? doc : state.notes.find(n => n.id === where.id)), create: vi.fn(async ({ data }: any) => { state.notes.push(data); state.refs.push({ sourceDocumentId: data.id }); return data; }), updateMany: vi.fn() }, seriesCounter: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, companyId: 1, emissionPointId: pointId, documentType: where.id === debitSeriesId ? 'DEBIT_NOTE' : 'CREDIT_NOTE', series: where.id === debitSeriesId ? 'FD01' : 'FC01', active: true, nextNumber: state.counter })), findMany: vi.fn(async () => []), updateMany: vi.fn(async ({ where, data }: any) => { if (where.nextNumber !== state.counter)
+    const tx: any = { document: { findUnique: vi.fn(async ({ where }: any) => where.id === o.documentId ? doc : state.notes.find(n => n.id === where.id)), create: vi.fn(async ({ data }: any) => { state.notes.push(data); state.refs.push({ sourceDocumentId: data.id }); return data; }), updateMany: vi.fn() }, seriesCounter: { findUnique: vi.fn(async ({ where }: any) => ({ id: where.id, companyId: 1, emissionPointId: pointId, documentType: where.id === debitSeriesId ? 'DEBIT_NOTE' : 'CREDIT_NOTE', series: where.id === debitSeriesId ? 'FD01' : 'FC01', active: true, environment: 'PRODUCTION', nextNumber: state.counter })), findMany: vi.fn(async () => []), updateMany: vi.fn(async ({ where, data }: any) => { if (where.nextNumber !== state.counter)
                 return { count: 0 }; state.counter += data.nextNumber.increment; return { count: 1 }; }) }, documentReference: { findMany: vi.fn(async () => structuredClone(state.refs)) } };
     tx.$queryRawUnsafe = vi.fn(async (sql: string, ...args: any[]) => { if (sql.startsWith('SELECT * FROM "ProductionNotesReservation"'))
         return sql.includes('"operationId"') ? state.reservations.filter(r => r.operationId === args[0]) : structuredClone(state.reservations); return []; });
@@ -122,7 +122,7 @@ describe('Billing-to-SUNAT admission HTTP has exact owner attestation, not a use
             return Response.json({ authorized: true });
         });
         vi.stubGlobal('fetch', transport);
-        await expect(service.remote(1, 'admission', body, 'Bearer FICTITIOUS.HUMAN')).resolves.toEqual({ authorized: true });
+        await expect(service.remote(1, 'admission', body, {authorization:'Bearer FICTITIOUS.HUMAN',userId:actorId,scope:{kind:'GLOBAL'}})).resolves.toEqual({ authorized: true });
         expect(transport).toHaveBeenCalledOnce();
     });
 });

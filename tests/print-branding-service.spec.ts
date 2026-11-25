@@ -40,10 +40,14 @@ describe('autorización y alcance de formatos', () => {
     await expect(service.settings('1', siteId, user as never)).rejects.toMatchObject({ status: 403 });
     expect(prisma.companySettings.findUnique).not.toHaveBeenCalled();
   });
-  it('rechaza un emisor configurado en producción', async () => {
+  it('configura y congela formatos productivos sin cambiar sus datos fiscales', async () => {
     prisma.companySettings.findUnique.mockResolvedValue({ ...issuer, environment: 'PRODUCTION' });
-    await expect(service.settings('1', undefined, actor)).rejects.toMatchObject({ status: 403 });
-    expect(await readdir(join(root, 'profiles'))).toHaveLength(0);
+    await service.save('1', siteId, {expectedRevision:0,settings:DEFAULT_PRINT_BRANDING}, actor);
+    const frozen=await service.freezeIssued({...issuer,environment:'PRODUCTION'}, {id:siteId,companyId:1,name:'SEDE FICTICIA'});
+    expect(frozen).toMatchObject({issuerRuc:issuer.ruc,branchId:siteId,profileRevision:1});
+    expect((await service.snapshot('1',siteId,actor)).issuerRuc).toBe(issuer.ruc);
+    expect(issuer.environment).toBe('BETA');
+    await expect(service.freezeIssued({...issuer,environment:'PRODUCTION'}, {id:siteId,companyId:2,name:'AJENA'})).rejects.toMatchObject({status:403});
   });
   it('no reasigna una sede al consultar otro RUC', async () => {
     prisma.branch.findFirst.mockResolvedValue(null);

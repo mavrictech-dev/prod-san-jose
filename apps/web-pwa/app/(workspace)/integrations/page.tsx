@@ -1,4 +1,6 @@
 "use client";
+import {NativeProductionApplications} from '../../../features/b2b/native-production-applications';
+
 
 import Link from 'next/link';
 import { Button } from '@factuez/ui/components/button';
@@ -16,13 +18,14 @@ export default function IntegrationsPage() {
     <nav aria-label="Accesos de conexiones" className="flex flex-wrap gap-2">
       {can('document.view') && <Button asChild><Link href="/stations">Gestionar RUC</Link></Button>}
       {can('sunat.configure') && <Button variant="outline" asChild><Link href="/sunat-settings">Cargar credenciales</Link></Button>}
-      <Button variant="outline" asChild><a href="/api-docs" target="_blank" rel="noopener noreferrer">Swagger B2B</a></Button>
+      <Button variant="outline" asChild><a href="/b2b-api-reference" target="_blank" rel="noopener noreferrer">Swagger B2B</a></Button>
       {can('sunat.configure') && <Button variant="outline" asChild><Link href="/api-reference">API del sistema</Link></Button>}
       <Button variant="outline" asChild><a href="#b2b-access">Aplicaciones B2B</a></Button>
       <Button variant="outline" asChild><a href="#issuer-services">Servicios por emisor</a></Button>
     </nav>
     <section id="b2b-access" aria-label="Acceso a aplicaciones B2B" className="scroll-mt-6">
-      <AdminSsoSessionHost />
+      <NativeProductionApplications />
+      <details className="mt-5 rounded-lg border p-4"><summary>Integraciones del laboratorio BETA</summary><AdminSsoSessionHost /></details>
     </section>
     <section id="issuer-services" aria-label="Configuración de servicios por emisor" className="scroll-mt-6">
       <ConfigurationOverview />

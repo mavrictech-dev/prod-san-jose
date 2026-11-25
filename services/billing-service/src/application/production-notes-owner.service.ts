@@ -1,11 +1,15 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {NativeB2bBillingAuthority,type NativeServiceContext} from '../native-b2b-authority';
+import {inputField} from '../native-input-errors';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { allowsResource, PRODUCTION_NOTES_ISSUED, PRODUCTION_NOTES_PROFILE, PRODUCTION_NOTES_EXTENDED_PROFILE, PRODUCTION_NOTES_MIXED_PROFILE, type AccessScope, type FiscalDocumentSnapshot, type ProductionNotesExtendedAcceptance as ProductionNotesAcceptance, type ProductionNotesAnyAdmission as ProductionNotesAdmission, type ProductionNotesAnyIssued as ProductionNotesIssued, type ProductionNotesAnySnapshot as ProductionNotesSnapshot } from '@factuez/contracts';
 import { assertProductionNotesExtendedOriginal as assertProductionNotesOriginal, assertProductionNotesAnySnapshot as assertProductionNotesSnapshot, buildProductionNotesSnapshot, buildProductionNotesExtendedSnapshot, fiscalSnapshotSha256, productionNotesExtendedAdjustment as productionNotesAdjustment, signProductionNotesOwner } from '@factuez/sunat-core';
 import { PrismaService } from '../infrastructure/prisma.service';
 import type { Prisma } from '../generated/prisma/client';
 type Actor = {
-    userId: string;
+    userId: string | null;
+    principalId?: string;
+    productionService?: NativeServiceContext;
     scope: AccessScope;
     authorization: string;
 };
@@ -23,8 +27,21 @@ const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-
 const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
 @Injectable()
 export class ProductionNotesOwnerService {
-    constructor(private readonly prisma: PrismaService) { }
-    private async remote<T>(companyId: number, kind: string, body: unknown, authorization: string): Promise<T> {
+    constructor(private readonly prisma: PrismaService,@Optional() private readonly serviceAuthority?:NativeB2bBillingAuthority) { }
+    private actorId(actor:Actor){return actor.principalId??actor.userId!;}
+    async readyB2B(originalId:string,context:NativeServiceContext){const v=await this.serviceAuthority!.verifyContext(context,context.productionBinding.documentType);return this.ready(originalId,{userId:null,principalId:v.principalId,scope:context.scope,authorization:context.authorization,productionService:context});}
+    async issueB2B(originalId:string,input:unknown,operationId:string,context:NativeServiceContext){
+      if(!this.serviceAuthority||operationId!==context.operationId)throw new ForbiddenException('INVALID_ISSUANCE_ACTOR');
+      const code=(input as any)?.adjustment?.documentTypeCode;if(!['07','08'].includes(code))throw new BadRequestException('INVALID_NOTE_PAYLOAD');
+      const verified=await this.serviceAuthority.verifyContext(context,code);
+      return this.issue(originalId,input,operationId,{userId:null,principalId:verified.principalId,scope:context.scope,authorization:context.authorization,productionService:context});
+    }
+    private async remote<T>(companyId: number, kind: string, body: unknown, actor: Actor): Promise<T> {
+        const authorization=actor.authorization;
+        if(actor.productionService){
+          const payload=kind==='admission'?{body,ownerProof:signProductionNotesOwner(body,'admission')}:{...(body as object),code:actor.productionService.productionBinding.documentType};
+          return this.serviceAuthority!.fiscal('notes/'+kind,payload,actor.productionService);
+        }
         let r: Response;
         try {
             r = await fetch((process.env.SUNAT_INTERNAL_URL ?? 'http://sunat-service:3003') + '/api/v1/setup/sunat/' + companyId + '/PRODUCTION/notes/' + kind, { method: 'POST', headers: { Authorization: authorization, 'Content-Type': 'application/json', ...(kind === 'admission' ? { 'X-Factuez-Notes-Owner': Buffer.from(JSON.stringify(signProductionNotesOwner(body, 'admission'))).toString('base64url') } : {}) }, body: JSON.stringify(body), redirect: 'error', signal: AbortSignal.timeout(15000) });
@@ -37,13 +54,18 @@ export class ProductionNotesOwnerService {
         return await r.json() as T;
     }
     private async own(tx: Prisma.TransactionClient, id: string, actor: Actor) {
-        if (!uuid.test(id) || !uuid.test(actor.userId) || !/^Bearer [A-Za-z0-9_.-]{1,8192}$/i.test(actor.authorization))
+        if (!uuid.test(id) || !uuid.test(this.actorId(actor)) || !/^Bearer [A-Za-z0-9_.-]{1,8192}$/i.test(actor.authorization))
             throw new ForbiddenException('Actor/documento inválido');
         const own = await tx.document.findUnique({ where: { id }, include: { emissionPoint: { include: { branch: true, company: true } } } });
         const snapshot = own?.immutableSnapshot as unknown as FiscalDocumentSnapshot, p = own?.emissionPoint;
         if (!own || !p?.active || !p.branch?.active || !p.company.active || p.company.environment !== 'PRODUCTION' || !['INVOICE','SALES_RECEIPT'].includes(own.type) || own.status !== 'ISSUED' ||
-            !['ACCEPTED', 'ACCEPTED_WITH_OBSERVATIONS'].includes(own.sunatStatus) || !allowsResource(actor.scope, p.branch!.id, p.id, own.seriesCounterId))
+            !['ACCEPTED', 'ACCEPTED_WITH_OBSERVATIONS'].includes(own.sunatStatus) || (!actor.productionService&&!allowsResource(actor.scope, p.branch!.id, p.id, own.seriesCounterId)))
             throw new ForbiddenException('Factura propia aceptada fuera del alcance');
+        if(actor.productionService){
+          const current=await this.serviceAuthority!.verifyContext(actor.productionService,actor.productionService.productionBinding.documentType);
+          await this.serviceAuthority!.resolve(current.actor,'production:documents:read',{ruc:p.company.ruc,branchId:p.branch!.id,pointId:p.id,series:own.series});
+          const target=current.binding;if(target.companyId!==own.companyId||target.branchId!==p.branch!.id||target.pointId!==p.id)throw new ForbiddenException('NOTE_ORIGINAL_BINDING_MISMATCH');
+        }
         assertProductionNotesOriginal(snapshot);
         if (snapshot.documentId !== own.id || snapshot.companyId !== own.companyId || snapshot.branchId !== p.branchId || snapshot.issuer.identityNumber !== p.company.ruc || snapshot.fullNumber !== own.fullNumber || snapshot.series !== own.series || BigInt(snapshot.number) !== own.number || snapshot.customer.identityNumber !== own.customerIdentityNumber)
             throw new ConflictException('Snapshot propietario inconsistente');
@@ -52,7 +74,7 @@ export class ProductionNotesOwnerService {
     async ready(originalId: string, actor: Actor) {
         return this.prisma.$transaction(async (tx) => {
             const { own, snapshot, point } = await this.own(tx, originalId, actor);
-            const series = await tx.seriesCounter.findMany({ where: { companyId: own.companyId, emissionPointId: own.emissionPointId, active: true, documentType: { in: ['CREDIT_NOTE', 'DEBIT_NOTE'] } }, orderBy: { series: 'asc' } });
+            const series = await tx.seriesCounter.findMany({ where: { companyId: own.companyId, emissionPointId: own.emissionPointId, active: true, environment:'PRODUCTION', documentType: { in: ['CREDIT_NOTE', 'DEBIT_NOTE'] } }, orderBy: { series: 'asc' } });
             return { serverEnabled: process.env.BILLING_PRODUCTION_NOTES_ENABLED === 'true', original: { documentId: own.id, fullNumber: own.fullNumber, customer: snapshot.customer, lines: snapshot.lines, totals: snapshot.totals },
                 series: series.filter(s => allowsResource(actor.scope, point.branch!.id, point.id, s.id)).map(s => ({ id: s.id, series: s.series, documentTypeCode: s.documentType === 'CREDIT_NOTE' ? '07' : '08', nextNumber: s.nextNumber.toString() })),
                 profile: PRODUCTION_NOTES_PROFILE, availableProfiles:[PRODUCTION_NOTES_PROFILE,PRODUCTION_NOTES_EXTENDED_PROFILE,PRODUCTION_NOTES_MIXED_PROFILE], originalType:snapshot.documentTypeCode, extendedReasons:{'07':['01','02','03','04','05','06','07','08','09','10'],'08':['01','02','03']}, supportedReasons: { '07': ['01'], '08': ['02'] }, note: 'La admisión revalida certificado, autorización y CDR antes de reservar. No hay liberación automática de créditos rechazados o desconocidos.' };
@@ -66,7 +88,7 @@ export class ProductionNotesOwnerService {
         const v = input as Record<string, unknown>;
         if (Object.keys(v).some(k=>!['adjustment','seriesCounterId','profile'].includes(k)) || !Object.hasOwn(v,'adjustment') || typeof v.seriesCounterId !== 'string' || !uuid.test(v.seriesCounterId))
             throw new BadRequestException('Envíe sólo serie y ajuste; el propietario obtiene el resto');
-        const adjustment = productionNotesAdjustment(v.adjustment);
+        const adjustment = inputField('adjustment','NOTE_INPUT_INVALID',()=>productionNotesAdjustment(v.adjustment));
         if(v.profile!==undefined&&![PRODUCTION_NOTES_PROFILE,PRODUCTION_NOTES_EXTENDED_PROFILE,PRODUCTION_NOTES_MIXED_PROFILE].includes(v.profile as typeof PRODUCTION_NOTES_PROFILE))throw new BadRequestException('Perfil inválido');
         const requestHash = fiscalSnapshotSha256({ originalId, input });
         for (let attempt = 0;; attempt++) {
@@ -80,13 +102,13 @@ export class ProductionNotesOwnerService {
                     await tx.$queryRawUnsafe('SELECT "id" FROM "Branch" WHERE "id"=$1::uuid FOR SHARE', point.branchId);
                     const prior = await tx.$queryRawUnsafe<Reservation[]>('SELECT * FROM "ProductionNotesReservation" WHERE "operationId"=$1::uuid', operationId);
                     if (prior[0]) {
-                        if (prior[0].requestSha256 !== requestHash || prior[0].actorId !== actor.userId || prior[0].originalId !== originalId)
+                        if (prior[0].requestSha256 !== requestHash || prior[0].actorId !== this.actorId(actor) || prior[0].originalId !== originalId)
                             throw new ConflictException('Operación utilizada por otro actor/contenido');
                         return { documentId: prior[0].documentId, eventId: prior[0].eventId, deduplicated: true };
                     }
                     await tx.$queryRawUnsafe('SELECT "id" FROM "SeriesCounter" WHERE "id"=$1::uuid FOR UPDATE', v.seriesCounterId);
                     const counter = await tx.seriesCounter.findUnique({ where: { id: v.seriesCounterId as string } }), type = adjustment.documentTypeCode === '07' ? 'CREDIT_NOTE' : 'DEBIT_NOTE';
-                    if (!counter?.active || counter.companyId !== own.companyId || counter.emissionPointId !== own.emissionPointId || counter.documentType !== type || !new RegExp('^'+(snapshot.documentTypeCode==='03'?'B':'F')+'[A-Z0-9]{3}$').test(counter.series) || !allowsResource(actor.scope, point.branch!.id, point.id, counter.id))
+                    if (!counter?.active || counter.environment!=='PRODUCTION' || counter.companyId !== own.companyId || counter.emissionPointId !== own.emissionPointId || counter.documentType !== type || !new RegExp('^'+(snapshot.documentTypeCode==='03'?'B':'F')+'[A-Z0-9]{3}$').test(counter.series) || !allowsResource(actor.scope, point.branch!.id, point.id, counter.id))
                         throw new ForbiddenException('Serie de nota fuera del punto y alcance');
                     if (counter.nextNumber < 1n || counter.nextNumber > 99999999n)
                         throw new ConflictException('Correlativo agotado');
@@ -108,29 +130,30 @@ export class ProductionNotesOwnerService {
                         if (n.documentTypeCode === '07')
                             credits.push(n);
                     }
-                    const acceptance = await this.remote<ProductionNotesAcceptance>(own.companyId, 'original-evidence', { original: snapshot }, actor.authorization);
+                    const acceptance = await this.remote<ProductionNotesAcceptance>(own.companyId, 'original-evidence', { original: snapshot }, actor);
                     const documentId = randomUUID(), eventId = randomUUID(), issueDate = new Date().toISOString();
                     const extended=snapshot.lines.some(l=>l.taxAffectationCode!=='10')||v.profile===PRODUCTION_NOTES_MIXED_PROFILE||v.profile===PRODUCTION_NOTES_EXTENDED_PROFILE||snapshot.documentTypeCode==='03'||(adjustment.documentTypeCode==='07'?adjustment.reasonCode!=='01':adjustment.reasonCode!=='02')||credits.some(n=>n.profile===PRODUCTION_NOTES_EXTENDED_PROFILE);
                     if(v.profile===PRODUCTION_NOTES_PROFILE&&extended)throw new BadRequestException('El motivo/original requiere perfil extendido');
-                    const note:ProductionNotesSnapshot = extended
+                    const note:ProductionNotesSnapshot = inputField('adjustment','NOTE_INPUT_INVALID',()=>extended
                       ? buildProductionNotesExtendedSnapshot(snapshot,acceptance,adjustment,{documentId,series:counter.series,number:counter.nextNumber.toString(),issueDate},credits)
-                      : buildProductionNotesSnapshot(snapshot,acceptance as import('@factuez/contracts').ProductionNotesAcceptance,adjustment,{documentId,series:counter.series,number:counter.nextNumber.toString(),issueDate},credits as import('@factuez/contracts').ProductionNotesSnapshot[]);
+                      : buildProductionNotesSnapshot(snapshot,acceptance as import('@factuez/contracts').ProductionNotesAcceptance,adjustment,{documentId,series:counter.series,number:counter.nextNumber.toString(),issueDate},credits as import('@factuez/contracts').ProductionNotesSnapshot[]));
                     if (note.lines.some(l => (l.productCode?.length ?? 0) > 40))
                         throw new ConflictException('Código de producto excede límite propietario; no se trunca');
-                    const ownerRevisionSha256 = fiscalSnapshotSha256({ history: history.map(h => ({ documentId: h.documentId, snapshotSha256: h.snapshotSha256, state: h.state })), references, originalSha256: fiscalSnapshotSha256(snapshot), actorId: actor.userId });
-                    const admission = await this.remote<ProductionNotesAdmission>(own.companyId, 'admission', { snapshot: note, original: snapshot, creditHistory: credits, ownerRevisionSha256 }, actor.authorization);
+                    const ownerRevisionSha256 = fiscalSnapshotSha256({ history: history.map(h => ({ documentId: h.documentId, snapshotSha256: h.snapshotSha256, state: h.state })), references, originalSha256: fiscalSnapshotSha256(snapshot), actorId: this.actorId(actor) });
+                    const admission = await this.remote<ProductionNotesAdmission>(own.companyId, 'admission', { snapshot: note, original: snapshot, creditHistory: credits, ownerRevisionSha256 }, actor);
                     if (Object.keys(admission).sort().join(',') !== 'authorized,certificateFingerprint,credentialRevision,grantVersion,profile,snapshotSha256' || admission.authorized !== true || admission.profile !== note.profile || admission.snapshotSha256 !== fiscalSnapshotSha256(note) || !Number.isSafeInteger(admission.grantVersion) || admission.grantVersion < 1 || !Number.isSafeInteger(admission.credentialRevision) || admission.credentialRevision < 0 || !/^[a-f0-9]{64}$/.test(admission.certificateFingerprint))
                         throw new ConflictException('Admisión exacta inválida');
                     const unsigned: Omit<ProductionNotesIssued, 'ownerProof'> = { eventId, eventName: PRODUCTION_NOTES_ISSUED, producer: 'billing-service' as const, occurredAt: issueDate, correlationId: operationId, payload: { snapshot: note, original: snapshot, creditHistory: credits, ownerRevisionSha256, admission } };
                     const event: ProductionNotesIssued = { ...unsigned, ownerProof: signProductionNotesOwner(unsigned, 'issued') };
+                    if(actor.productionService)await this.serviceAuthority!.verifyContext(actor.productionService,adjustment.documentTypeCode);
                     const changed = await tx.seriesCounter.updateMany({ where: { id: counter.id, companyId: own.companyId, emissionPointId: point.id, documentType: type, active: true, nextNumber: counter.nextNumber }, data: { nextNumber: { increment: 1n } } });
                     if (changed.count !== 1)
                         throw new ConflictException('Correlativo cambió');
-                    await tx.document.create({ data: { id: documentId, companyId: own.companyId, seriesCounterId: counter.id, type, status: 'ISSUED', sunatStatus: 'QUEUED', series: note.series, number: BigInt(note.number), fullNumber: note.fullNumber, issueDate: new Date(note.issueDate), currencyCode: 'PEN', operationTypeCode: '0101', emissionPointId: point.id, createdByUserId: actor.userId,
+                    await tx.document.create({ data: { id: documentId, companyId: own.companyId, seriesCounterId: counter.id, type, status: 'ISSUED', sunatStatus: 'QUEUED', series: note.series, number: BigInt(note.number), fullNumber: note.fullNumber, issueDate: new Date(note.issueDate), currencyCode: 'PEN', operationTypeCode: '0101', emissionPointId: point.id, createdByUserId: actor.userId, ...(actor.productionService?{createdByActor:json(actor.productionService.createdByActor)}:{}),
                             customerIdentityType: note.customer.identityType, customerIdentityNumber: note.customer.identityNumber, customerLegalName: note.customer.legalName, customerAddress: note.customer.address, taxableAmount: note.totals.taxableAmount, exemptAmount:note.totals.exemptAmount??'0.00',unaffectedAmount:'unaffectedAmount' in note.totals?note.totals.unaffectedAmount:'0.00', igvAmount: note.totals.igvAmount, payableAmount: note.totals.payableAmount,
                             originSystem: 'PRODUCTION_NOTES', originId: operationId, immutableSnapshot: json(note), items: { create: note.lines.map(l => ({ lineNumber: l.lineNumber, internalCode: l.productCode, description: l.description, unitCode: l.unitCode, quantity: l.quantity, unitValue: l.unitValue, unitPriceWithTax: l.unitPriceWithTax, lineExtensionAmount: l.lineExtensionAmount, taxAffectationCode: l.taxAffectationCode, igvRate: l.igvRate, igvAmount: l.igvAmount, totalAmount: l.totalAmount })) },
                             taxes: {create:['10','20','30'].filter(code=>note.lines.some(l=>l.taxAffectationCode===code)).map(code=>({taxSchemeId:code==='20'?'9997':code==='30'?'9998':'1000',taxName:code==='20'?'EXO':code==='30'?'INA':'IGV',taxableAmount:code==='20'?note.totals.exemptAmount??'0.00':code==='30'?note.totals.unaffectedAmount??'0.00':note.totals.taxableAmount,taxAmount:code==='10'?note.totals.igvAmount:'0.00'}))}, referencesFrom: { create: { targetDocumentId: originalId, targetTypeCode: snapshot.documentTypeCode, targetSeries: own.series, targetNumber: own.number, reasonCode: note.reasonCode, reason: note.reasonDescription } } } });
-                    await tx.$executeRawUnsafe('INSERT INTO "ProductionNotesReservation" ("documentId","originalId","operationId","actorId","requestSha256","snapshotSha256","eventId","payload") VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7::uuid,$8::jsonb)', documentId, originalId, operationId, actor.userId, requestHash, fiscalSnapshotSha256(note), eventId, JSON.stringify(event));
+                    await tx.$executeRawUnsafe('INSERT INTO "ProductionNotesReservation" ("documentId","originalId","operationId","actorId","requestSha256","snapshotSha256","eventId","payload") VALUES ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7::uuid,$8::jsonb)', documentId, originalId, operationId, this.actorId(actor), requestHash, fiscalSnapshotSha256(note), eventId, JSON.stringify(event));
                     await tx.$executeRawUnsafe('INSERT INTO "ProductionNotesOutbox" ("id","documentId","payload") VALUES ($1::uuid,$2::uuid,$3::jsonb)', eventId, documentId, JSON.stringify(event));
                     return { documentId, eventId, deduplicated: false };
                 }, { isolationLevel: 'Serializable', timeout: 45000, maxWait: 5000 });

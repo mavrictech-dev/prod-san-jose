@@ -1,3 +1,5 @@
+import {NativeB2bBillingAuthority,type NativeServiceContext} from '../native-b2b-authority';
+import {issuanceInputIssues} from './issue-input-validation';
 import { CatalogTaxService } from './catalog-tax.service';
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -29,6 +31,7 @@ export interface IssueOwnerContext {
   correlationId: string;
   scope: AccessScope;
   authorization?: string;
+  productionService?: NativeServiceContext;
   b2b?: { binding: B2bBinding; draftId: string; actor: Pick<B2bPrincipal, 'kind'|'clientId'|'revision'|'subjectId'|'userAuthRevision'> };
 }
 
@@ -61,7 +64,7 @@ export interface IssueDocumentInput {
 
 @Injectable()
 export class IssueDocumentService {
-  constructor(private readonly prisma: PrismaService, @Optional() private readonly printBranding?: PrintBrandingService, @Optional() private readonly taxPolicies?: CatalogTaxService) {}
+  constructor(private readonly prisma: PrismaService, @Optional() private readonly printBranding?: PrintBrandingService, @Optional() private readonly taxPolicies?: CatalogTaxService, @Optional() private readonly serviceAuthority?: NativeB2bBillingAuthority) {}
 
   async execute(
     input: IssueDocumentInput,
@@ -81,8 +84,19 @@ export class IssueDocumentService {
       : this.prisma.$transaction(work);
   }
 
+  async executeB2B(input: unknown, service: NativeServiceContext) {
+    if (!this.serviceAuthority) throw new ServiceUnavailableException('NATIVE_B2B_UNAVAILABLE');
+    const code=(input as IssueDocumentInput)?.documentType==='INVOICE'?'01':'03';
+    await this.serviceAuthority.verifyContext(service,code);
+    const context:IssueOwnerContext={...service,productionService:service};
+    this.validateInput(input as IssueDocumentInput,context);
+    const row=await this.prisma.$transaction(tx=>this.executeWithinTransaction(input as IssueDocumentInput,context,tx as unknown as PrismaService),{timeout:30000});
+    return {documentId:row.id,fullNumber:row.fullNumber,documentType:row.type,status:row.status,sunatStatus:row.sunatStatus,environment:'PRODUCTION'};
+  }
   private validateInput(input: IssueDocumentInput, context: IssueOwnerContext) {
-    if (context.b2b) {
+    if (context.productionService) {
+      if(context.b2b||context.userId!==null||context.productionService.userId!==null)throw new ForbiddenException('INVALID_ISSUANCE_ACTOR');
+    } else if (context.b2b) {
       const { binding, actor } = context.b2b;
       if (!validB2bBinding(binding) || context.scope.kind !== 'ASSIGNED' ||
           (actor.kind === 'SERVICE' ? context.userId !== null || actor.subjectId !== null || actor.userAuthRevision !== null :
@@ -90,72 +104,11 @@ export class IssueDocumentService {
         throw new B2bSecurityError(403, 'INVALID_ISSUANCE_ACTOR');
     } else if (!context.userId) throw new ForbiddenException('Actor humano requerido');
     if (!context.idempotencyKey)
-      throw new Error("Idempotency-Key es obligatorio");
-    if (!input || typeof input !== 'object' || Object.keys(input).some(key => ![
-      'emissionPointId', 'shiftId', 'documentType', 'series', 'issueDate', 'currencyCode', 'paymentTerms', 'customer', 'lines',
-    ].includes(key))) throw new BadRequestException('Campos no soportados; descuentos/anticipos/impuestos especiales requieren otro perfil');
-    if (
-      !Array.isArray(input?.lines) ||
-      !input.lines.length ||
-      input.lines.length > 100
-    )
-      throw new BadRequestException("Se requieren entre 1 y 100 ítems");
-    if (!["INVOICE", "SALES_RECEIPT"].includes(input.documentType))
-      throw new BadRequestException("Tipo no habilitado en esta etapa");
-    if (!input.customer || typeof input.customer !== 'object' || Array.isArray(input.customer) ||
-      Object.keys(input.customer).some(key => !['identityType', 'identityNumber', 'legalName', 'address', 'email'].includes(key)))
-      throw new BadRequestException('Campos de cliente no soportados');
-    if (
-      typeof input.customer?.legalName !== "string" ||
-      !input.customer.legalName.trim() ||
-      input.customer.legalName.length > 200
-    )
-      throw new BadRequestException("Falta el nombre del cliente");
-    if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        input.emissionPointId,
-      ) ||
-      !/^[FB][A-Z0-9]{3}$/.test(input.series)
-    )
-      throw new BadRequestException("Punto o serie inválidos");
-    if (
-      input.currencyCode !== undefined &&
-      !["PEN", "USD"].includes(input.currencyCode)
-    )
-      throw new BadRequestException("Moneda inválida");
-    if (
-      input.issueDate !== undefined &&
-      !Number.isFinite(Date.parse(input.issueDate))
-    )
-      throw new BadRequestException("Fecha inválida");
-    for (const line of input.lines) {
-      if (!line || typeof line !== 'object' || Array.isArray(line) || Object.keys(line).some(key => ![
-        'productId', 'productCode', 'description', 'unitCode', 'quantity', 'unitPriceWithTax', 'taxAffectationCode', 'igvRate',
-      ].includes(key))) throw new BadRequestException('Campos de ítem no soportados; no se omiten descuentos o impuestos especiales');
-      if (
-        !line ||
-        typeof line.description !== "string" ||
-        !line.description.trim() ||
-        line.description.length > 250 ||
-        !/^[A-Z0-9]{2,3}$/.test(line.unitCode) ||
-        ![line.quantity, line.unitPriceWithTax].every(
-          (value) =>
-            typeof value === "string" &&
-            /^\d{1,12}(\.\d{1,6})?$/.test(value) &&
-            Number(value) > 0,
-        ) ||
-        !["10", "20", "30"].includes(line.taxAffectationCode) ||
-        (line.taxAffectationCode === "10" ? !/^(?:[0-9]|[1-9][0-9])(?:\.\d{1,2})?$/.test(line.igvRate) || Number(line.igvRate) <= 0 : !["0", "0.00"].includes(line.igvRate))
-      )
-        throw new BadRequestException(
-          "Ítems inválidos: revise descripción, unidad, cantidades, precio y afectación",
-        );
-    }
-    if (
-      input.documentType === "INVOICE" &&
-      !/^\d{11}$/.test(input.customer.identityNumber)
-    )
-      throw new BadRequestException("La factura requiere RUC de 11 dígitos");
+      throw new BadRequestException({code: 'IDEMPOTENCY_KEY_REQUIRED', message: 'Envíe una clave de idempotencia para registrar el comprobante.'});
+    const issues = issuanceInputIssues(input);
+    if (issues.length) throw new BadRequestException({ code: 'FIELD_VALIDATION_FAILED',
+      message: issues.slice(0, 8).map(issue => issue.message).join(' '), errors: issues,
+      fieldErrors: Object.fromEntries(issues.map(issue => [issue.field, issue.message])) });
     return createHash("sha256")
       .update(JSON.stringify(input))
       .digest("hex");
@@ -166,7 +119,7 @@ export class IssueDocumentService {
     const requestHash = this.validateInput(input, context);
       // Mismo orden de locks que el CRUD: RUC → sede → punto → serie.
       // SHARE permite emisiones concurrentes, pero bloquea renombrados/desactivación.
-      if (context.b2b || process.env.STATION_MASTER_CRUD_ENABLED === 'true' || process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED === 'true') {
+      if (context.productionService || context.b2b || process.env.STATION_MASTER_CRUD_ENABLED === 'true' || process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED === 'true') {
         const owners = await tx.$queryRawUnsafe<Array<{ companyId: number; branchId: string | null }>>(
           'SELECT "companyId", "branchId" FROM "EmissionPoint" WHERE "id" = $1::uuid', input.emissionPointId);
         if (!owners[0]?.branchId) throw new ForbiddenException('Sede, punto o serie no autorizados');
@@ -187,7 +140,7 @@ export class IssueDocumentService {
       ) {
         throw new ForbiddenException("Sede, punto o serie no autorizados");
       }
-      if (context.b2b || process.env.STATION_MASTER_CRUD_ENABLED === 'true' || process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED === 'true') {
+      if (context.productionService || context.b2b || process.env.STATION_MASTER_CRUD_ENABLED === 'true' || process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED === 'true') {
         await tx.$queryRawUnsafe('SELECT "id" FROM "SeriesCounter" WHERE "companyId" = $1 AND "documentType" = $2::"DocumentType" AND "series" = $3 FOR UPDATE',
           point.companyId, input.documentType, input.series);
       }
@@ -226,10 +179,11 @@ export class IssueDocumentService {
       const production = company.environment === 'PRODUCTION';
       if (company.environment !== 'BETA' && (!production || process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED !== 'true'))
         throw new BadRequestException('Emisión de producción bloqueada en este servidor');
+      if(context.productionService&&!production)throw new ForbiddenException('PRODUCTION_REQUIRED');
       if (production && (context.b2b || !['INVOICE', 'SALES_RECEIPT'].includes(input.documentType) || (input.currencyCode ?? 'PEN') !== 'PEN'))
-        throw new BadRequestException('Producción sólo admite factura 01 o boleta 03 en soles por el circuito humano, sin B2B');
+        throw new BadRequestException('Producción sólo admite factura 01 o boleta 03 en soles con admisión fiscal vigente');
       if (production && (typeof context.authorization !== 'string' || !/^Bearer [A-Za-z0-9_.-]{1,8192}$/i.test(context.authorization)))
-        throw new ForbiddenException('Se requiere Authorization del usuario para la admisión fiscal');
+        throw new ForbiddenException('Se requiere Authorization vigente para la admisión fiscal');
       if (company.active === false) throw new ForbiddenException('Emisor inactivo: no se puede registrar una nueva emisión.');
       if (context.b2b) {
         const b = context.b2b.binding;
@@ -237,6 +191,11 @@ export class IssueDocumentService {
             b.documentType !== (input.documentType === 'INVOICE' ? '01' : '03'))
           throw new B2bSecurityError(404, 'RESOURCE_NOT_FOUND');
         if (counter.nextNumber < 1n || counter.nextNumber > 99999999n) throw new B2bSecurityError(409, 'SERIES_EXHAUSTED');
+      }
+      if(context.productionService){
+        const verified=await this.serviceAuthority!.verifyContext(context.productionService,input.documentType==='INVOICE'?'01':'03');
+        if(verified.binding.companyId!==company.id||verified.binding.pointId!==point.id||verified.binding.branchId!==point.branchId||verified.binding.seriesId!==counter.id)throw new ForbiddenException('PAYLOAD_BINDING_MISMATCH');
+        if(counter.nextNumber<1n||counter.nextNumber>99999999n)throw new ConflictException('SERIES_EXHAUSTED');
       }
       const issueTimestamp = input.issueDate ?? new Date().toISOString();
       const official = production || context.b2b !== undefined || !/^00\d{9}$/.test(company.ruc);
@@ -311,7 +270,8 @@ export class IssueDocumentService {
       if (production) {
         try { assertFiscalSnapshot(snapshot, { mode: 'REAL_PREPARATION' }); }
         catch { throw new BadRequestException('Snapshot fuera del perfil fiscal REAL de factura/boleta en soles'); }
-        await this.admitProduction(snapshot, context.authorization!);
+        await this.admitProduction(snapshot, context.authorization!, context.productionService);
+        if(context.productionService)await this.serviceAuthority!.verifyContext(context.productionService,typeCode);
         if (process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED !== 'true')
           throw new ServiceUnavailableException('Admisión de producción deshabilitada');
         const allocated = await tx.seriesCounter.update({ where: { id: counter.id }, data: { nextNumber: { increment: 1 } } });
@@ -334,6 +294,7 @@ export class IssueDocumentService {
           emissionPointId: point.id,
           shiftId: input.shiftId,
           createdByUserId: context.userId,
+          ...(context.productionService?{createdByActor:JSON.parse(JSON.stringify(context.productionService.createdByActor)),originSystem:'B2B_PRODUCTION',originId:context.productionService.operationId}:{}),
           ...(context.b2b ? { createdByActor: JSON.parse(JSON.stringify(context.b2b.actor)) } : {}),
           ...(context.b2b ? { originSystem: 'b2b:'+context.b2b.actor.clientId, originId: context.b2b.draftId } : {}),
           customerIdentityType: input.customer.identityType,
@@ -390,8 +351,13 @@ export class IssueDocumentService {
       return document;
   }
   /** Fail closed: exact bounded attestation for these exact bytes and document, never fiscal acceptance. */
-  private async admitProduction(snapshot: FiscalDocumentSnapshot, authorization: string): Promise<void> {
+  private async admitProduction(snapshot: FiscalDocumentSnapshot, authorization: string, service?:NativeServiceContext): Promise<void> {
     const unavailable = () => new ServiceUnavailableException('No se obtuvo una admisión fiscal válida; no se registró el comprobante');
+    if(service){
+      const p=await this.serviceAuthority!.fiscal('admission',{snapshot},service);
+      if(!p||Object.keys(p).sort().join(',')!=='authorized,documentId,environment,issuerRuc,profile,snapshotSha256'||p.authorized!==true||p.environment!=='PRODUCTION'||p.documentId!==snapshot.documentId||p.issuerRuc!==snapshot.issuer.identityNumber||p.snapshotSha256!==fiscalSnapshotSha256(snapshot)||!['01-PEN-0101-IGV18-v1','01-03-PEN-0101-IGV18-v2','01-03-PEN-0101-TAX10-20-30-v3'].includes(p.profile))throw unavailable();
+      return;
+    }
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;

@@ -37,7 +37,12 @@ export class ProductAdminService {
     }
     for (const field of ['unitCode', 'taxAffectationCode'] as const) if (!productId || Object.hasOwn(body, field)) {
       const pattern = field === 'unitCode' ? /^(?:[A-Z0-9]{3}|ZZ|M3)$/ : /^10$/;
-      if (typeof body[field] !== 'string' || !pattern.test(body[field])) throw new BadRequestException(`Campo ${field} inválido`);
+      if (typeof body[field] !== 'string' || !pattern.test(body[field])) {
+        const message=field==='taxAffectationCode'
+          ? 'El código de afectación no es el porcentaje de IGV. El catálogo compartido usa 10; configure la tasa y la exoneración permitida en la política tributaria del RUC o sede.'
+          : 'Seleccione una unidad activa del catálogo de medidas, por ejemplo GLL o NIU.';
+        throw new BadRequestException({code:'FIELD_VALIDATION_FAILED',message,fieldErrors:{[field]:message}});
+      }
       data[field] = body[field];
     }
     if (!productId || Object.hasOwn(body, 'categoryId')) {

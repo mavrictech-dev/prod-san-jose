@@ -86,7 +86,8 @@ export class ProductionDispatchPolicy {
     assertProductionInvoice(candidate);
     await this.assertCurrent(candidate, config.revision);
     const report = await this.readiness.inspect(companyId, 'PRODUCTION', authorization);
-    if (required.some(code => !report.checks.some(check => check.code === code && check.status === 'PASS'))) throw new BadRequestException('El emisor no supera las verificaciones de emisión');
+    const missing=required.filter(code=>!report.checks.some(check=>check.code===code&&check.status==='PASS'));
+    if(missing.length)throw new BadRequestException({code:'FISCAL_READINESS_REQUIRED',message:'Complete los requisitos fiscales indicados antes de emitir. No se reservó correlativo.',errors:missing.map(code=>({field:'configuration.'+code,code,message:report.checks.find(check=>check.code===code)?.description??'Requisito fiscal pendiente: '+code}))});
     const grant = await this.assertCurrent(candidate, config.revision);
     return { authorized: true, environment: 'PRODUCTION', issuerRuc: config.ruc, profile: grant.profile,
       documentId: candidate.documentId, snapshotSha256: fiscalSnapshotSha256(candidate) };
@@ -94,7 +95,7 @@ export class ProductionDispatchPolicy {
   /** Private worker call; no client DTO or flag can supply this authority. */
   async assertCurrent(snapshot: FiscalDocumentSnapshot, expectedRevision?: number) {
     assertProductionInvoice(snapshot);
-    if (!productionWorkflowEnabled()) throw new Error('Despacho de producción deshabilitado');
+    if (!productionWorkflowEnabled()) throw new ServiceUnavailableException({code:'PRODUCTION_SERVER_DISABLED',message:'El servidor tiene deshabilitados los envíos a SUNAT. La configuración de credenciales se conserva.'});
     const ruc = snapshot.issuer.identityNumber;
     const grant = await this.prisma.fiscalDispatchAuthorization.findUnique({ where: { issuerRuc_environment: { issuerRuc: ruc, environment: 'PRODUCTION' } } });
     if(snapshot.lines.some(l=>l.taxAffectationCode!=='10')&&grant?.profile!==PRODUCTION_MIXED_TAX_PROFILE)throw new BadRequestException('Autorice explícitamente el perfil 10/20/30 antes de emitir exonerados o inafectos; no se reservó correlativo');
@@ -103,7 +104,7 @@ export class ProductionDispatchPolicy {
     if (!grant?.enabled || !productionDocumentTypes(grant.profile).includes(snapshot.documentTypeCode as '01' | '03') || !grant.registrationAttestedAt || !credentials ||
       credentials.certificateSelfSigned !== false || !credentials.certificateExpiresAt || credentials.certificateExpiresAt <= new Date() ||
       grant.credentialRevision !== credentials.revision || grant.certificateFingerprint !== credentials.certificateFingerprint ||
-      (expectedRevision !== undefined && credentials.revision !== expectedRevision)) throw new Error('Autorización fiscal ausente, revocada o desactualizada');
+      (expectedRevision !== undefined && credentials.revision !== expectedRevision)) throw new ConflictException({code:'PRODUCTION_AUTHORIZATION_REQUIRED',message:'Autorización fiscal ausente, revocada o desactualizada. Revise la autorización del RUC: debe incluir este tipo y coincidir con la revisión y huella del certificado vigente.'});
     return grant;
   }
 }

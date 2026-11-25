@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
- [ValidateSet('Status','Start','Build','CheckUpdate','Update','Backup','VerifyBackup','RestoreBackup','DisableBootstrap','ProvisionGre','RepairGre','EnableGre','DisableGre','EnableProduction','DisableProduction')][string]$Action='Status',
+ [ValidateSet('Status','Start','Build','CheckUpdate','Update','Backup','VerifyBackup','RestoreBackup','DisableBootstrap','ProvisionGre','RepairGre','EnableGre','DisableGre','EnableB2B','DisableB2B','EnableProduction','DisableProduction')][string]$Action='Status',
  [string]$TransmissionConfirmation='', [string]$BackupPath='', [string]$ExternalDestination='',
  [switch]$ExternalDestinationReviewed, [string]$RecoveryPath='', [string]$RecoveryProject='', [string]$ReadinessSessionFile='', [string]$DockerDiskPath=''
 )
@@ -10,5 +10,5 @@ if($Action -in @('Status','Backup','VerifyBackup','RestoreBackup','Update')){
  & (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action $Action -BackupPath $BackupPath -ExternalDestination $ExternalDestination -ExternalDestinationReviewed:$ExternalDestinationReviewed -RecoveryPath $RecoveryPath -RecoveryProject $RecoveryProject -ReadinessSessionFile $ReadinessSessionFile -DockerDiskPath $DockerDiskPath
 }else{
  & (Join-Path $PSScriptRoot 'Install-Test.ps1') -Action $Action -TransmissionConfirmation $TransmissionConfirmation
- if($Action -in @('Start','EnableProduction','DisableProduction','EnableGre','DisableGre','DisableBootstrap')){& (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action Status}
+ if($Action -in @('Start','EnableProduction','DisableProduction','EnableGre','DisableGre','EnableB2B','DisableB2B','DisableBootstrap')){& (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action Status}
 }

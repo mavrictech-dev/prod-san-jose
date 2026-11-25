@@ -2,6 +2,7 @@ import { validScope, type AccessTokenClaims, type FiscalDocumentSnapshot } from 
 import { Queue } from 'bullmq';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import {nativeBillingFetch} from './native-b2b-rpc';
 
 export class AccessError extends Error { constructor(readonly status: number, message: string) { super(message); } }
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -11,7 +12,7 @@ export function bearer(token: unknown) {
 }
 export async function privateJson<T>(base: string, path: string, authorization: string): Promise<T> {
   let response: Response;
-  try { response = await fetch(`${base}${path}`, { headers: { Authorization: authorization, Accept: 'application/json', 'Cache-Control': 'no-store' }, redirect: 'error', signal: AbortSignal.timeout(5000) }); }
+  try { response = await nativeBillingFetch(path,authorization,()=>fetch(`${base}${path}`, { headers: { Authorization: authorization, Accept: 'application/json', 'Cache-Control': 'no-store' }, redirect: 'error', signal: AbortSignal.timeout(5000) })); }
   catch { throw new AccessError(503, 'Servicio interno no disponible'); }
   if (!response.ok) { await response.body?.cancel(); throw new AccessError([401,403,404].includes(response.status) ? response.status : 503, 'Acceso no disponible'); }
   if (!response.headers.get('content-type')?.startsWith('application/json')) { await response.body?.cancel(); throw new AccessError(503, 'Respuesta interna inválida'); }

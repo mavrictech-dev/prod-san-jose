@@ -1,3 +1,4 @@
+import {nativeServicePrincipalId} from '@factuez/service-access/dist/native-b2b-rpc';
 import { Body,Controller,ForbiddenException,Get,Header,Headers,Param,Post,Query,Req,Res,UseGuards } from '@nestjs/common';
 import { PermissionCodes } from '@factuez/contracts';
 import { JwtPermissionGuard,RequiredPermissions,type AuthenticatedRequest } from './auth/jwt-permission.guard';
@@ -19,7 +20,7 @@ export class ProductionGuidesBillingController {
  @Post('series') @RequiredPermissions(PermissionCodes.SUNAT_CONFIGURE)
  createSeries(@Body() body:unknown,@Req() r:AuthenticatedRequest){return this.owner.createSeries(body,this.actor(r));}
  @Get('series/point/:id') @RequiredPermissions(PermissionCodes.DOCUMENT_VIEW) @Header('Cache-Control','private, no-store')
- series(@Param('id') id:string,@Query('actorId') actorId:string|undefined,@Req() r:AuthenticatedRequest){if(actorId&&actorId!==r.user!.sub&&!r.user!.permissions.includes(PermissionCodes.SUNAT_CONFIGURE))throw new ForbiddenException();return this.owner.series(id,this.actor(r),actorId);}
+ series(@Param('id') id:string,@Query('actorId') actorId:string|undefined,@Query('actorKind') kind:string|undefined,@Req() r:AuthenticatedRequest){if(kind!==undefined&&kind!=='SERVICE')throw new ForbiddenException();if((kind==='SERVICE'||actorId&&actorId!==r.user!.sub)&&!r.user!.permissions.includes(PermissionCodes.SUNAT_CONFIGURE))throw new ForbiddenException();if(kind==='SERVICE'&&(!actorId||! /^[a-f0-9-]{36}$/.test(actorId)))throw new ForbiddenException();return this.owner.series(id,this.actor(r),kind==='SERVICE'?nativeServicePrincipalId(actorId!):actorId);}
  @Post() @RequiredPermissions(PermissionCodes.DOCUMENT_ISSUE)
  issue(@Body() body:unknown,@Headers('idempotency-key') key:string,@Req() r:AuthenticatedRequest){return this.owner.issue(body,key,this.actor(r));}
  @Post('series/:id/grants') @RequiredPermissions(PermissionCodes.SUNAT_CONFIGURE)

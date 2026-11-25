@@ -23,7 +23,7 @@ export class ProductionGuidesService implements ProductionGuidesReadPort {
  }
  private grant(s:Snapshot,g:Grant){
   const {companyId,issuerRuc,branchId,pointId,seriesCounterId,establishmentCode}=g;
-  if(hash(s.scope)!==hash({companyId,issuerRuc,branchId,pointId,seriesCounterId,establishmentCode})||g.actorId!==s.actorId||g.version!==s.grantVersion||g.enabled!==true||!g.profiles.includes(s.profile)||Date.parse(g.expiresAt)<=Date.parse(this.options?.now?.()??new Date().toISOString()))throw new ForbiddenException('Concesión GRE cambió');
+  if(hash(s.createdByActor??null)!==hash(g.createdByActor??null)||hash(s.scope)!==hash({companyId,issuerRuc,branchId,pointId,seriesCounterId,establishmentCode})||g.actorId!==s.actorId||g.version!==s.grantVersion||g.enabled!==true||!g.profiles.includes(s.profile)||Date.parse(g.expiresAt)<=Date.parse(this.options?.now?.()??new Date().toISOString()))throw new ForbiddenException('Concesión GRE cambió');
  }
  async admit(snapshot:Snapshot,grant:Grant){
   const o=this.enabled(),s=validateProductionGuidesSnapshot(snapshot);this.grant(s,grant);

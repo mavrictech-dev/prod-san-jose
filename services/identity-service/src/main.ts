@@ -1,5 +1,7 @@
 import {startNativeGreListener} from '@factuez/service-access';
 import 'reflect-metadata';
+import {ApiProblemFilter} from '@factuez/service-access/dist/api-problem.filter';
+import type {NestExpressApplication} from '@nestjs/platform-express';
 
 export async function bootstrapIdentity() {
   if (process.env.B2B_IDENTITY_ENABLED === 'true') {
@@ -9,7 +11,10 @@ export async function bootstrapIdentity() {
   }
   const { NestFactory } = await import('@nestjs/core');
   const { AppModule } = await import('./app.module');
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useBodyParser('json',{limit:'512kb'});
+  app.useBodyParser('urlencoded',{extended:false,limit:'8kb'});
+  app.useGlobalFilters(new ApiProblemFilter());
   app.enableShutdownHooks();
   await app.init();
   await startNativeGreListener(app);

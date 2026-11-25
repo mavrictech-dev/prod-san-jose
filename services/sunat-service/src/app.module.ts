@@ -1,3 +1,4 @@
+import {NativeB2bFiscalController,NativeB2bFiscalAuthority} from './native-b2b.controller';
 import {ProductionGuidesCatalogueAdmin,ProductionGuidesCatalogueController} from './production-guides-catalogue';
 import {productionGuidesSunatHost} from './production-guides-host';
 import {ProductionGuidesService} from './production-guides-service';
@@ -69,8 +70,8 @@ import { FiscalFinancialPreviewController } from './fiscal-financial-preview.con
 import { CurrentPdfService } from './application/current-pdf.service';
 
 @Module({
-  controllers: [ProductionGuidesCatalogueController,...PRODUCTION_GUIDES_SUNAT_CONTROLLERS,...PRODUCTION_NOTES_SUNAT_CONTROLLERS, FiscalRuntimeOpenApiController, ProductionAdmissionController, ProductionDispatchController, HealthController, FiscalArtifactsController, FiscalConfigurationController, LocalXmlValidationController, FiscalCircuitQaController, FiscalBatchQaController, NotesQaController, GreQaController, FiscalReadinessController, FiscalRulesPreviewController, SupplementTrackingController, FiscalFinancialPreviewController],
-  providers: [{provide:ProductionGuidesCatalogueAdmin,inject:[PrismaService,FiscalConfigurationService,'NATIVE_GRE_ASSEMBLY'],useFactory:(db:PrismaService,fiscal:FiscalConfigurationService,a:any)=>new ProductionGuidesCatalogueAdmin(db,fiscal,a.catalogueSource??(async()=>{throw Error('GRE_PRIVATE_RUNTIME_REQUIRED');}))},{provide:'NATIVE_GRE_ASSEMBLY',inject:[PrismaService],useFactory:productionGuidesSunatHost},
+  controllers: [NativeB2bFiscalController,ProductionGuidesCatalogueController,...PRODUCTION_GUIDES_SUNAT_CONTROLLERS,...PRODUCTION_NOTES_SUNAT_CONTROLLERS, FiscalRuntimeOpenApiController, ProductionAdmissionController, ProductionDispatchController, HealthController, FiscalArtifactsController, FiscalConfigurationController, LocalXmlValidationController, FiscalCircuitQaController, FiscalBatchQaController, NotesQaController, GreQaController, FiscalReadinessController, FiscalRulesPreviewController, SupplementTrackingController, FiscalFinancialPreviewController],
+  providers: [NativeB2bFiscalAuthority,{provide:ProductionGuidesCatalogueAdmin,inject:[PrismaService,FiscalConfigurationService,'NATIVE_GRE_ASSEMBLY'],useFactory:(db:PrismaService,fiscal:FiscalConfigurationService,a:any)=>new ProductionGuidesCatalogueAdmin(db,fiscal,a.catalogueSource??(async()=>{throw Error('GRE_PRIVATE_RUNTIME_REQUIRED');}))},{provide:'NATIVE_GRE_ASSEMBLY',inject:[PrismaService],useFactory:productionGuidesSunatHost},
     {provide:ProductionGuidesService,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.service},
     {provide:ProductionGuidesSunatRuntime,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.runtime??{}},
     {provide:PRODUCTION_GUIDES_SUNAT_PRIVATE_PEERS,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.privatePeers},

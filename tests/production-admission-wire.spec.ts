@@ -18,7 +18,7 @@ describe('Production admission actual producer/consumer wire, no external networ
   const config={status:vi.fn(async()=>({ruc,revision:2,emissionEnvironment:'PRODUCTION'}))};
   const checks=['ISSUER_REAL_RUC','SECRET_VAULT','SOL_SECRETS_LOCAL','CERTIFICATE_KEY_PAIR','CERTIFICATE_RUC','CERTIFICATE_CHAIN','CERTIFICATE_REVOCATION','XSD_RUNTIME','CDR_TRUST','BILLING_PRODUCTION_ADMISSION'].map(code=>({code,status:'PASS'}));
   const policy=new ProductionDispatchPolicy({} as never,config as never,{inspect:async()=>({checks})} as never);
-  const authority=vi.spyOn(policy,'assertCurrent').mockResolvedValue();
+  const authority=vi.spyOn(policy,'assertCurrent').mockResolvedValue({profile:'01-PEN-0101-IGV18-v1'} as never);
   const snapshot=invoice();const proof=await policy.admit('7',snapshot,'Bearer SYNTHETIC');
   const fetch=vi.fn(async()=>Response.json(proof));vi.stubGlobal('fetch',fetch);
   const billing=new IssueDocumentService({} as never);
@@ -29,7 +29,7 @@ describe('Production admission actual producer/consumer wire, no external networ
  it('does not admit a snapshot for another company or a Beta issuer',async()=>{
   const config={status:async()=>({ruc,revision:2,emissionEnvironment:'BETA'})};
   const policy=new ProductionDispatchPolicy({} as never,config as never,{} as never);
-  const authority=vi.spyOn(policy,'assertCurrent').mockResolvedValue();
+  const authority=vi.spyOn(policy,'assertCurrent').mockResolvedValue({profile:'01-PEN-0101-IGV18-v1'} as never);
   await expect(policy.admit('7',invoice(),'Bearer SYNTHETIC')).rejects.toThrow('Producción');
   expect(authority).not.toHaveBeenCalled();
  });

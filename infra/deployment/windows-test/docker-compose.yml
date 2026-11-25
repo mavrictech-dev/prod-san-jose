@@ -253,7 +253,8 @@
         "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
         "NATIVE_GRE_CONFIG_FILE": "${NATIVE_GRE_CONFIG_IDENTITY:-}",
         "NATIVE_GRE_ENABLED": "${NATIVE_GRE_ENABLED:-false}",
-        "NATIVE_GRE_WORKERS_ENABLED": "${NATIVE_GRE_WORKERS_ENABLED:-false}"
+        "NATIVE_GRE_WORKERS_ENABLED": "${NATIVE_GRE_WORKERS_ENABLED:-false}",
+        "NATIVE_B2B_ENABLED": "${NATIVE_B2B_ENABLED:-false}"
       },
       "secrets": [
         "redis_password",
@@ -403,7 +404,8 @@
         "BILLING_PRODUCTION_BATCHES_ENABLED": "false",
         "NATIVE_GRE_CONFIG_FILE": "${NATIVE_GRE_CONFIG_BILLING:-}",
         "NATIVE_GRE_ENABLED": "${NATIVE_GRE_ENABLED:-false}",
-        "NATIVE_GRE_WORKERS_ENABLED": "${NATIVE_GRE_WORKERS_ENABLED:-false}"
+        "NATIVE_GRE_WORKERS_ENABLED": "${NATIVE_GRE_WORKERS_ENABLED:-false}",
+        "NATIVE_B2B_ENABLED": "${NATIVE_B2B_ENABLED:-false}"
       },
       "secrets": [
         "redis_password",
@@ -574,7 +576,8 @@
         "SUNAT_TRUST_STORE_FILE": "/run/factuez/pki/issuer-roots.pem",
         "SUNAT_TRUST_STORE_SHA256": "${SUNAT_TRUST_STORE_SHA256:-}",
         "SUNAT_CRL_BUNDLE_SHA256": "${SUNAT_CRL_BUNDLE_SHA256:-}",
-        "SUNAT_CDR_SIGNER_CERT_SHA256": "${SUNAT_CDR_SIGNER_CERT_SHA256:-}"
+        "SUNAT_CDR_SIGNER_CERT_SHA256": "${SUNAT_CDR_SIGNER_CERT_SHA256:-}",
+        "NATIVE_B2B_ENABLED": "${NATIVE_B2B_ENABLED:-false}"
       },
       "secrets": [
         "redis_password",

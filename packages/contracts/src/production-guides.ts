@@ -17,7 +17,9 @@ export type HydrocarbonApproval = {branchId:string;profile:'GRE09_HYDROCARBON_PR
  vehiclePlate:string|null;vehicleAuthorization:string|null;scopRequired:boolean;sourceUrl:string;sourceSha256:string;validUntil:string};
 export type ProductionGuidesState = 'RESERVED' | 'PREPARED' | 'POSTING' | 'UNKNOWN' | 'TICKET' | 'ACCEPTED' | 'ACCEPTED_WITH_OBSERVATIONS' | 'REJECTED' | 'FAILED_NO_CDR';
 export type ProductionGuidesScope = { companyId: number; issuerRuc: string; branchId: string; pointId: string; seriesCounterId: string; establishmentCode: string };
+export type ProductionGuidesServiceActor = {kind:'SERVICE';clientId:string;revision:number;environment:'PRODUCTION'};
 export type ProductionGuidesSnapshot = {
+ createdByActor?:ProductionGuidesServiceActor;
  schemaVersion: typeof PRODUCTION_GUIDES_VERSION; documentId: string; operationId: string; actorId: string;
  scope: ProductionGuidesScope; issuer: { ruc: string; legalName: string }; documentType: '09' | '31';
  profile: ProductionGuidesProfile; series: string; number: string; body: unknown; grantVersion: number;
@@ -29,7 +31,7 @@ export type ProductionGuidesResult = { documentId: string; snapshotSha256: strin
  revision: number; ticket?: string; xmlSha256?: string; zipSha256?: string; cdrZipSha256?: string;
  source: 'SUNAT_OFFICIAL' | 'LOCAL_SYNTHETIC'; officialCdrVerified: boolean; authorizedForTransfer: false };
 export type ProductionGuidesStatusEvent = { eventId: string; eventType: typeof PRODUCTION_GUIDES_STATUS; result: ProductionGuidesResult; seal: ProductionGuidesSeal };
-export type ProductionGuidesGrant = ProductionGuidesScope & { actorId: string; version: number; enabled: boolean;
+export type ProductionGuidesGrant = ProductionGuidesScope & { createdByActor?:ProductionGuidesServiceActor; actorId: string; version: number; enabled: boolean;
  profiles: ProductionGuidesProfile[]; credentialRevision: number; certificateFingerprint: string;
  rulesSha256: string; xsdSha256: string; expiresAt: string };
 export interface ProductionGuidesSigner { sign(value: unknown, purpose: 'ISSUED' | 'STATUS'): ProductionGuidesSeal }

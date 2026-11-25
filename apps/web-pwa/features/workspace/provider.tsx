@@ -31,6 +31,8 @@ export class ApiError extends Error {
     message: string,
     readonly status: number,
     readonly fieldErrors?: Record<string,string>,
+    readonly requestId?: string,
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -59,6 +61,8 @@ async function request<T>(
         : (body?.message ?? `Solicitud fallida (${response.status})`),
       response.status,
       body?.fieldErrors && typeof body.fieldErrors==='object' && Object.values(body.fieldErrors).every(value=>typeof value==='string') ? body.fieldErrors : undefined,
+      typeof body?.requestId==='string'?body.requestId:undefined,
+      typeof body?.code==='string'?body.code:undefined,
     );
   return body as T;
 }

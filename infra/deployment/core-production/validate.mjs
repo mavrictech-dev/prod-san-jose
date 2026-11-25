@@ -30,6 +30,7 @@ export function validateKong(kong){
   return match?.plugins?.some(p=>p.name==='request-termination')?'DENIED':match?.svc;
  };
  for(const [url,svc,method]of [
+  ['/b2b/oauth/token','identity-service','POST'],['/api/v1/b2b/production-applications','identity-service','GET'],['/b2b/v1/issuers','billing-service','GET'],['/b2b/v1/documents','billing-service','POST'],['/b2b/v1/documents/00000000-0000-4000-8000-000000000001/artifacts/xml','billing-service','GET'],
   ['/api/v1/auth/browser-session/login','identity-service','POST'],['/api/v1/users','identity-service','GET'],['/api/v1/roles','identity-service','GET'],
   ['/api/v1/documents/catalog/issuance','billing-service','GET'],['/api/v1/documents/1/production-notes','billing-service','POST'],
   ['/api/v1/stations/admin/catalog','billing-service','GET'],['/api/v1/stations/products','billing-service','POST'],
@@ -42,12 +43,13 @@ export function validateKong(kong){
   ['/api/v1/received-documents','received-documents-service','GET'],['/socket.io/','realtime-service','GET'],['/login','web-pwa','GET'],
  ])need(target(url,method)===svc,'KONG_MISSING_REAL_ROUTE:'+url);
  for(const url of [
-  '/b2b/oauth/token','/b2b/v1/me','/internal/b2b/introspect','/api/v1/b2b-admin/status',
+  '/b2b/v1/me','/internal/b2b/introspect','/api/v1/b2b-admin/status',
   '/api/v1/setup/sunat/1/PRODUCTION/admission','/api/v1/setup/sunat/1/PRODUCTION/notes/admission',
   '/api/v1/setup/sunat/1/PRODUCTION/notes/original-evidence',
   '/api/v1/stations/client-intake','/api/v1/mail-qa/1','/api/v1/fiscal-circuit-qa/1','/api/v1/local-xml-validation/1','/api/v1/fiscal-batch-qa',
   '/api/v1/notes-qa/1','/api/v1/gre-qa','/api/v1/setup/company','/api/v1/products','/api/v1/customers','/api/v1/daily-summaries',
  ])for(const method of ['GET','POST'])need(target(url,method)==='DENIED','KONG_PRIVATE_LAB_OR_NONEXISTENT_ROUTE_EXPOSED:'+url);
+ need(target('/b2b/oauth/token','GET')==='DENIED','OAUTH_TOKEN_IS_POST_ONLY');
  for(const url of ['/prefix/api/v1/documents','/prefix/internal/b2b/introspect','/prefix/b2b/oauth/token'])need(target(url)==='web-pwa','KONG_REGEX_MUST_BE_START_ANCHORED');
  for(const [file,text]of [
   ['services/billing-service/src/products.controller.ts',"api/v1/stations/products"],

@@ -1,4 +1,5 @@
 import {ProductionGuidesIdentityController} from './production-guides-identity.controller';
+import {NativeB2bIdentityRuntime,NativeB2bApplicationsController,NativeB2bOAuthController,NativeB2bIdentityPrivateController} from './native-b2b.module';
 import {NativeGreListenerLifecycle} from '@factuez/service-access';
 import { Module } from '@nestjs/common';
 import { OnpremB2bAdminModule } from './b2b/onprem-admin.module';
@@ -18,9 +19,9 @@ import { UserPermissionsService } from './application/user-permissions.service';
 
 @Module({
   imports: [OnpremB2bAdminModule],
-  controllers: [ProductionGuidesIdentityController,HealthController, AuthController, UsersController, JwksController, BrowserSessionController],
+  controllers: [NativeB2bApplicationsController,NativeB2bOAuthController,NativeB2bIdentityPrivateController,ProductionGuidesIdentityController,HealthController, AuthController, UsersController, JwksController, BrowserSessionController],
   providers: [{provide:'NATIVE_GRE_LISTENER',useClass:NativeGreListenerLifecycle},
-    PrismaService,
+    NativeB2bIdentityRuntime,PrismaService,
     PasswordService,
     AuthService,
     BrowserSessionStore,

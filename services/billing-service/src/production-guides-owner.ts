@@ -1,3 +1,7 @@
+import {nativeServicePrincipalId} from '@factuez/service-access/dist/native-b2b-rpc';
+import {inputField} from './native-input-errors';
+import {NativeB2bBillingAuthority,type NativeServiceContext} from './native-b2b-authority';
+import type {ProductionGuidesServiceActor as ServiceActor,ProductionGuidesScope} from '@factuez/contracts/production-guides';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { allowsResource, type AccessScope } from '@factuez/contracts';
@@ -6,18 +10,31 @@ const PRODUCTION_GUIDES_ISSUED = 'billing.production-guides.issued.v1' as const;
 import { productionGuidesHash as hash, productionGuidesExact as exact, productionGuidesUuid as uuid, validateProductionGuidesSnapshot, PRODUCTION_GUIDES_XSD_SHA256 } from '@factuez/sunat-core/dist/production-guides';
 export interface ProductionGuidesRaw { $queryRawUnsafe<T=unknown>(sql:string,...args:any[]):Promise<T>; $executeRawUnsafe(sql:string,...args:any[]):Promise<number> }
 export interface ProductionGuidesBillingDb extends ProductionGuidesRaw { $transaction<T>(work:(tx:ProductionGuidesRaw)=>Promise<T>,options?:any):Promise<T> }
-export type ProductionGuidesActor={userId:string;scope:AccessScope};
+export type ProductionGuidesActor=({userId:string;service?:never;principalId?:never}|{userId?:never;service:ServiceActor;principalId:string})&{scope:AccessScope};
 export type ProductionGuidesBillingOptions={enabled:()=>boolean; signer:ProductionGuidesSigner; ownerVerifier:ProductionGuidesVerifier; statusVerifier:ProductionGuidesVerifier;
+ authority?:NativeB2bBillingAuthority;
+ serviceCurrent?:(actor:ServiceActor,scope:ProductionGuidesScope)=>Promise<{scope:AccessScope;active:boolean;canIssue:boolean}>;
  actorCurrent:(userId:string)=>Promise<{scope:AccessScope;active:boolean;canIssue:boolean}>;
  sunat:ProductionGuidesReadPort & {admit(snapshot:Snapshot,grant:Grant):Promise<void>;grantEvidence(scope:import('@factuez/contracts/production-guides').ProductionGuidesScope,profiles:Grant['profiles'],credentialRevision:number):Promise<Pick<Grant,'credentialRevision'|'certificateFingerprint'|'rulesSha256'|'xsdSha256'>>}; readiness?:(scope:{companyId:number;issuerRuc:string})=>Promise<any>; now?:()=>string};
 const latest=`SELECT "payload" FROM "ProductionGuidesGrant" WHERE "seriesCounterId"=$1::uuid AND "actorId"=$2::uuid ORDER BY "version" DESC LIMIT 1`;
 /** Native company/branch/point/counter ownership is reloaded on every command/read. */
 export class ProductionGuidesOwner {
  constructor(private readonly db:ProductionGuidesBillingDb,private readonly options?:ProductionGuidesBillingOptions){}
+ private actorId(actor:ProductionGuidesActor){if(actor.service&&actor.principalId!==nativeServicePrincipalId(actor.service.clientId))throw new ForbiddenException('INVALID_ISSUANCE_ACTOR');return actor.service?actor.principalId:actor.userId;}
+ private async live(id:string,service:ServiceActor|undefined,scope:ProductionGuidesScope){
+  if(service){if(id!==nativeServicePrincipalId(service.clientId)||!this.options?.serviceCurrent)throw new ForbiddenException('SERVICE_GRANT_REQUIRED');return this.options.serviceCurrent(service,scope);}
+  return this.enabled().actorCurrent(id);
+ }
+ async issueB2B(input:unknown,operationId:string,context:NativeServiceContext){
+  const options=this.enabled();if(!options.authority||operationId!==context.operationId)throw new ForbiddenException('INVALID_ISSUANCE_ACTOR');
+  const code=(input as any)?.profile==='GRE31_PUBLIC_SINGLE09_V1'?'31':'09',v=await options.authority.verifyContext(context,code);
+  if((input as any)?.seriesCounterId!==v.binding.seriesId)throw new ForbiddenException('PAYLOAD_BINDING_MISMATCH');
+  return this.issue(input,operationId,{principalId:v.principalId,service:{kind:'SERVICE',clientId:v.actor.clientId,revision:v.actor.revision,environment:'PRODUCTION'},scope:context.scope},context);
+ }
  private clock(){return this.options?.now?.()??new Date().toISOString();}
  private enabled(){if(!this.options?.enabled())throw new ServiceUnavailableException('Guías productivas deshabilitadas');return this.options;}
  private async native(tx:ProductionGuidesRaw,id:string,actor:ProductionGuidesActor,write=false){
-  uuid(id);uuid(actor.userId);
+  uuid(id);uuid(this.actorId(actor));
   const rows=await tx.$queryRawUnsafe<any[]>(`SELECT s."id" AS "seriesCounterId",s."series",s."nextNumber",p."id" AS "pointId",b."id" AS "branchId",b."establishmentCode",c."id" AS "companyId",c."ruc" AS "issuerRuc",c."legalName",c."configVersion",b."masterRevision" AS "branchRevision",p."masterRevision" AS "pointRevision",s."masterRevision" AS "seriesRevision"
    FROM "SeriesCounter" s JOIN "EmissionPoint" p ON p."id"=s."emissionPointId" AND p."companyId"=s."companyId" JOIN "Branch" b ON b."id"=p."branchId" AND b."companyId"=p."companyId" JOIN "CompanySettings" c ON c."id"=s."companyId"
    WHERE s."id"=$1::uuid AND s."active" AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' AND s."environment"='PRODUCTION' AND s."documentType"='DESPATCH_ADVICE' ${write?'FOR UPDATE OF s FOR SHARE OF p,b,c':''}`,id);
@@ -36,7 +53,7 @@ export class ProductionGuidesOwner {
  }
  /** Additive native counter administration: DESPATCH_ADVICE uses T for09 and V for31. No client-set correlativo. */
  async createSeries(raw:unknown,actor:ProductionGuidesActor){
-  this.enabled();exact(raw,['pointId','series','expectedPointRevision']);const v=raw as any;uuid(v.pointId);uuid(actor.userId);
+  this.enabled();exact(raw,['pointId','series','expectedPointRevision']);const v=raw as any;uuid(v.pointId);uuid(this.actorId(actor));
   if(typeof v.series!=='string'||!/^[TV][A-Z0-9]{3}$/.test(v.series)||!Number.isSafeInteger(v.expectedPointRevision))throw new BadRequestException('Serie GRE invalida');
   return this.db.$transaction(async tx=>{
    const n=(await tx.$queryRawUnsafe<any[]>(`SELECT p."id",p."companyId",p."branchId",p."masterRevision" FROM "EmissionPoint" p JOIN "Branch" b ON b."id"=p."branchId" AND b."companyId"=p."companyId" JOIN "CompanySettings" c ON c."id"=p."companyId" WHERE p."id"=$1::uuid AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' AND b."establishmentCode"~'^[0-9]{4}$' FOR SHARE OF p,b,c`,v.pointId))[0];
@@ -47,7 +64,7 @@ export class ProductionGuidesOwner {
   });
  }
  private async point(pointId:string,actor:ProductionGuidesActor){
-  uuid(pointId);uuid(actor.userId);const n=(await this.db.$queryRawUnsafe<any[]>(`SELECT p."id",p."companyId",p."branchId",p."masterRevision",b."establishmentCode",c."ruc",c."environment" FROM "EmissionPoint" p JOIN "Branch" b ON b."id"=p."branchId" AND b."companyId"=p."companyId" JOIN "CompanySettings" c ON c."id"=p."companyId" WHERE p."id"=$1::uuid AND p."active" AND b."active" AND c."active"`,pointId))[0];
+  uuid(pointId);uuid(this.actorId(actor));const n=(await this.db.$queryRawUnsafe<any[]>(`SELECT p."id",p."companyId",p."branchId",p."masterRevision",b."establishmentCode",c."ruc",c."environment" FROM "EmissionPoint" p JOIN "Branch" b ON b."id"=p."branchId" AND b."companyId"=p."companyId" JOIN "CompanySettings" c ON c."id"=p."companyId" WHERE p."id"=$1::uuid AND p."active" AND b."active" AND c."active"`,pointId))[0];
   if(!n||!allowsResource(actor.scope,n.branchId,n.id))throw new ForbiddenException('Punto fuera del alcance');return n;
  }
  async capabilities(pointId:string,actor:ProductionGuidesActor){
@@ -61,7 +78,7 @@ export class ProductionGuidesOwner {
   const series=schema?(await this.series(pointId,actor)).series:[];
   if(!series.length)blockers.push('Configure una serie T para 09 o V para 31');
   if(!series.some(s=>s.grant?.enabled&&Date.parse(s.grant.expiresAt)>Date.parse(this.clock())))blockers.push('Concesión vigente por actor/serie/perfil pendiente');
-  return {implemented:true,installed:!!this.options,enabled:this.options?.enabled()===true,ready:blockers.length===0,blockers,companyId:n.companyId,issuerRuc:n.ruc,branchId:n.branchId,pointId,pointRevision:n.masterRevision,establishmentCode:n.establishmentCode,environment:n.environment,profiles:['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'],series,fiscal,b2b:{installed:false,contract:'El contrato B2B 01/03 BETA es independiente; el runtime nativo no instala un adaptador B2B GRE'}};
+  return {implemented:true,installed:!!this.options,enabled:this.options?.enabled()===true,ready:blockers.length===0,blockers,companyId:n.companyId,issuerRuc:n.ruc,branchId:n.branchId,pointId,pointRevision:n.masterRevision,establishmentCode:n.establishmentCode,environment:n.environment,profiles:['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'],series,fiscal,b2b:{installed:!!this.options?.authority,contract:'SERVICE PRODUCTION con alcance y concesión vigente por aplicación, revisión, serie y perfil'}};
  }
  async list(pointId:string,cursor:string|undefined,actor:ProductionGuidesActor){
   const n=await this.point(pointId,actor);if(cursor)uuid(cursor);
@@ -80,41 +97,46 @@ export class ProductionGuidesOwner {
   return {projection,reference09:{documentId:s.documentId,issuerRuc:s.issuer.ruc,series:s.series,number:s.number,snapshotSha256:hash(projection)}};
  }
  async operation(id:string,actor:ProductionGuidesActor){uuid(id);const row=(await this.db.$queryRawUnsafe<any[]>('SELECT "documentId" FROM "ProductionGuidesReservation" WHERE "operationId"=$1::uuid',id))[0];if(!row)throw new NotFoundException('Reserva no encontrada; revise el listado antes de reintentar');await this.load(row.documentId,actor);return {documentId:row.documentId};}
- async series(pointId:string,actor:ProductionGuidesActor,grantActor=actor.userId){
+ async series(pointId:string,actor:ProductionGuidesActor,grantActor=this.actorId(actor)){
   uuid(grantActor);
-  uuid(pointId);uuid(actor.userId);const rows=await this.db.$queryRawUnsafe<any[]>(`SELECT s."id",s."series",s."nextNumber",p."id" AS "pointId",p."branchId",b."establishmentCode",p."masterRevision" AS "pointRevision",c."ruc" FROM "SeriesCounter" s JOIN "EmissionPoint" p ON p."id"=s."emissionPointId" JOIN "Branch" b ON b."id"=p."branchId" JOIN "CompanySettings" c ON c."id"=s."companyId" WHERE p."id"=$1::uuid AND s."environment"='PRODUCTION' AND s."documentType"='DESPATCH_ADVICE' AND s."series"~'^[TV][A-Z0-9]{3}$' AND s."active" AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' ORDER BY s."series"`,pointId);
+  uuid(pointId);uuid(this.actorId(actor));const rows=await this.db.$queryRawUnsafe<any[]>(`SELECT s."id",s."series",s."nextNumber",p."id" AS "pointId",p."branchId",b."establishmentCode",p."masterRevision" AS "pointRevision",c."ruc" FROM "SeriesCounter" s JOIN "EmissionPoint" p ON p."id"=s."emissionPointId" JOIN "Branch" b ON b."id"=p."branchId" JOIN "CompanySettings" c ON c."id"=s."companyId" WHERE p."id"=$1::uuid AND s."environment"='PRODUCTION' AND s."documentType"='DESPATCH_ADVICE' AND s."series"~'^[TV][A-Z0-9]{3}$' AND s."active" AND p."active" AND b."active" AND c."active" AND c."environment"='PRODUCTION' ORDER BY s."series"`,pointId);
   return {serverEnabled:this.options?.enabled()===true,series:await Promise.all(rows.filter(n=>allowsResource(actor.scope,n.branchId,n.pointId,n.id)).map(async n=>({id:n.id,series:n.series,guideType:n.series[0]==='V'?'31':'09',nextNumber:String(n.nextNumber),pointRevision:n.pointRevision,establishmentCode:n.establishmentCode,issuerRuc:n.ruc,grant:await this.grant(this.db,n.id,grantActor)??null})))};
  }
  /** Append-only CAS. Exposed only through SUNAT_CONFIGURE + native scope guard. No default grant. */
  async configure(seriesId:string,raw:unknown,actor:ProductionGuidesActor){
-  const options=this.enabled();exact(raw,['expectedVersion','actorId','enabled','profiles','expectedCredentialRevision','expiresAt']);const value=structuredClone(raw) as any;
+  const options=this.enabled();if(actor.service)throw new ForbiddenException('ADMIN_SESSION_REQUIRED');
+  exact(raw,['expectedVersion','actorId','enabled','profiles','expectedCredentialRevision','expiresAt',...((raw as any)?.actorKind==='SERVICE'?['actorKind','expectedClientRevision']:[])]);const value=structuredClone(raw) as any;
+  let service:ServiceActor|undefined;
+  if(value.actorKind==='SERVICE'){uuid(value.actorId);if(!Number.isSafeInteger(value.expectedClientRevision)||value.expectedClientRevision<1)throw new BadRequestException('INVALID_CLIENT');service={kind:'SERVICE',clientId:value.actorId,revision:value.expectedClientRevision,environment:'PRODUCTION'};value.actorId=nativeServicePrincipalId(value.actorId);}
   uuid(value.actorId);if(!Number.isSafeInteger(value.expectedVersion)||value.expectedVersion<0||typeof value.enabled!=='boolean'||!Array.isArray(value.profiles)||!value.profiles.length||new Set(value.profiles).size!==value.profiles.length||value.profiles.some((p:string)=>!['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'].includes(p))||!Number.isSafeInteger(value.expectedCredentialRevision)||value.expectedCredentialRevision<1||!Number.isFinite(Date.parse(value.expiresAt))||Date.parse(value.expiresAt)<=Date.parse(this.clock()))throw new BadRequestException('Concesión inválida');
   return this.db.$transaction(async tx=>{
    await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))','production-guides-grant:'+seriesId+':'+value.actorId);
    const n=await this.native(tx,seriesId,actor,true), prior=await this.grant(tx,seriesId,value.actorId);
    if((prior?.version??0)!==value.expectedVersion)throw new ConflictException('Concesión cambió');
-   const live=await options.actorCurrent(value.actorId);
-   if(value.enabled&&(!live.active||!live.canIssue||!allowsResource(live.scope,n.branchId,n.pointId,n.seriesCounterId)))throw new ForbiddenException('Actor de concesión sin alcance vigente');
+   const live=value.enabled?await this.live(value.actorId,service,this.scope(n)):undefined;
+   if(value.enabled&&(!live?.active||!live.canIssue||!allowsResource(live.scope,n.branchId,n.pointId,n.seriesCounterId)))throw new ForbiddenException('Actor de concesión sin alcance vigente');
    const pins=value.enabled?await options.sunat.grantEvidence(this.scope(n),value.profiles,value.expectedCredentialRevision):prior;
    if(!pins||pins.credentialRevision!==value.expectedCredentialRevision||pins.xsdSha256!==PRODUCTION_GUIDES_XSD_SHA256||![pins.certificateFingerprint,pins.rulesSha256,pins.xsdSha256].every(h=>/^[a-f0-9]{64}$/.test(h)))throw new ConflictException('Evidencia de configuración no disponible');
-   const g:Grant={...this.scope(n),actorId:value.actorId,version:value.expectedVersion+1,enabled:value.enabled,profiles:value.profiles,expiresAt:value.expiresAt,credentialRevision:pins.credentialRevision,certificateFingerprint:pins.certificateFingerprint,rulesSha256:pins.rulesSha256,xsdSha256:pins.xsdSha256};
-   await tx.$executeRawUnsafe('INSERT INTO "ProductionGuidesGrant" ("seriesCounterId","actorId","version","payload","configuredBy") VALUES ($1::uuid,$2::uuid,$3,$4::jsonb,$5::uuid)',seriesId,g.actorId,g.version,JSON.stringify(g),actor.userId);return g;
+   const g:Grant={...this.scope(n),...(service?{createdByActor:service}:{}),actorId:value.actorId,version:value.expectedVersion+1,enabled:value.enabled,profiles:value.profiles,expiresAt:value.expiresAt,credentialRevision:pins.credentialRevision,certificateFingerprint:pins.certificateFingerprint,rulesSha256:pins.rulesSha256,xsdSha256:pins.xsdSha256};
+   await tx.$executeRawUnsafe('INSERT INTO "ProductionGuidesGrant" ("seriesCounterId","actorId","version","payload","configuredBy") VALUES ($1::uuid,$2::uuid,$3,$4::jsonb,$5::uuid)',seriesId,g.actorId,g.version,JSON.stringify(g),this.actorId(actor));return g;
   },{timeout:60000});
  }
 
- async issue(raw:unknown,operationId:string,actor:ProductionGuidesActor){
-  const options=this.enabled();uuid(operationId);exact(raw,['seriesCounterId','profile','body']);const input=structuredClone(raw) as any;uuid(input.seriesCounterId);
-  const requestSha256=hash({actorId:actor.userId,input});
+ async issue(raw:unknown,operationId:string,actor:ProductionGuidesActor,serviceContext?:NativeServiceContext){
+  const options=this.enabled();uuid(operationId);inputField('request','GRE_INPUT_INVALID',()=>exact(raw,['seriesCounterId','profile','body']));const input=structuredClone(raw) as any;inputField('seriesCounterId','GRE_INPUT_INVALID',()=>uuid(input.seriesCounterId));
+  const requestSha256=hash({actorId:this.actorId(actor),input});
   return this.db.$transaction(async tx=>{
    await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))','production-guides-operation:'+operationId);
-   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))','production-guides-grant:'+input.seriesCounterId+':'+actor.userId);
+   await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))','production-guides-grant:'+input.seriesCounterId+':'+this.actorId(actor));
    const n=await this.native(tx,input.seriesCounterId,actor,true);
    const prior=(await tx.$queryRawUnsafe<any[]>('SELECT * FROM "ProductionGuidesReservation" WHERE "operationId"=$1::uuid',operationId))[0];
-   if(prior){if(prior.actorId!==actor.userId||prior.requestSha256!==requestSha256)throw new ConflictException('Idempotencia usada con otro actor o contenido');return {documentId:prior.documentId,eventId:prior.eventId,deduplicated:true};}
-   const g=this.checkGrant(await this.grant(tx,n.seriesCounterId,actor.userId),n,actor.userId,input.profile);
+   if(prior){if(prior.actorId!==this.actorId(actor)||prior.requestSha256!==requestSha256)throw new ConflictException('Idempotencia usada con otro actor o contenido');return {documentId:prior.documentId,eventId:prior.eventId,deduplicated:true};}
+   const g=this.checkGrant(await this.grant(tx,n.seriesCounterId,this.actorId(actor)),n,this.actorId(actor),input.profile);
+   if(hash(g.createdByActor??null)!==hash(actor.service??null))throw new ForbiddenException('SERVICE_GRANT_REVISION_MISMATCH');
+   if(actor.service){const live=await this.live(this.actorId(actor),actor.service,this.scope(n));if(!live.active||!live.canIssue)throw new ForbiddenException('REVOKED_TOKEN');}
    if(BigInt(n.nextNumber)<1n||BigInt(n.nextNumber)>99999999n)throw new ConflictException('Correlativo agotado');
-   const snapshot=validateProductionGuidesSnapshot({schemaVersion:'factuez.production-guides.v1',documentId:randomUUID(),operationId,actorId:actor.userId,
-    scope:this.scope(n),issuer:{ruc:n.issuerRuc,legalName:n.legalName},documentType:input.profile==='GRE31_PUBLIC_SINGLE09_V1'?'31':'09',profile:input.profile,series:n.series,number:String(n.nextNumber),body:input.body,grantVersion:g.version,createdAt:this.clock(),environment:'PRODUCTION'});
+   const snapshot=inputField('body','GRE_INPUT_INVALID',()=>validateProductionGuidesSnapshot({schemaVersion:'factuez.production-guides.v1',documentId:randomUUID(),operationId,actorId:this.actorId(actor),
+    ...(actor.service?{createdByActor:actor.service}:{}),scope:this.scope(n),issuer:{ruc:n.issuerRuc,legalName:n.legalName},documentType:input.profile==='GRE31_PUBLIC_SINGLE09_V1'?'31':'09',profile:input.profile,series:n.series,number:String(n.nextNumber),body:input.body,grantVersion:g.version,createdAt:this.clock(),environment:'PRODUCTION'}));
    // Current authoritative product master closes old catalogue misclassification before reservation.
    const master=await tx.$queryRawUnsafe<any[]>('SELECT sku AS code,description,"unitCode","greGoodsFamily" FROM "FuelProduct" WHERE sku=ANY($1::text[]) AND active FOR SHARE',(snapshot.body as any).items.map((i:any)=>i.code));
    const fuel=input.profile.startsWith('GRE09_HYDROCARBON_');
@@ -122,12 +144,14 @@ export class ProductionGuidesOwner {
    if(!fuel&&master.some(m=>!['UNCLASSIFIED','NON_REGULATED'].includes(m.greGoodsFamily)))throw new BadRequestException('Los combustibles requieren un perfil GRE de hidrocarburos y una concesión nueva');
    // Pre-number-commit gate: no signing here; SUNAT checks immutable data, production reference, config/trust/rules availability.
    await options.sunat.admit(snapshot,g);
+   if(serviceContext)await options.authority!.verifyContext(serviceContext,snapshot.documentType);
    const payload={eventId:randomUUID(),eventType:PRODUCTION_GUIDES_ISSUED,snapshot,snapshotSha256:hash(snapshot)};
    const event:Issued={...payload,seal:options.signer.sign(payload,'ISSUED')};const b=snapshot.body as any;
-   await tx.$executeRawUnsafe(`INSERT INTO "Document" ("id","companyId","seriesCounterId","type","status","series","number","fullNumber","issueDate","emissionPointId","createdByUserId","customerIdentityType","customerIdentityNumber","customerLegalName","taxableAmount","igvAmount","payableAmount","immutableSnapshot","originSystem","originId","updatedAt") VALUES ($1::uuid,$2,$3::uuid,'DESPATCH_ADVICE','ISSUED',$4,$5::bigint,$6,$7::timestamptz,$8::uuid,$9::uuid,'6',$10,$11,0,0,0,$12::jsonb,'PRODUCTION_GUIDES',$13,now())`,snapshot.documentId,n.companyId,n.seriesCounterId,snapshot.series,snapshot.number,`${snapshot.series}-${snapshot.number}`,b.issueDate,n.pointId,actor.userId,b.recipient.ruc,b.recipient.legalName,JSON.stringify(snapshot),operationId);
+   await tx.$executeRawUnsafe(`INSERT INTO "Document" ("id","companyId","seriesCounterId","type","status","series","number","fullNumber","issueDate","emissionPointId","createdByUserId","customerIdentityType","customerIdentityNumber","customerLegalName","taxableAmount","igvAmount","payableAmount","immutableSnapshot","originSystem","originId","updatedAt") VALUES ($1::uuid,$2,$3::uuid,'DESPATCH_ADVICE','ISSUED',$4,$5::bigint,$6,$7::timestamptz,$8::uuid,$9::uuid,'6',$10,$11,0,0,0,$12::jsonb,'PRODUCTION_GUIDES',$13,now())`,snapshot.documentId,n.companyId,n.seriesCounterId,snapshot.series,snapshot.number,`${snapshot.series}-${snapshot.number}`,b.issueDate,n.pointId,actor.service?null:this.actorId(actor),b.recipient.ruc,b.recipient.legalName,JSON.stringify(snapshot),operationId);
+   if(actor.service)await tx.$executeRawUnsafe('UPDATE "Document" SET "createdByActor"=$2::jsonb WHERE "id"=$1::uuid',snapshot.documentId,JSON.stringify({...actor.service,subjectId:null,userAuthRevision:null}));
    await tx.$executeRawUnsafe('UPDATE "SeriesCounter" SET "nextNumber"="nextNumber"+1,"updatedAt"=now() WHERE "id"=$1::uuid',n.seriesCounterId);
    await tx.$executeRawUnsafe('INSERT INTO "OutboxEvent" ("id","eventType","aggregateId","payload") VALUES ($1::uuid,$2,$3,$4::jsonb)',event.eventId,event.eventType,snapshot.documentId,JSON.stringify(event));
-   await tx.$executeRawUnsafe('INSERT INTO "ProductionGuidesReservation" ("documentId","operationId","actorId","requestSha256","snapshotSha256","eventId","event") VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6::uuid,$7::jsonb)',snapshot.documentId,operationId,actor.userId,requestSha256,event.snapshotSha256,event.eventId,JSON.stringify(event));
+   await tx.$executeRawUnsafe('INSERT INTO "ProductionGuidesReservation" ("documentId","operationId","actorId","requestSha256","snapshotSha256","eventId","event") VALUES ($1::uuid,$2::uuid,$3::uuid,$4,$5,$6::uuid,$7::jsonb)',snapshot.documentId,operationId,this.actorId(actor),requestSha256,event.snapshotSha256,event.eventId,JSON.stringify(event));
    return {documentId:snapshot.documentId,eventId:event.eventId,deduplicated:false};
   },{maxWait:5000,timeout:30000});
  }
@@ -141,23 +165,23 @@ export class ProductionGuidesOwner {
   // Worker is authorized by a signed reservation plus the exact actor-specific, current production grant.
   const stored=(await this.db.$queryRawUnsafe<any[]>('SELECT "event" FROM "ProductionGuidesReservation" WHERE "documentId"=$1::uuid',event.snapshot.documentId))[0]?.event;
   if(!stored||hash(stored)!==hash(event))throw new ForbiddenException('Reserva no vinculada');
-  const s=validateProductionGuidesSnapshot(event.snapshot), actor=await options.actorCurrent(s.actorId);
+  const s=validateProductionGuidesSnapshot(event.snapshot), actor=await this.live(s.actorId,s.createdByActor,s.scope);
   if(!actor.active||!actor.canIssue)throw new ForbiddenException('Actor de reserva revocado');
-  const n=await this.native(this.db,s.scope.seriesCounterId,{userId:s.actorId,scope:actor.scope});
+  const n=await this.native(this.db,s.scope.seriesCounterId,{...(s.createdByActor?{service:s.createdByActor,principalId:s.actorId}:{userId:s.actorId}),scope:actor.scope} as ProductionGuidesActor);
   const g=this.checkGrant(await this.grant(this.db,s.scope.seriesCounterId,s.actorId),n,s.actorId,s.profile);
-  if(g.version!==s.grantVersion||hash(s.scope)!==hash(this.scope(n))||n.series!==s.series||n.legalName!==s.issuer.legalName)throw new ForbiddenException('Reserva o concesión revocada');return g;
+  if(hash(g.createdByActor??null)!==hash(s.createdByActor??null)||g.version!==s.grantVersion||hash(s.scope)!==hash(this.scope(n))||n.series!==s.series||n.legalName!==s.issuer.legalName)throw new ForbiddenException('Reserva o concesión revocada');return g;
  }
  async currentGrant(claim:Grant):Promise<Grant>{
-  const options=this.enabled();uuid(claim.actorId);uuid(claim.seriesCounterId);const live=await options.actorCurrent(claim.actorId);
+  const options=this.enabled();uuid(claim.actorId);uuid(claim.seriesCounterId);const live=await this.live(claim.actorId,claim.createdByActor,claim);
   if(!live.active||!live.canIssue)throw new ForbiddenException('Actor revocado');
-  const n=await this.native(this.db,claim.seriesCounterId,{userId:claim.actorId,scope:live.scope});
+  const n=await this.native(this.db,claim.seriesCounterId,{...(claim.createdByActor?{service:claim.createdByActor,principalId:claim.actorId}:{userId:claim.actorId}),scope:live.scope} as ProductionGuidesActor);
   const g=this.checkGrant(await this.grant(this.db,claim.seriesCounterId,claim.actorId),n,claim.actorId,claim.profiles[0]);
   if(hash(g)!==hash(claim))throw new ForbiddenException('Concesión revocada o sustituida');return g;
  }
  async referenceOwner(requester:Snapshot):Promise<Issued>{
   const options=this.enabled(),s=validateProductionGuidesSnapshot(requester);if(s.documentType!=='31')throw new ForbiddenException();
-  const live=await options.actorCurrent(s.actorId);if(!live.active||!live.canIssue)throw new ForbiddenException();
-  const n=await this.native(this.db,s.scope.seriesCounterId,{userId:s.actorId,scope:live.scope});this.checkGrant(await this.grant(this.db,n.seriesCounterId,s.actorId),n,s.actorId,s.profile);
+  const live=await this.live(s.actorId,s.createdByActor,s.scope);if(!live.active||!live.canIssue)throw new ForbiddenException();
+  const n=await this.native(this.db,s.scope.seriesCounterId,{...(s.createdByActor?{service:s.createdByActor,principalId:s.actorId}:{userId:s.actorId}),scope:live.scope} as ProductionGuidesActor);this.checkGrant(await this.grant(this.db,n.seriesCounterId,s.actorId),n,s.actorId,s.profile);
   const ref=(s.body as any).reference09;uuid(ref.documentId);
   const row=(await this.db.$queryRawUnsafe<any[]>('SELECT "event" FROM "ProductionGuidesReservation" WHERE "documentId"=$1::uuid',ref.documentId))[0];
   const e=row?.event as Issued|undefined;if(!e)throw new NotFoundException();const source=validateProductionGuidesSnapshot(e.snapshot),body=source.body as any;

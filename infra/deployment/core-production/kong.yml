@@ -25,6 +25,40 @@
           ],
           "strip_path": false,
           "regex_priority": 200
+        },
+        {
+          "name": "native-b2b-oauth",
+          "paths": [
+            "~/b2b/oauth/token$"
+          ],
+          "methods": [
+            "POST",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 300
+        },
+        {
+          "name": "native-b2b-applications",
+          "paths": [
+            "~/api/v1/b2b/production-applications(?:/|$)"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "PATCH",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 300
         }
       ]
     },
@@ -52,6 +86,23 @@
           ],
           "strip_path": false,
           "regex_priority": 200
+        },
+        {
+          "name": "native-b2b-billing",
+          "paths": [
+            "~/b2b/v1/(?:issuers|branches|points|series|products|product-categories|product-units|customers|reference|documents|guides|operations)(?:/|$)"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 300
         }
       ]
     },

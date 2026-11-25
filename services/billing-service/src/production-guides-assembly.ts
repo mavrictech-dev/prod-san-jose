@@ -6,6 +6,8 @@ import { ProductionGuidesOwner,type ProductionGuidesBillingDb } from './producti
 import { ProductionGuidesSunatPrivateClient } from './production-guides-private';
 import { ProductionGuidesBillingRuntime } from './production-guides-runtime';
 export type ProductionGuidesBillingAssemblyInput={
+ authority?:import('./native-b2b-authority').NativeB2bBillingAuthority;
+ serviceCurrent?:import('./production-guides-owner').ProductionGuidesBillingOptions['serviceCurrent'];
  database:ProductionGuidesBillingDb;enabled?:()=>boolean;runWorkers?:boolean;
  ownerSigning:{keyId:string;key:KeyObject};ownerPublicKeys:ReadonlyMap<string,KeyObject>;sunatPublicKeys:ReadonlyMap<string,KeyObject>;
  sunat:{origin:string;tls:ProductionGuidesPrivateTls;allowedPeerFingerprints:readonly string[]};
@@ -14,7 +16,7 @@ export type ProductionGuidesBillingAssemblyInput={
 };
 export function createProductionGuidesBilling(input:ProductionGuidesBillingAssemblyInput){
  const enabled=input.enabled??(()=>false),http=new ProductionGuidesPrivateHttp(input.sunat.origin,input.sunat.tls),sunat=new ProductionGuidesSunatPrivateClient(http);
- const owner=new ProductionGuidesOwner(input.database,{enabled,signer:createProductionGuidesSigner(input.ownerSigning.keyId,input.ownerSigning.key),ownerVerifier:createProductionGuidesVerifier(input.ownerPublicKeys),statusVerifier:createProductionGuidesVerifier(input.sunatPublicKeys),actorCurrent:async id=>{const u=await input.identity.current(id);return {active:u.active,canIssue:u.permissions.includes('document.issue'),scope:u.scope};},sunat,readiness:scope=>sunat.readiness(scope),now:input.now});
+ const owner=new ProductionGuidesOwner(input.database,{enabled,authority:input.authority,serviceCurrent:input.serviceCurrent,signer:createProductionGuidesSigner(input.ownerSigning.keyId,input.ownerSigning.key),ownerVerifier:createProductionGuidesVerifier(input.ownerPublicKeys),statusVerifier:createProductionGuidesVerifier(input.sunatPublicKeys),actorCurrent:async id=>{const u=await input.identity.current(id);return {active:u.active,canIssue:u.permissions.includes('document.issue'),scope:u.scope};},sunat,readiness:scope=>sunat.readiness(scope),now:input.now});
  const runtime=new ProductionGuidesBillingRuntime(input.database,owner,sunat,enabled).enableLifecycle(input.runWorkers===true);
  return {owner,runtime,privatePeers:Object.freeze([...input.sunat.allowedPeerFingerprints]),close:()=>http.close()};
 }

@@ -2,7 +2,7 @@ import {readFileSync} from 'node:fs';
 import {createServer,type Server} from 'node:https';
 import type {TLSSocket} from 'node:tls';
 import {createPrivateKey,createPublicKey,type KeyObject} from 'node:crypto';
-export type NativeGreHostConfig={version:'factuez.native-gre.host.v1';listener:{port:number;host:string;caFile:string;certFile:string;keyFile:string};peers:string[];remote?:{origin:string;serverFingerprint:string};identity?:{origin:string;serverFingerprint:string};signing?:{keyId:string;keyFile:string};ownerPublicKeys?:{keyId:string;file:string}[];sunatPublicKeys?:{keyId:string;file:string}[];cataloguesFile?:string};
+export type NativeGreHostConfig={version:'factuez.native-gre.host.v1';listener:{port:number;host:string;caFile:string;certFile:string;keyFile:string};peers:string[];remote?:{origin:string;serverFingerprint:string};identity?:{origin:string;serverFingerprint:string};signing?:{keyId:string;keyFile:string};ownerPublicKeys?:{keyId:string;file:string}[];sunatPublicKeys?:{keyId:string;file:string}[];cataloguesFile?:string;b2b?:{peers:string[];identity?:{origin:string;serverFingerprint:string};billing?:{origin:string;serverFingerprint:string};fiscal?:{origin:string;serverFingerprint:string}}};
 export function loadNativeGreConfig():NativeGreHostConfig|null{
  if(!process.env.NATIVE_GRE_CONFIG_FILE){if(process.env.NATIVE_GRE_ENABLED==='true')throw Error('GRE_CONFIG_FILE_REQUIRED');return null;}
  const c=JSON.parse(readFileSync(process.env.NATIVE_GRE_CONFIG_FILE,'utf8')) as NativeGreHostConfig;

@@ -2,14 +2,16 @@
 // Existing installation updater. No bootstrap, key generation, reset or official network use.
 const {readFileSync}=require('node:fs'),{join,resolve}=require('node:path'),{createRequire}=require('node:module'),{createHash}=require('node:crypto');
 const {randomUUID}=require('node:crypto');
-const allowed=new Set(['billing-service','sunat-service']);
+const allowed=new Set(['identity-service','billing-service','sunat-service']);
 function migrations(root,service){
  const sql=name=>readFileSync(join(root,'services',service,'prisma',name),'utf8');
+ if(service==='identity-service')return [{id:'20261124_native_b2b_v1',sql:sql('updates/20261124_native_b2b_v1.sql'),tables:['b2b_production_record']}];
  return service==='billing-service'?[
   {id:'20261123_catalog_tax_v1',sql:sql('updates/20261123_catalog_tax_v1.sql')},
   {id:'20261123_counter_environment_v1',sql:sql('updates/20261123_counter_environment_v1.sql')},
   {id:'20261123_native_gre_billing_v1',sql:sql('production-guides.sql'),tables:['ProductionGuidesGrant','ProductionGuidesReservation','ProductionGuidesOwnerStatus']},
-  {id:'20261124_gre_hydrocarbon_v1',sql:sql('updates/20261124_gre_hydrocarbon_v1.sql')}
+  {id:'20261124_gre_hydrocarbon_v1',sql:sql('updates/20261124_gre_hydrocarbon_v1.sql')},
+  {id:'20261124_native_b2b_v1',sql:sql('updates/20261124_native_b2b_v1.sql'),tables:['b2b_production_record']}
  ]:[{id:'20261123_native_gre_sunat_v1',sql:sql('production-guides.sql'),tables:['ProductionGuidesJob','ProductionGuidesArtifact','ProductionGuidesStatusOutbox']},{id:'20261123_tax_profiles_v1',sql:sql('updates/20261123_tax_profiles_v1.sql')},{id:'20261123_gre_catalogue_v1',sql:sql('updates/20261123_gre_catalogue_v1.sql'),tables:['ProductionGuidesCatalogue']}];
 }
 async function update(pool,{root,service,apply=false}){
@@ -58,10 +60,10 @@ async function verifyAdoptedSchema(db,m){
  if(actual!==expected)throw Error('GRE_SCHEMA_INCOMPATIBLE: existing '+m.tables.join(',')+' differs from reviewed DDL; review columns/types/defaults/constraints/indexes/immutable triggers before updating');
 }
 async function main(){
- const service=process.argv[2],mode=process.argv[3];if(!allowed.has(service)||!['--check','--apply'].includes(mode)||process.argv.length!==4)throw Error('Use billing-service|sunat-service --check|--apply inside the existing service container');
+ const service=process.argv[2],mode=process.argv[3];if(!allowed.has(service)||!['--check','--apply'].includes(mode)||process.argv.length!==4)throw Error('Use identity-service|billing-service|sunat-service --check|--apply inside the existing service container');
  const root=resolve(__dirname,'..'),local=createRequire(join(root,'services',service,'package.json')),{Pool}=local('pg');
  // Fixed container identity. No command-line URL and no fallback to another database.
- const expected=service==='billing-service'?'factuez_billing':'factuez_sunat';
+ const expected=({'identity-service':'factuez_identity','billing-service':'factuez_billing','sunat-service':'factuez_sunat'})[service];
  if(process.env.DB_NAME!==expected||process.env.DB_USER!==expected||!process.env.DB_PASSWORD_FILE)throw Error('EXISTING_OWNER_DATABASE_IDENTITY_REQUIRED');
  const pool=new Pool({host:process.env.DB_HOST??'postgres',port:Number(process.env.DB_PORT??5432),database:expected,user:expected,password:readFileSync(process.env.DB_PASSWORD_FILE,'utf8').trim(),max:1});
  try{const identity=(await pool.query('SELECT current_database() AS db,current_user AS actor')).rows[0];if(identity.db!==expected||identity.actor!==expected)throw Error('OWNER_IDENTITY_MISMATCH');const report=await update(pool,{root,service,apply:mode==='--apply'});console.log(JSON.stringify(report));if(mode==='--check'&&report.pending.length)process.exitCode=2;}finally{await pool.end();}

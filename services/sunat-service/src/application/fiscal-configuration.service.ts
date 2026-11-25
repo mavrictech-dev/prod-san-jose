@@ -1,3 +1,4 @@
+import {nativeBillingFetch} from '@factuez/service-access/dist/native-b2b-rpc';
 import type { Phase8AdminContextResolver, Phase8AdminContextAction } from '@factuez/service-access/dist/b2b-phase8-admin-wire';
 import { BadRequestException, ConflictException, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { PrismaService } from "../infrastructure/prisma.service";
@@ -36,10 +37,10 @@ export class FiscalConfigurationService {
       throw new BadRequestException("Emisor o ambiente inválido");
     let response: Response;
     try {
-      response = await fetch(`${process.env.BILLING_INTERNAL_URL ?? "http://billing-service:3002"}/api/v1/documents/catalog/issuance`, {
+      response = await nativeBillingFetch('/api/v1/documents/catalog/issuance',authorization!,()=>fetch(`${process.env.BILLING_INTERNAL_URL ?? "http://billing-service:3002"}/api/v1/documents/catalog/issuance`, {
         headers: { Authorization: authorization, Accept: "application/json", "Cache-Control": "no-store" },
         signal: AbortSignal.timeout(5000), redirect: "error",
-      });
+      }));
     } catch { throw new ServiceUnavailableException("No se pudo verificar el emisor en Billing"); }
     if ([401, 403].includes(response.status)) throw new UnauthorizedException("Inicie sesión nuevamente");
     if (!response.ok) throw new ServiceUnavailableException("Billing no está disponible");

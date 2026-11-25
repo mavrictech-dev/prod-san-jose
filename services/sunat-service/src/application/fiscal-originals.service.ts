@@ -1,3 +1,4 @@
+import {nativeBillingFetch} from '@factuez/service-access/dist/native-b2b-rpc';
 import {ProductionNotesArtifactsService,type ProductionNotesArtifactKind} from './production-notes-artifacts.service';
 import { buildReceiptSummarySnapshot, fiscalSnapshotSha256, receiptSummaryReconstructionAsOf } from '@factuez/sunat-core';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional, NotFoundException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
@@ -18,7 +19,7 @@ export class FiscalOriginalsService {
   if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(documentId)||!Object.hasOwn(kinds,kind))throw new BadRequestException('Archivo original o documento inválido');
   if(!authorization||!/^Bearer [A-Za-z0-9_.-]{1,8192}$/i.test(authorization))throw new UnauthorizedException('Inicie sesión para descargar originales');
   let response:Response;
-  try{response=await fetch(`${process.env.BILLING_INTERNAL_URL??'http://billing-service:3002'}/api/v1/documents/${documentId}`,{headers:{Authorization:authorization,Accept:'application/json'},signal:AbortSignal.timeout(5000),redirect:'error'});}
+  try{response=await nativeBillingFetch(`/api/v1/documents/${documentId}`,authorization!,()=>fetch(`${process.env.BILLING_INTERNAL_URL??'http://billing-service:3002'}/api/v1/documents/${documentId}`,{headers:{Authorization:authorization,Accept:'application/json'},signal:AbortSignal.timeout(5000),redirect:'error'}));}
   catch{throw new ServiceUnavailableException('No se pudo comprobar el acceso al comprobante');}
   if(response.status===401)throw new UnauthorizedException('Inicie sesión nuevamente');
   if(response.status===403)throw new ForbiddenException('Comprobante fuera de su alcance');

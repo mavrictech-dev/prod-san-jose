@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth','RepairGre','CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction','DisableProduction')][string]$Action='Status', [string]$TransmissionConfirmation='')
+param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth','RepairGre','CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableB2B','DisableB2B','EnableProduction','DisableProduction')][string]$Action='Status', [string]$TransmissionConfirmation='')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -87,7 +87,7 @@ if($Action -ne 'Prepare'){
 try {
 if(Test-Path -LiteralPath (Join-Path $state 'build.lock')){throw 'Build running or interrupted; review build.lock.'}
 if($Action -eq 'RepairGre'){Repair-GreFilePermissions;return}
-if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableProduction','DisableProduction')) {
+if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableB2B','DisableB2B','EnableProduction','DisableProduction')) {
  if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing prepared installation required. Never run Prepare to upgrade.'}
  if($Action -eq 'ProvisionGre') {
   $gre=Join-Path $state 'gre'
@@ -98,6 +98,22 @@ if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre',
   Repair-GreFilePermissions
   Set-Acl -LiteralPath $gre -AclObject (Get-Acl -LiteralPath (Join-Path $state 'secrets'))
   Write-Host 'Private GRE identity provisioned. Existing fiscal/JWT/vault keys retained. No transmission activated.';return
+ }
+ if($Action -in @('EnableB2B','DisableB2B')){
+  if($Action -eq 'EnableB2B'){
+   if(-not(Test-Path -LiteralPath (Join-Path $state 'gre/manifest.json'))){throw 'ProvisionGre once before enabling B2B; retain existing keys.'}
+   foreach($service in @('identity-service','billing-service','sunat-service')){Invoke-Compose -Arguments @('run','--rm','--no-deps','--entrypoint','node',$service,'scripts/update-igv-catalogs-gre.cjs',$service,'--check')}
+   Invoke-Docker -Arguments @('run','--rm','--pull','never','--network','none','--mount',"type=bind,source=$state,target=/install",'--entrypoint','node','factuez-windows-test/sunat-service:local','scripts/configure-native-b2b.cjs','/install/gre')
+   Repair-GreFilePermissions
+  }
+  $settings=@{NATIVE_B2B_ENABLED=($(if($Action -eq 'EnableB2B'){'true'}else{'false'}))}
+  if($Action -eq 'EnableB2B'){foreach($side in @('IDENTITY','BILLING','SUNAT')){$settings['NATIVE_GRE_CONFIG_'+$side]='/run/gre/config.json'}}
+  $text=[IO.File]::ReadAllText($envFile)
+  foreach($key in $settings.Keys){$pattern='(?m)^'+[regex]::Escape($key)+'=.*$';$line=$key+'='+$settings[$key];if([regex]::IsMatch($text,$pattern)){$text=[regex]::Replace($text,$pattern,$line)}else{$text+=[Environment]::NewLine+$line+[Environment]::NewLine}}
+  [IO.File]::WriteAllText($envFile,$text,$utf8)
+  Invoke-Compose -Arguments @('up','--detach','--no-deps','--no-build','--wait','--wait-timeout','180','identity-service','billing-service','sunat-service')
+  if($Action -eq 'EnableB2B'){foreach($pair in @(@('identity-service','identity'),@('billing-service','billing'),@('sunat-service','fiscal'))){Invoke-Compose -Arguments @('exec','-T',$pair[0],'node','scripts/check-native-b2b.cjs',$pair[1])}}
+  Write-Host 'B2B channel updated. No SUNAT credential, issuer authorization or fiscal dispatch gate changed.';return
  }
  New-Item -ItemType Directory -Force -Path (Join-Path $state 'pki') | Out-Null
  foreach($side in @('identity','billing','sunat')){New-Item -ItemType Directory -Force -Path (Join-Path $state ('gre/'+$side)) | Out-Null}
@@ -118,7 +134,7 @@ if($Action -in @('CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre',
   Invoke-Compose -Arguments @('up','--detach','--no-deps','--no-build','--wait','--wait-timeout','180','identity-service','billing-service','sunat-service')
   Write-Host 'Server gate updated. Configure/review issuer credentials, trust, profiles and explicit actor grants in the admin module.';return
  }
- foreach($service in @('billing-service','sunat-service')) {Invoke-Compose -Arguments @('run','--rm','--no-deps','--entrypoint','node',$service,'scripts/update-igv-catalogs-gre.cjs',$service,'--check')}
+ foreach($service in @('identity-service','billing-service','sunat-service')) {Invoke-Compose -Arguments @('run','--rm','--no-deps','--entrypoint','node',$service,'scripts/update-igv-catalogs-gre.cjs',$service,'--check')}
  return
 }
 if($Action -eq 'Prepare') {

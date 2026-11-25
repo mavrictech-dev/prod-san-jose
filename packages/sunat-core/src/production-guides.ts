@@ -25,7 +25,8 @@ export function productionGuidesUuid(v: unknown): asserts v is string {
 /** Separate production envelope and UBL renderer; existing pure validators retain their limited profiles. */
 export function validateProductionGuidesSnapshot(raw: unknown): Snapshot {
  const s = boundedSupplementJson(raw) as Snapshot;
- productionGuidesExact(s,['schemaVersion','documentId','operationId','actorId','scope','issuer','documentType','profile','series','number','body','grantVersion','createdAt','environment']);
+ productionGuidesExact(s,['schemaVersion','documentId','operationId','actorId','scope','issuer','documentType','profile','series','number','body','grantVersion','createdAt','environment',...(s.createdByActor===undefined?[]:['createdByActor'])]);
+ if(s.createdByActor){productionGuidesExact(s.createdByActor,['kind','clientId','revision','environment']);productionGuidesUuid(s.createdByActor.clientId);if(s.createdByActor.kind!=='SERVICE'||s.createdByActor.environment!=='PRODUCTION'||!Number.isSafeInteger(s.createdByActor.revision)||s.createdByActor.revision<1)throw Error('GRE_INVALID_SERVICE_ACTOR');}
  productionGuidesExact(s.scope,['companyId','issuerRuc','branchId','pointId','seriesCounterId','establishmentCode']);
  if (s.schemaVersion !== 'factuez.production-guides.v1' || s.environment !== 'PRODUCTION' || !Number.isSafeInteger(s.grantVersion) || s.grantVersion < 1 || !Number.isSafeInteger(s.scope.companyId) || s.scope.companyId < 1) throw Error('GRE_INVALID_OWNER');
  for (const v of [s.documentId,s.operationId,s.actorId,s.scope.branchId,s.scope.pointId,s.scope.seriesCounterId]) productionGuidesUuid(v);

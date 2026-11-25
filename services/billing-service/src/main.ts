@@ -1,5 +1,6 @@
 import {startNativeGreListener} from '@factuez/service-access';
 import 'reflect-metadata';
+import {ApiProblemFilter} from '@factuez/service-access/dist/api-problem.filter';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -11,6 +12,7 @@ async function bootstrap() {
     return;
   }
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useGlobalFilters(new ApiProblemFilter());
   // Logo original <=256 KB codificado en base64; DTOs siguen acotados por campo.
   app.useBodyParser('json', { limit: '512kb' });
   app.enableShutdownHooks();

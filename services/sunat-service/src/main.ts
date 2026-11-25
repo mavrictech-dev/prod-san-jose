@@ -1,5 +1,6 @@
 import {startNativeGreListener} from '@factuez/service-access';
 import 'reflect-metadata';
+import {ApiProblemFilter} from '@factuez/service-access/dist/api-problem.filter';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
@@ -12,6 +13,7 @@ async function bootstrap() {
     return;
   }
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+  app.useGlobalFilters(new ApiProblemFilter());
   // JSON con PKCS#12 base64, acotado también por Kong. Nunca logging de bodies.
   app.useBodyParser('json', { limit: '768kb' });
   app.enableShutdownHooks();
