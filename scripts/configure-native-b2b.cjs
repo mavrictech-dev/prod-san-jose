@@ -1,7 +1,7 @@
 'use strict';
 // Adds purpose-specific peer authorization to the EXISTING transport identity.
 // It never generates a key, changes GRE peers, enables fiscal dispatch or reads SOL.
-const {readFileSync,writeFileSync,renameSync,existsSync,realpathSync}=require('node:fs');
+const {readFileSync,writeFileSync,renameSync,existsSync,realpathSync,mkdirSync,lstatSync}=require('node:fs');
 const {join,resolve}=require('node:path');
 const {X509Certificate,createPrivateKey,createPublicKey,createHash}=require('node:crypto');
 function configure(target){
@@ -18,11 +18,16 @@ function configure(target){
  if(new Set(ca).size!==1||sides.some(s=>manifest.transportFingerprints?.[s]!==pins[s]))throw Error('EXISTING_TRANSPORT_PIN_MISMATCH');
  const peers={identity:[pins.billing,pins.sunat],billing:[pins.identity,pins.sunat],sunat:[pins.billing]};
  const endpoints={identity:{origin:'https://identity-service:3441',serverFingerprint:pins.identity},billing:{origin:'https://billing-service:3442',serverFingerprint:pins.billing},fiscal:{origin:'https://sunat-service:3443',serverFingerprint:pins.sunat}};
+ // Runtime side directories have an exact, verified file inventory. Keep backups
+ // outside their bind mounts so the existing permission verifier remains strict.
+ const backupDirectory=join(root,'b2b-config-backups');
+ if(!existsSync(backupDirectory))mkdirSync(backupDirectory,{mode:0o700});
+ if(!lstatSync(backupDirectory).isDirectory()||lstatSync(backupDirectory).isSymbolicLink()||realpathSync(backupDirectory)!==backupDirectory)throw Error('REGULAR_BACKUP_DIRECTORY_REQUIRED');
  for(const side of sides){
   const {c,file}=configs[side];if(c.peers.some(pin=>!Object.values(pins).includes(pin)))throw Error('UNKNOWN_LEGACY_GRE_PEER');
   const next={...c,b2b:{peers:peers[side],...endpoints}},text=JSON.stringify(next,null,2)+'\n',old=readFileSync(file,'utf8');
   if(text===old)continue;
-  const backup=file+'.before-b2b-'+createHash('sha256').update(old).digest('hex').slice(0,16);
+  const backup=join(backupDirectory,side+'.'+createHash('sha256').update(old).digest('hex').slice(0,16)+'.json');
   if(!existsSync(backup))writeFileSync(backup,old,{flag:'wx',mode:0o600});
   const temporary=file+'.b2b-next';writeFileSync(temporary,text,{flag:'wx',mode:0o600});renameSync(temporary,file);
  }
