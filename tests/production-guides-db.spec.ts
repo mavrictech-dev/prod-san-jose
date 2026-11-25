@@ -27,11 +27,11 @@ describe('native production GRE transaction and dispatch on NEW synthetic Postgr
    const evidence={credentialRevision:1,certificateFingerprint:pki.issuer.fingerprint,rulesSha256:'b'.repeat(64),xsdSha256:PRODUCTION_GUIDES_XSD_SHA256};
    const grantEvidence=vi.fn(async()=>evidence),ready=vi.fn(async()=>{if(admissionFails)throw Error('SYNTHETIC_ADMISSION_FAILURE');}),sign=vi.fn(async(s:any,g:any,xml:string)=>{const a=signLocalGuideXml({issuerRuc:s.issuer.ruc,documentType:s.documentType,fullNumber:`${s.series}-${s.number}`,unsignedXml:xml},pki.issuer.pkcs12,pki.password);return {xml:Buffer.from(a.xml),zip:a.zip,xmlSha256:a.xmlSha256,zipSha256:a.zipSha256,fingerprint:a.certificateFingerprintSha256,digest:a.digestValue};});
    const crypto={ready,sign};const submit=vi.fn(async()=>{if(throwPost)throw Error('SYNTHETIC_CONNECTION_LOST_AFTER_POST');return {ticket:uuid(1000+Number(lastSnapshot.number))};});
-   let lastSnapshot:any;
-   const transport={source:'LOCAL_SYNTHETIC' as const,submit,ticket:vi.fn(async()=>{const s=lastSnapshot;const expected={issuerRuc:s.issuer.ruc,documentType:s.documentType,fullNumber:`${s.series}-${s.number}`,requestXmlSha256:'a'.repeat(64),requestZipSha256:'b'.repeat(64),issuedAt:b.issueDate,receivedAt:now};return {state:'CDR' as const,cdrZip:guideSidecarPackCdr(pki.signCdr(guideSidecarCdrXml(expected)),expected)};})};
+   let lastSnapshot:any,lastCdr:Buffer,pendingTicket=false,noCdr=false,cdrNote:string|undefined,cdrDescription:string|undefined;
+   const transport={source:'LOCAL_SYNTHETIC' as const,submit,ticket:vi.fn(async()=>{if(noCdr)return {state:'FAILED_NO_CDR' as const,functionalError:{code:'1345',message:'El RUC no es valido'}};if(pendingTicket)return {state:'PENDING' as const};const s=lastSnapshot;const expected={issuerRuc:s.issuer.ruc,documentType:s.documentType,fullNumber:`${s.series}-${s.number}`,requestXmlSha256:'a'.repeat(64),requestZipSha256:'b'.repeat(64),issuedAt:b.issueDate,receivedAt:now};lastCdr=guideSidecarPackCdr(pki.signCdr(guideSidecarCdrXml(expected).replace('FICTITIOUS LOCAL RECEIPT',cdrDescription??'FICTITIOUS LOCAL RECEIPT').replace('<cac:SenderParty>',(cdrNote?'<cbc:Note>'+cdrNote+'</cbc:Note>':'')+'<cac:SenderParty>').replace('</cac:DocumentReference>','<cbc:DocumentDescription>https://e-factura.sunat.gob.pe/v1/contribuyente/gre/comprobantes/descargaqr?hashqr=SYNTHETIC</cbc:DocumentDescription></cac:DocumentReference>')),expected);return {state:'CDR' as const,cdrZip:lastCdr};})};
    const store=new ProductionGuidesStore(client,keys.statusSigner,'LOCAL_SYNTHETIC');let service:ProductionGuidesService;
    const owner=new ProductionGuidesOwner(client,{enabled:()=>enabled,signer:keys.ownerSigner,ownerVerifier:keys.verifier,statusVerifier:keys.verifier,actorCurrent:async()=>({scope:actor.scope,active,canIssue:true}),sunat:{grantEvidence,admit:(s,g)=>service.admit(s,g),status:e=>service.status(e),artifact:(e,k)=>service.artifact(e,k),pdf:e=>service.pdf(e)},now:()=>now});
-   service=new ProductionGuidesService(store,{enabled:()=>enabled,owner:{current:e=>owner.current(e),reference09:async()=>{throw Error('UNUSED_REFERENCE');}},referenceOwner:s=>owner.referenceOwner(s),ownerVerifier:keys.verifier,crypto,transport,cdr:{verify:async bytes=>!failCdr&&pki.cdrVerifier.verify(bytes)},pdf:renderProductionGuidesPdf,now:()=>now});
+   const serviceOptions:NonNullable<ConstructorParameters<typeof ProductionGuidesService>[1]>={enabled:()=>enabled,owner:{current:e=>owner.current(e),reference09:async()=>{throw Error('UNUSED_REFERENCE');}},referenceOwner:s=>owner.referenceOwner(s),ownerVerifier:keys.verifier,crypto,transport,cdr:{verify:async bytes=>!failCdr&&pki.cdrVerifier.verify(bytes)},pdf:renderProductionGuidesPdf,now:()=>now};service=new ProductionGuidesService(store,serviceOptions);
    const created=await owner.createSeries({pointId:seed.scope.pointId,series:'V992',expectedPointRevision:1},actor);expect(created).toMatchObject({documentType:'DESPATCH_ADVICE',guideType:'31',series:'V992',nextNumber:'1'});expect((await owner.series(seed.scope.pointId,actor)).series.map(v=>v.series)).toEqual(['T991','V992']);
    const request={seriesCounterId:seed.scope.seriesCounterId,profile:seed.profile,body:b};
    await expect(owner.issue(request,uuid(100),actor)).rejects.toThrow('Concesión');
@@ -47,8 +47,11 @@ describe('native production GRE transaction and dispatch on NEW synthetic Postgr
    await expect(owner.event(issued.snapshot.documentId,{...actor,scope:{kind:'ASSIGNED',branchIds:[],emissionPointIds:[],series:[]}})).rejects.toThrow('alcance');
    await expect(service.ingest({...issued,snapshot:{...issued.snapshot,number:'9'}})).rejects.toThrow('Firma');
    const billingRuntime=new ProductionGuidesBillingRuntime(client,owner,service,()=>true);expect(await billingRuntime.flush()).toBe(1);expect(await billingRuntime.flush()).toBe(0);
+   pendingTicket=true;const pending=await service.process(issued.snapshot.documentId);expect(pending.state).toBe('TICKET');expect((await store.get(issued.snapshot.documentId))?.ticket).toBe(pending.ticket);
+   service=new ProductionGuidesService(new ProductionGuidesStore(client,keys.statusSigner,'LOCAL_SYNTHETIC'),serviceOptions);
+   expect((await service.process(issued.snapshot.documentId)).state).toBe('TICKET');expect(submit).toHaveBeenCalledTimes(1);pendingTicket=false;
    const outputs=await Promise.all(Array.from({length:4},()=>service.process(issued.snapshot.documentId)));expect(submit).toHaveBeenCalledTimes(1);expect(sign).toHaveBeenCalledTimes(1);
-   const result=await owner.status(issued.snapshot.documentId,actor);expect(result).toMatchObject({state:'ACCEPTED',source:'LOCAL_SYNTHETIC',officialCdrVerified:false,authorizedForTransfer:false});
+   const result=await owner.status(issued.snapshot.documentId,actor);expect(result).toMatchObject({state:'ACCEPTED',source:'LOCAL_SYNTHETIC',officialCdrVerified:false,authorizedForTransfer:false,responseCode:'0',description:'FICTITIOUS LOCAL RECEIPT',notes:[]});expect(result.qrUrl).toBeUndefined();expect((await owner.artifact(issued.snapshot.documentId,'cdr-zip',actor)).bytes).toEqual(lastCdr!);
    const artifact=await owner.artifact(issued.snapshot.documentId,'signed-xml',actor);expect(bytesHash(artifact.bytes)).toBe(result.xmlSha256);
    const signBefore=sign.mock.calls.length;const pdf=await owner.pdf(issued.snapshot.documentId,actor);expect(pdf.subarray(0,5).toString()).toBe('%PDF-');await service.status(issued);await owner.artifact(issued.snapshot.documentId,'cdr-zip',actor);expect(sign).toHaveBeenCalledTimes(signBefore);
    await expect(pool.query('UPDATE "ProductionGuidesArtifact" SET "bytes"=$1 WHERE "documentId"=$2',[Buffer.from('TAMPER'),issued.snapshot.documentId])).rejects.toThrow('append-only');
@@ -56,9 +59,33 @@ describe('native production GRE transaction and dispatch on NEW synthetic Postgr
    const sunatRuntime=new ProductionGuidesSunatRuntime(service,store,e=>owner.applyStatus(e),()=>true);await sunatRuntime.runOnce();
    expect((await pool.query('SELECT "state","revision" FROM "ProductionGuidesReservation" WHERE "documentId"=$1',[issued.snapshot.documentId])).rows[0]).toEqual({state:'ACCEPTED',revision:4});
    const statusEvent=(await pool.query('SELECT "event" FROM "ProductionGuidesOwnerStatus" ORDER BY "revision" DESC LIMIT 1')).rows[0].event;await owner.applyStatus(statusEvent);await expect(owner.applyStatus({...statusEvent,result:{...statusEvent.result,state:'REJECTED'}})).rejects.toThrow('Evento');
+   const obsolete={eventId:uuid(1900),eventType:'sunat.production-guides.status.v1' as const,result:{...statusEvent.result,revision:1}};await expect(owner.applyStatus({...obsolete,seal:keys.statusSigner.sign(obsolete,'STATUS')})).rejects.toThrow();
    // A new operation owns a new number; one ambiguous POST is durable and never requeued.
    const second=await owner.issue(request,uuid(101),actor);lastSnapshot=(await owner.event(second.documentId,actor)).snapshot;throwPost=true;await billingRuntime.flush();
    expect((await service.process(second.documentId)).state).toBe('UNKNOWN');const posts=submit.mock.calls.length;await service.process(second.documentId);await service.tick();expect(submit).toHaveBeenCalledTimes(posts);expect((await store.pending()).some(x=>x.documentId===second.documentId)).toBe(false);
+   // Test-owned official-provenance port: no network; ephemeral signer never represents actual SUNAT trust.
+   throwPost=false;cdrNote='Observacion funcional acotada '.repeat(35).trim();cdrDescription='Descripcion de respuesta funcional '.repeat(35).trim();
+   const officialStore=new ProductionGuidesStore(client,keys.statusSigner,'SUNAT_OFFICIAL'),pdfRender=vi.fn(renderProductionGuidesPdf);
+   service=new ProductionGuidesService(officialStore,{...serviceOptions,transport:{...transport,source:'SUNAT_OFFICIAL'},pdf:pdfRender});
+   const third=await owner.issue(request,uuid(103),actor),officialEvent=await owner.event(third.documentId,actor);lastSnapshot=officialEvent.snapshot;
+   await service.ingest(officialEvent);const accepted=await service.process(third.documentId);
+   expect(accepted).toMatchObject({state:'ACCEPTED_WITH_OBSERVATIONS',source:'SUNAT_OFFICIAL',officialCdrVerified:true,responseCode:'0',qrUrl:'https://e-factura.sunat.gob.pe/v1/contribuyente/gre/comprobantes/descargaqr?hashqr=SYNTHETIC',authorizedForTransfer:false});
+   expect(accepted.description).toBe(cdrDescription.slice(0,500).trimEnd());expect(accepted.notes).toEqual([cdrNote.slice(0,500).trimEnd()]);
+   expect((await service.artifact(officialEvent,'cdr-zip')).bytes).toEqual(lastCdr!);
+   await officialStore.relay(e=>owner.applyStatus(e));
+   const projected=(await pool.query('SELECT "event" FROM "ProductionGuidesOwnerStatus" WHERE "documentId"=$1 ORDER BY "revision" DESC LIMIT 1',[third.documentId])).rows[0].event;
+   expect(projected.result).toEqual(accepted);await owner.pdf(third.documentId,actor);expect(pdfRender.mock.calls[0][1]).toEqual(accepted);
+   // Reopening must authenticate the stored receipt again; metadata alone is insufficient.
+   failCdr=true;await expect(owner.pdf(third.documentId,actor)).rejects.toThrow('GUIDE_CDR_SIGNATURE_UNTRUSTED');failCdr=false;
+   const originalGet=officialStore.get.bind(officialStore),changed=vi.spyOn(officialStore,'get').mockImplementation(async(...args)=>{const job=await originalGet(...args);return job?.documentId===third.documentId?{...job,result:{...job.result,qrUrl:accepted.qrUrl+'CHANGED'}}:job;});
+   await expect(owner.pdf(third.documentId,actor)).rejects.toThrow('GRE_PDF_CDR_CHANGED');changed.mockRestore();
+   const poisoned={...projected,result:{...projected.result,qrUrl:accepted.qrUrl+'CHANGED'}};await expect(owner.applyStatus(poisoned)).rejects.toThrow('Evento');
+   noCdr=true;const fourth=await owner.issue(request,uuid(104),actor),failedEvent=await owner.event(fourth.documentId,actor);lastSnapshot=failedEvent.snapshot;
+   await service.ingest(failedEvent);const failed=await service.process(fourth.documentId);
+   expect(failed).toMatchObject({state:'FAILED_NO_CDR',functionalError:{code:'1345',message:'El RUC no es valido'},officialCdrVerified:false,authorizedForTransfer:false});expect(failed.qrUrl).toBeUndefined();
+   await officialStore.relay(e=>owner.applyStatus(e));expect((await owner.status(fourth.documentId,actor)).functionalError).toEqual(failed.functionalError);
+   await owner.pdf(fourth.documentId,actor);expect(pdfRender.mock.calls.at(-1)![1].functionalError).toEqual(failed.functionalError);
+   await expect(service.artifact(failedEvent,'cdr-zip')).rejects.toThrow('GRE_ORIGINAL_UNAVAILABLE_OR_CHANGED');noCdr=false;
    active=false;await expect(owner.current(issued)).rejects.toThrow('revocado');active=true;
    enabled=false;await expect(owner.issue(request,uuid(102),actor)).rejects.toThrow('deshabilitadas');await expect(service.process(second.documentId)).rejects.toThrow('deshabilitadas');enabled=true;
    await owner.configure(seed.scope.seriesCounterId,{...grantInput,expectedVersion:1,enabled:false},actor);await expect(owner.current(issued)).rejects.toThrow('Concesión');

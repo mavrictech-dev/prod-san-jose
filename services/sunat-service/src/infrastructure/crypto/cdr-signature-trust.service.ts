@@ -3,7 +3,7 @@ import { X509Certificate } from 'node:crypto';
 import forge from 'node-forge';
 import { CertificateTrustService, loadPinnedPublicFile } from './certificate-trust.service';
 import { certificateRucCandidates } from './certificate-identity';
-import { parseSafeInvoice, verifyLocalSignedInvoice } from './xml-signer.service';
+import { parseSafeInvoice, verifyPinnedSunatCdrSignature } from './xml-signer.service';
 import { CAC_NS, CBC_NS, child, leaf } from '../sunat/safe-xml';
 
 /** El firmante de SUNAT se fija por archivo/hash de despliegue, jamás por KeyInfo del CDR recibido. */
@@ -21,7 +21,7 @@ export class CdrSignatureTrustService {
         selfSigned: x509.subject === x509.issuer && x509.verify(x509.publicKey), certificatePem: leafPem, chainPems: pems.slice(1),
         digitalSignature: (certificate.getExtension('keyUsage') as { digitalSignature?: boolean } | null)?.digitalSignature === true,
         subjectRucCandidates: certificateRucCandidates(certificate.subject.attributes) };
-      const proof = await this.trust.evaluate(metadata, '20131312955');
+      const proof = metadata.subjectRucCandidates.length ? await this.trust.evaluate(metadata, '20131312955') : await this.trust.evaluatePinnedSunatCdr(metadata);
       if (!proof.chainValid || !proof.identityMatched || proof.revocation !== 'VERIFIED_OFFLINE_CRL') return null;
       return leafPem;
     } catch { return null; }
@@ -36,7 +36,7 @@ export class CdrSignatureTrustService {
       const signatures = parsed.document.getElementsByTagNameNS('http://www.w3.org/2000/09/xmldsig#', 'Signature');
       if (signatures.length !== 1 || signatures[0].parentNode !== parsed.extension) return false;
       parsed.extension.removeChild(signatures[0]);
-      verifyLocalSignedInvoice(value, leafPem, parsed.root.toString(), 'ApplicationResponse');
+      verifyPinnedSunatCdrSignature(value, leafPem, parsed.root.toString());
       return true;
     } catch { return false; } // Ausencia de pin/CRL, algoritmo o firma inválida nunca equivalen a confianza.
   }

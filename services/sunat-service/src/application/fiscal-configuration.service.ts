@@ -5,6 +5,7 @@ import { PrismaService } from "../infrastructure/prisma.service";
 import { SecretVault } from "../infrastructure/crypto/secret-vault";
 import { MAX_CERTIFICATE_BYTES } from "../infrastructure/crypto/certificate-inspector";
 import { CertificateInspectionService } from "../infrastructure/crypto/certificate-inspection.service";
+import { storedPublicCertificate } from '../infrastructure/crypto/public-certificate';
 
 export type ConfigurationInput = {
   expectedRevision: number;
@@ -59,6 +60,19 @@ export class FiscalConfigurationService {
     const issuer = await this.issuer(companyId, environment, authorization);
     const row = await this.prisma.sunatCredentials.findUnique({ where: { issuerRuc_environment: { issuerRuc: issuer.ruc, environment: issuer.environment } } });
     return this.view(issuer, row);
+  }
+  async publicCertificate(companyId: string, environment: string, authorization: string) {
+    const issuer = await this.issuer(companyId, environment, authorization);
+    const row = await this.prisma.sunatCredentials.findUnique({ where: { issuerRuc_environment: { issuerRuc: issuer.ruc, environment: issuer.environment } } });
+    if (!row?.certificateCipher || !row.certificatePasswordCipher || !row.certificateFingerprint) throw new NotFoundException('Certificado público no disponible');
+    let bytes: Buffer | undefined, password: Buffer | undefined;
+    try {
+      bytes = this.vault.open(row.certificateCipher, { ruc: issuer.ruc, environment: issuer.environment, field: 'certificate' });
+      password = this.vault.open(row.certificatePasswordCipher, { ruc: issuer.ruc, environment: issuer.environment, field: 'certificatePassword' });
+      return { bytes: storedPublicCertificate(bytes, password.toString('utf8'), row.certificateFingerprint),
+        fileName: `${issuer.ruc}-${issuer.environment}-publico.cer` };
+    } catch { throw new ServiceUnavailableException('No se pudo extraer el certificado público guardado'); }
+    finally { bytes?.fill(0); password?.fill(0); }
   }
   async audit(companyId: string, environment: string, authorization: string | object, page = "1") {
     const issuer = await this.issuer(companyId, environment, authorization, "FISCAL_AUDIT", { page });

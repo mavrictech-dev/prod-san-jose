@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { ProductionGuidesIssued as Issued,ProductionGuidesResult as Result,ProductionGuidesSigner,ProductionGuidesStatusEvent,ProductionGuidesArtifactKind as Kind,ProductionGuidesArtifact as Artifact } from '@factuez/contracts/production-guides';
-import { productionGuidesHash as hash,productionGuidesBytesHash as bytesHash,productionGuidesUuid } from '@factuez/sunat-core/dist/production-guides';
+import { productionGuidesHash as hash,productionGuidesBytesHash as bytesHash,productionGuidesUuid,validateProductionGuidesResult } from '@factuez/sunat-core/dist/production-guides';
 export interface ProductionGuidesSql { $queryRawUnsafe<T=unknown>(sql:string,...values:any[]):Promise<T>; $executeRawUnsafe(sql:string,...values:any[]):Promise<number> }
 export interface ProductionGuidesDatabase extends ProductionGuidesSql { $transaction<T>(work:(tx:ProductionGuidesSql)=>Promise<T>,options?:any):Promise<T> }
 export type ProductionGuidesJob={documentId:string;eventId:string;snapshotSha256:string;event:Issued;result:Result;state:Result['state'];revision:number;attemptId:string|null;ticket:string|null;manifest:{unsignedXml:string;fingerprint:string;digest:string;reference?:unknown}|null;evidence:any};
@@ -15,7 +15,7 @@ export class ProductionGuidesStore {
   await tx.$executeRawUnsafe('INSERT INTO "ProductionGuidesJob" ("documentId","eventId","snapshotSha256","event","result","state") VALUES ($1::uuid,$2::uuid,$3,$4::jsonb,$5::jsonb,\'RESERVED\')',e.snapshot.documentId,e.eventId,e.snapshotSha256,JSON.stringify(e),JSON.stringify(result));return (await this.get(e.snapshot.documentId,tx))!;
  });}
  private async update(tx:ProductionGuidesSql,j:ProductionGuidesJob,patch:Partial<Result>,extra:{ticket?:string;attemptId?:string;manifest?:unknown;evidence?:unknown}={}){
-  const result:Result={...j.result,...patch,revision:j.revision+1,authorizedForTransfer:false};
+  const result=validateProductionGuidesResult({...j.result,...patch,revision:j.revision+1,authorizedForTransfer:false});
   const payload={eventId:randomUUID(),eventType:'sunat.production-guides.status.v1' as const,result};
   const event:ProductionGuidesStatusEvent={...payload,seal:this.signer.sign(payload,'STATUS')};
   await tx.$executeRawUnsafe('UPDATE "ProductionGuidesJob" SET "state"=$2,"result"=$3::jsonb,"revision"=$4,"ticket"=COALESCE($5::uuid,"ticket"),"attemptId"=COALESCE($6::uuid,"attemptId"),"manifest"=COALESCE($7::jsonb,"manifest"),"evidence"=COALESCE($8::jsonb,"evidence"),"updatedAt"=now() WHERE "documentId"=$1::uuid',j.documentId,result.state,JSON.stringify(result),result.revision,extra.ticket??null,extra.attemptId??null,extra.manifest?JSON.stringify(extra.manifest):null,extra.evidence?JSON.stringify(extra.evidence):null);

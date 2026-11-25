@@ -86,6 +86,17 @@ model CompanySettings {
   dailySummaries DailySummary[]
   financialLedgerStreams FinancialLedgerStream[]
   financialLedgerCommits FinancialLedgerCommit[]
+  guideOperationalSettings GuideOperationalSettings?
+}
+
+model GuideOperationalSettings {
+  companyId Int @id
+  settings Json
+  revision Int @default(1)
+  updatedBy String @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company CompanySettings @relation(fields: [companyId], references: [id], onDelete: Restrict)
 }
 
 model Branch {

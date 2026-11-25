@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Param, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Header, Param, Post, Query, Req, UseGuards, StreamableFile } from "@nestjs/common";
 import { ConfigurationGuard, type ConfigurationRequest } from "./auth/configuration.guard";
 import { FiscalConfigurationService, type ConfigurationInput } from "./application/fiscal-configuration.service";
 
@@ -9,6 +9,13 @@ export class FiscalConfigurationController {
   @Post(':companyId/:environment/reuse')
   @Header('Cache-Control','private, no-store')
   reuse(@Param('companyId') companyId:string,@Param('environment') environment:string,@Body() input:unknown,@Req() request:ConfigurationRequest){return this.configuration.reuse(companyId,environment,input,request.headers.authorization!,request.user!.sub);}
+  @Get(":companyId/:environment/public-certificate")
+  @Header("Cache-Control", "private, no-store")
+  @Header("X-Content-Type-Options", "nosniff")
+  async publicCertificate(@Param("companyId") companyId: string, @Param("environment") environment: string, @Req() request: ConfigurationRequest) {
+    const file = await this.configuration.publicCertificate(companyId, environment, request.headers.authorization!);
+    return new StreamableFile(file.bytes, { type: 'application/pkix-cert', disposition: `attachment; filename="${file.fileName}"`, length: file.bytes.length });
+  }
   @Get(":companyId/:environment/audit")
   @Header("Cache-Control", "private, no-store")
   audit(@Param("companyId") companyId: string, @Param("environment") environment: string, @Query("page") page: string | undefined, @Req() request: ConfigurationRequest) {

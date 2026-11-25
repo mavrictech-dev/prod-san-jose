@@ -51,7 +51,7 @@ export default function SunatSettingsPage() {
 }
 
 function ConfigurationForm({ company, environment }: { company: Company; environment: string }) {
-  const { api, setDirty } = useWorkspace();
+  const { api, apiBlob, setDirty } = useWorkspace();
   const path = `/api/v1/setup/sunat/${company.id}/${environment}`;
   const resource = useResource<ConfigurationStatus>(path);
   const [file, setFile] = useState<File>();
@@ -68,11 +68,15 @@ function ConfigurationForm({ company, environment }: { company: Company; environ
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState(false);
   const [secureTransport, setSecureTransport] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string>();
+  const downloadController = useRef<AbortController | undefined>(undefined);
   const changed = Boolean(file || certificatePassword || solUsername || solPassword || greClientId || greClientSecret);
   useEffect(() => { setDirty(changed); return () => setDirty(false); }, [changed, setDirty]);
   useEffect(() => {
     setSecureTransport(location.protocol === "https:" || ["localhost", "127.0.0.1", "[::1]"].includes(location.hostname));
   }, []);
+  useEffect(() => () => downloadController.current?.abort(), []);
   function clear() {
     setFile(undefined); if (fileInput.current) fileInput.current.value = "";
     setCertificatePassword(""); setSolUsername(""); setSolPassword(""); setGreClientId(""); setGreClientSecret("");
@@ -115,6 +119,22 @@ function ConfigurationForm({ company, environment }: { company: Company; environ
     } catch (reason) { setError(reason instanceof Error ? reason.message : "No se pudo retirar la configuración"); }
     finally { setBusy(false); }
   }
+  async function downloadPublicCertificate() {
+    if (downloading || busy || !secureTransport || !resource.data?.certificate.configured) return;
+    setDownloading(true); setDownloadError(undefined);
+    const controller = new AbortController(); downloadController.current = controller;
+    const fileName = `${resource.data.ruc}-${environment}-publico.cer`;
+    let url: string | undefined;
+    try {
+      const blob = await apiBlob(`${path}/public-certificate`, controller.signal, 'application/pkix-cert');
+      if (controller.signal.aborted) return;
+      url = URL.createObjectURL(blob);
+      const link = document.createElement('a'); link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link); link.click(); link.remove();
+    } catch { if (!controller.signal.aborted) setDownloadError('No se pudo descargar el certificado público. Verifique su acceso y reintente.'); }
+    finally { if (url) URL.revokeObjectURL(url); if (!controller.signal.aborted) setDownloading(false); }
+  }
   const status = resource.data;
   return <div className="space-y-5">
     <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
@@ -137,6 +157,8 @@ function ConfigurationForm({ company, environment }: { company: Company; environ
             {status.certificate.fingerprint && <p className="break-all text-xs text-muted-foreground">SHA-256: {status.certificate.fingerprint}</p>}
             {status.certificate.expiresAt && <p className="text-xs">Vence: {new Date(status.certificate.expiresAt).toLocaleDateString("es-PE", { timeZone: "America/Lima" })}</p>}
             {status.certificate.selfSigned && <p className="text-xs text-amber-700">Autofirmado: únicamente validación local, no aprobado para emisión fiscal.</p>}
+            {status.certificate.configured && <div className="space-y-2"><Button type="button" variant="outline" disabled={downloading} onClick={() => void downloadPublicCertificate()}>{downloading && <LoaderCircle className="size-4 animate-spin" />}{downloading ? 'Descargando certificado público' : 'Descargar certificado público'}</Button><p className="text-xs text-muted-foreground">Archivo .cer con la parte pública para diagnóstico.</p></div>}
+            {downloadError && <p role="alert" className="text-sm text-destructive">{downloadError}</p>}
             {status.certificate.configured && <Button type="button" variant="outline" disabled={changed} onClick={() => setRemove("certificate")}>Retirar certificado y contraseña</Button>}
             <div className="space-y-2"><Label htmlFor="certificate-file">Nuevo certificado</Label><Input id="certificate-file" ref={fileInput} type="file" accept=".p12,.pfx" onChange={event => { setFile(event.target.files?.[0]); setSuccess(false); }} /></div>
             <div className="space-y-2"><Label htmlFor="certificate-password">Contraseña del certificado</Label><Input id="certificate-password" type="password" autoComplete="new-password" value={certificatePassword} onChange={event => setCertificatePassword(event.target.value)} maxLength={512} /></div>

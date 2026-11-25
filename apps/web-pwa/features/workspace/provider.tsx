@@ -88,7 +88,7 @@ type Workspace = {
   login: (username: string, password: string) => Promise<User>;
   logout: () => void;
   api: Api;
-  apiBlob: (path: string, signal?: AbortSignal, mediaType?: "application/pdf" | "application/zip" | "application/xml" | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", options?: RequestInit) => Promise<Blob>;
+  apiBlob: (path: string, signal?: AbortSignal, mediaType?: "application/pdf" | "application/zip" | "application/xml" | "application/pkix-cert" | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", options?: RequestInit) => Promise<Blob>;
   can: (permission: string) => boolean;
   reloadCatalog: () => Promise<void>;
 };
@@ -377,7 +377,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (response.headers.get("content-type")?.split(";")[0] !== mediaType)
         throw new Error("El servidor no devolvió el formato solicitado");
       const blob = await response.blob();
-      const filename = response.headers.get('content-disposition')?.match(/^attachment; filename="([A-Za-z0-9_-]{1,180}\.(?:xml|zip|pdf|xlsx))"$/)?.[1];
+      const filename = response.headers.get('content-disposition')?.match(/^attachment; filename="([A-Za-z0-9_-]{1,180}\.(?:xml|zip|pdf|xlsx|cer))"$/)?.[1];
       return filename ? new File([blob], filename, {type: blob.type}) : blob;
     },
     [getAccessToken, logout],

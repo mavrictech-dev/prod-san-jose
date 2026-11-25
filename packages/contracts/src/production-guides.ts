@@ -29,7 +29,13 @@ export type ProductionGuidesSeal = { keyId: string; signature: string };
 export type ProductionGuidesIssued = { eventId: string; eventType: typeof PRODUCTION_GUIDES_ISSUED; snapshot: ProductionGuidesSnapshot; snapshotSha256: string; seal: ProductionGuidesSeal };
 export type ProductionGuidesResult = { documentId: string; snapshotSha256: string; state: ProductionGuidesState;
  revision: number; ticket?: string; xmlSha256?: string; zipSha256?: string; cdrZipSha256?: string;
- source: 'SUNAT_OFFICIAL' | 'LOCAL_SYNTHETIC'; officialCdrVerified: boolean; authorizedForTransfer: false };
+ source: 'SUNAT_OFFICIAL' | 'LOCAL_SYNTHETIC'; officialCdrVerified: boolean; authorizedForTransfer: false;
+ /** Bounded public details from verified CDR; raw signed originals remain the evidence. */
+ responseCode?: string; description?: string; notes?: string[];
+ /** Unauthenticated ticket diagnostic, never evidence of acceptance. */
+ functionalError?: { code?: string; message?: string };
+ /** Only from an accepted, authenticated and document-bound official CDR. */
+ qrUrl?: string };
 export type ProductionGuidesStatusEvent = { eventId: string; eventType: typeof PRODUCTION_GUIDES_STATUS; result: ProductionGuidesResult; seal: ProductionGuidesSeal };
 export type ProductionGuidesGrant = ProductionGuidesScope & { createdByActor?:ProductionGuidesServiceActor; actorId: string; version: number; enabled: boolean;
  profiles: ProductionGuidesProfile[]; credentialRevision: number; certificateFingerprint: string;

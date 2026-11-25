@@ -19,6 +19,11 @@ services:
   - name: sunat-service
     url: http://sunat-service:3003
     routes:
+      - name: fiscal-public-certificate
+        paths: ["~/api/v1/setup/sunat/[1-9][0-9]*/(?:BETA|PRODUCTION)/public-certificate$"]
+        methods: [GET, OPTIONS]
+        strip_path: false
+        regex_priority: 210
       - name: fiscal-artifacts-route
         paths: [/api/v1/fiscal-artifacts, /api/v1/setup/sunat, /api/v1/local-xml-validation, /api/v1/fiscal-circuit-qa, /api/v1/fiscal-rules]
         strip_path: false

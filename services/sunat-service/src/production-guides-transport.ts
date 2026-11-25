@@ -3,13 +3,16 @@ import type { ConnectionOptions } from 'node:tls';
 import { inspect } from 'node:util';
 import type { ProductionGuidesGrant as Grant } from '@factuez/contracts/production-guides';
 import { productionGuidesBytesHash as hash } from '@factuez/sunat-core/dist/production-guides';
+import { productionGuidesSafeMessage } from '@factuez/sunat-core/dist/production-guides';
+import { productionGuidesSolUsername } from './production-guides-sol-user';
+import type { ProductionGuidesResult } from '@factuez/contracts/production-guides';
 export type ProductionGuidesAction='OAUTH_GRE'|'SUBMIT_GRE'|'QUERY_TICKET';
 export interface ProductionGuidesHttp {request(input:{url:string;method:'GET'|'POST';headers:Record<string,string>;body?:Buffer}):Promise<{status:number;body:Buffer}>}
 export interface ProductionGuidesGreCredentials {withGre<T>(grant:Grant,work:(gre:{clientId:string;clientSecret:string},sol:{username:string;password:string})=>Promise<T>):Promise<T>}
 export interface ProductionGuidesTransport {
  readonly source:'SUNAT_OFFICIAL'|'LOCAL_SYNTHETIC';
  submit(grant:Grant,input:{fileName:string;xmlSha256:string;zipSha256:string;zip:Buffer}):Promise<{ticket:string}>;
- ticket(grant:Grant,ticket:string):Promise<{state:'PENDING'|'CDR'|'FAILED_NO_CDR';cdrZip?:Buffer}>;
+ ticket(grant:Grant,ticket:string):Promise<{state:'PENDING'|'CDR'|'FAILED_NO_CDR';cdrZip?:Buffer;functionalError?:ProductionGuidesResult['functionalError']}>;
 }
 const UUID=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 /** No redirects, bounded response/time, verified TLS. Test transport is pinned to loopback. */
@@ -47,14 +50,16 @@ export class ProductionGuidesRest implements ProductionGuidesTransport {
  private async token(g:Grant){
   const o=this.#options;await o.authorize('OAUTH_GRE',g);
   return o.credentials.withGre(g,async(gre,sol)=>{
-   if(!/^[A-Za-z0-9-]{1,100}$/.test(gre.clientId)||!gre.clientSecret||gre.clientSecret.length>8192||!sol.username.startsWith(g.issuerRuc)||!sol.password)throw Error('GRE_CREDENTIALS_INVALID');
+   const username=productionGuidesSolUsername(g.issuerRuc,sol.username);
+   if(!/^[A-Za-z0-9-]{1,100}$/.test(gre.clientId)||!gre.clientSecret||gre.clientSecret.length>8192||!sol.password)throw Error('GRE_CREDENTIALS_INVALID');
    const key=hash(`${g.issuerRuc}:${g.credentialRevision}:${gre.clientId}`),now=o.now?.()??Date.now();
    const cached=this.#tokens.get(key);if(cached&&cached.expires>now)return cached.token;this.#tokens.delete(key);
-   const form=new URLSearchParams({grant_type:'password',scope:'https://api-cpe.sunat.gob.pe',client_id:gre.clientId,client_secret:gre.clientSecret,username:sol.username,password:sol.password});
+   const form=new URLSearchParams({grant_type:'password',scope:'https://api-cpe.sunat.gob.pe',client_id:gre.clientId,client_secret:gre.clientSecret,username,password:sol.password});
    const body=Buffer.from(form.toString());let res:{status:number;body:Buffer};
    try{res=await o.http.request({url:this.url(`/v1/clientessol/${gre.clientId}/oauth2/token/`,true),method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded',Accept:'application/json'},body});}finally{body.fill(0);}
    let v:any;try{if(res.status!==200||res.body.length>32768)throw Error();v=JSON.parse(res.body.toString('utf8'));}catch{throw Error('GRE_OAUTH_FAILED');}finally{res.body.fill(0);}
-   if(v.token_type?.toLowerCase()!=='bearer'||typeof v.access_token!=='string'||!/^[A-Za-z0-9_.~+\/-]{1,16384}={0,2}$/.test(v.access_token)||!Number.isFinite(v.expires_in)||v.expires_in<=30)throw Error('GRE_OAUTH_RESPONSE_INVALID');
+   // SUNAT Manual Servicios GRE, p.6 example returns token_type JWT; p.7 still requires Bearer on requests.
+   if(typeof v.token_type!=='string'||!['bearer','jwt'].includes(v.token_type.toLowerCase())||typeof v.access_token!=='string'||!/^[A-Za-z0-9_.~+\/-]{1,16384}={0,2}$/.test(v.access_token)||!Number.isFinite(v.expires_in)||v.expires_in<=30)throw Error('GRE_OAUTH_RESPONSE_INVALID');
    if(this.#tokens.size>=32)this.#tokens.delete(this.#tokens.keys().next().value!);
    this.#tokens.set(key,{token:v.access_token,expires:now+(Math.min(v.expires_in,3600)-30)*1000});return v.access_token as string;
   });
@@ -71,7 +76,11 @@ export class ProductionGuidesRest implements ProductionGuidesTransport {
   const res=await this.#options.http.request({url:this.url('/v1/contribuyente/gem/comprobantes/envios/'+ticket),method:'GET',headers:{Authorization:`Bearer ${token}`,Accept:'application/json'}});
   let v:any;try{if(res.status!==200)throw Error();v=JSON.parse(res.body.toString('utf8'));}catch{throw Error('GRE_TICKET_FAILED');}
   if(v.codRespuesta==='98')return {state:'PENDING' as const};
-  if(v.codRespuesta==='99'&&v.indCdrGenerado==='0')return {state:'FAILED_NO_CDR' as const};
+  if(v.codRespuesta==='99'&&v.indCdrGenerado==='0'){
+   const code=typeof v.error?.numError==='string'&&/^\d{1,8}$/.test(v.error.numError)?v.error.numError:undefined;
+   const message=productionGuidesSafeMessage(v.error?.desError);
+   return {state:'FAILED_NO_CDR' as const,...(code||message?{functionalError:{...(code?{code}:{}),...(message?{message}:{})}}:{})};
+  }
   if(!['0','99'].includes(v.codRespuesta)||v.indCdrGenerado!=='1'||typeof v.arcCdr!=='string'||v.arcCdr.length>5592408||v.arcCdr.length%4!==0||!/^[A-Za-z0-9+/]+={0,2}$/.test(v.arcCdr))throw Error('GRE_TICKET_RESPONSE_INVALID');
   const cdrZip=Buffer.from(v.arcCdr,'base64');if(cdrZip.toString('base64')!==v.arcCdr)throw Error('GRE_TICKET_RESPONSE_INVALID');return {state:'CDR' as const,cdrZip};
  }

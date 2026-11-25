@@ -176,6 +176,22 @@
           ],
           "strip_path": false,
           "regex_priority": 200
+        },
+        {
+          "name": "core-fiscal-public-certificate",
+          "paths": [
+            "~/api/v1/setup/sunat/[1-9][0-9]*/(?:BETA|PRODUCTION)/public-certificate$"
+          ],
+          "methods": [
+            "GET",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 210
         }
       ]
     },

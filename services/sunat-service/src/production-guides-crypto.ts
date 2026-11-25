@@ -10,6 +10,7 @@ import type { SecretVault } from './infrastructure/crypto/secret-vault';
 import type { CertificateTrustService } from './infrastructure/crypto/certificate-trust.service';
 import type { XsdValidationService } from './infrastructure/sunat/xsd-validation.service';
 import type { ProductionGuidesGreCredentials } from './production-guides-transport';
+import { productionGuidesSolUsername } from './production-guides-sol-user';
 export type ProductionGuidesCredentialBinding=Pick<Grant,'issuerRuc'|'credentialRevision'|'certificateFingerprint'>;
 export interface ProductionGuidesSecrets extends ProductionGuidesGreCredentials {
  inspect(grant:Grant):Promise<void>;
@@ -35,7 +36,7 @@ export class ProductionGuidesVaultSecrets implements ProductionGuidesSecrets {
  async withCertificate<T>(g:ProductionGuidesCredentialBinding,work:(p12:Buffer,password:string)=>Promise<T>){const r=await this.row(g);const p12=this.vault.open(r.certificateCipher,{ruc:g.issuerRuc,environment:'PRODUCTION',field:'certificate'});let pass:Buffer|undefined;try{pass=this.vault.open(r.certificatePasswordCipher,{ruc:g.issuerRuc,environment:'PRODUCTION',field:'certificatePassword'});return await work(p12,pass.toString('utf8'));}finally{p12.fill(0);pass?.fill(0);}}
  async withGre<T>(g:Grant,work:(gre:{clientId:string;clientSecret:string},sol:{username:string;password:string})=>Promise<T>){
   const r=await this.row(g),buffers:Buffer[]=[];const open=(field:string,column:string)=>{const b=this.vault.open(r[column],{ruc:g.issuerRuc,environment:'PRODUCTION',field});buffers.push(b);return b.toString('utf8');};
-  try{return await work({clientId:open('greClientId','greClientIdCipher'),clientSecret:open('greClientSecret','greClientSecretCipher')},{username:open('solUsername','solUsernameCipher'),password:open('solPassword','solPasswordCipher')});}finally{buffers.forEach(b=>b.fill(0));}
+  try{return await work({clientId:open('greClientId','greClientIdCipher'),clientSecret:open('greClientSecret','greClientSecretCipher')},{username:productionGuidesSolUsername(g.issuerRuc,open('solUsername','solUsernameCipher')),password:open('solPassword','solPasswordCipher')});}finally{buffers.forEach(b=>b.fill(0));}
  }
 }
 export type ProductionGuidesCatalogue={version:'factuez.production-guides.catalogue.v1';companyId:number;issuerRuc:string;

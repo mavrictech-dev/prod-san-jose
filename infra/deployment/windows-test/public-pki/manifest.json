@@ -1,0 +1,14 @@
+{
+  "version": "factuez.reviewed-public-pki.v1",
+  "sunatSignerFingerprint": "a449c6652ac87d3fa615b03f9f238821efb8e7710f6adb40c9d5872ce53e7a54",
+  "files": {
+    "issuer-roots.pem": "fe2e0a11b68d2a11532daebd0566c66a9d3684e23d617e3c2dc8ba836bb9a774",
+    "cdr-signers.pem": "148cae1801a14eb5dabe6fa55cce315951c026a6c95397de984dbc3a92f74a5a"
+  },
+  "provenance": {
+    "rootAndIntermediate": "https://llama.pe/repository/",
+    "sunatCertificate": "Public certificate supplied in an external CDR; independently checked against the CA chain and current CRLs. This is not evidence that any supplied CDR body is intact."
+  },
+  "rootPinPreviouslyReviewed": true,
+  "privateMaterialIncluded": false
+}

@@ -25,9 +25,11 @@ export const LOCAL_SIGNATURE_PROFILE = Object.freeze({
 export interface XmlSignatureProfile { canonicalizationAlgorithm: string; signatureAlgorithm: string; digestAlgorithm: string }
 export interface SignedXmlResult { xml: string; digestValue: string; certificateFingerprintSha256: string }
 
-/** Sin DTD/entidades, comentarios, múltiples raíces ni parsing recuperado. */
+/** No DTD/entities, comments, multiple roots or recovered parsing. CDR permits standard CDATA text. */
 export function parseSafeInvoice(xml: string, rootKind: XmlRootKind = 'Invoice') {
-  if (!xml || Buffer.byteLength(xml, 'utf8') > MAX_XML_BYTES || /<!|<\?(?!xml\s)/i.test(xml)) throw new Error('XML no permitido');
+  if (typeof xml!=='string'||!xml||Buffer.byteLength(xml,'utf8')>MAX_XML_BYTES) throw new Error('XML no permitido');
+  const markup=rootKind==='ApplicationResponse'?xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g,''):xml;
+  if (!xml || Buffer.byteLength(xml, 'utf8') > MAX_XML_BYTES || /<!|<\?(?!xml\s)/i.test(markup)) throw new Error('XML no permitido');
   const document = new DOMParser({ onError: () => { throw new Error('XML mal formado'); } }).parseFromString(xml, 'application/xml');
   const root = document.documentElement;
   if (!Object.hasOwn(ROOT_NAMESPACES, rootKind)) throw new Error('Perfil XML desconocido');
@@ -55,7 +57,28 @@ export function parseSafeInvoice(xml: string, rootKind: XmlRootKind = 'Invoice')
 }
 
 /** Verifica con certificado externo; KeyInfo no es la autoridad. Usa sólo referencias autenticadas. */
+/** Outgoing/local documents remain limited to the original SHA-256 profile. */
 export function verifyLocalSignedInvoice(xml: string, certificatePem: string, expectedUnsignedXml: string, rootKind: XmlRootKind = 'Invoice'): string {
+  return verifyPinnedXmlProfile(xml, certificatePem, expectedUnsignedXml, rootKind, LOCAL_SIGNATURE_PROFILE);
+}
+/** Observed SUNAT CDR interoperability tuple; only the CDR verifier can select it.
+ * A digest algorithm alone never selects a profile. The pinned external signer,
+ * complete authenticated root, exact transforms and subsequent document binding remain mandatory. */
+export const SUNAT_CDR_SIGNATURE_PROFILE = Object.freeze({
+  canonicalizationAlgorithm:'http://www.w3.org/2001/10/xml-exc-c14n#WithComments',
+  signatureAlgorithm:'http://www.w3.org/2001/04/xmldsig-more#rsa-sha512',
+  digestAlgorithm:'http://www.w3.org/2000/09/xmldsig#sha1',
+});
+export function verifyPinnedSunatCdrSignature(xml: string, certificatePem: string, expectedUnsignedXml: string): string {
+  const parsed=parseSafeInvoice(xml,'ApplicationResponse');
+  const signatures=parsed.document.getElementsByTagNameNS(DS,'Signature');
+  if(signatures.length!==1)throw Error('CDR_SIGNATURE_REQUIRED');
+  const methods=signatures[0].getElementsByTagNameNS(DS,'SignatureMethod');
+  const profile=methods.length===1&&methods[0].getAttribute('Algorithm')===SUNAT_CDR_SIGNATURE_PROFILE.signatureAlgorithm?SUNAT_CDR_SIGNATURE_PROFILE:LOCAL_SIGNATURE_PROFILE;
+  return verifyPinnedXmlProfile(xml,certificatePem,expectedUnsignedXml,'ApplicationResponse',profile);
+}
+
+function verifyPinnedXmlProfile(xml: string, certificatePem: string, expectedUnsignedXml: string, rootKind: XmlRootKind, profile: XmlSignatureProfile): string {
   const parsed = parseSafeInvoice(xml, rootKind);
   const signatures = parsed.document.getElementsByTagNameNS(DS, 'Signature');
   if (signatures.length !== 1 || signatures[0].parentNode !== parsed.extension) throw new Error('Firma única de Invoice requerida');
@@ -66,12 +89,12 @@ export function verifyLocalSignedInvoice(xml: string, certificatePem: string, ex
     return nodes[0];
   };
   if (one('Reference').getAttribute('URI') !== '' ||
-      one('CanonicalizationMethod').getAttribute('Algorithm') !== LOCAL_SIGNATURE_PROFILE.canonicalizationAlgorithm ||
-      one('SignatureMethod').getAttribute('Algorithm') !== LOCAL_SIGNATURE_PROFILE.signatureAlgorithm ||
-      one('DigestMethod').getAttribute('Algorithm') !== LOCAL_SIGNATURE_PROFILE.digestAlgorithm) throw new Error('Perfil XMLDSig no permitido');
+      one('CanonicalizationMethod').getAttribute('Algorithm') !== profile.canonicalizationAlgorithm ||
+      one('SignatureMethod').getAttribute('Algorithm') !== profile.signatureAlgorithm ||
+      one('DigestMethod').getAttribute('Algorithm') !== profile.digestAlgorithm) throw new Error('Perfil XMLDSig no permitido');
   const transforms = signature.getElementsByTagNameNS(DS, 'Transform');
   if (transforms.length !== 2 || transforms[0].getAttribute('Algorithm') !== `${DS}enveloped-signature` ||
-      transforms[1].getAttribute('Algorithm') !== LOCAL_SIGNATURE_PROFILE.canonicalizationAlgorithm) throw new Error('Transformaciones no permitidas');
+      transforms[1].getAttribute('Algorithm') !== profile.canonicalizationAlgorithm) throw new Error('Transformaciones no permitidas');
   const pinned = new X509Certificate(certificatePem);
   const embedded = one('X509Certificate').textContent ?? '';
   if (!/^[A-Za-z0-9+/=\s]+$/.test(embedded) || !new X509Certificate(Buffer.from(embedded.replace(/\s/g, ''), 'base64')).raw.equals(pinned.raw)) throw new Error('Certificado XML no coincide');
@@ -83,10 +106,10 @@ export function verifyLocalSignedInvoice(xml: string, certificatePem: string, ex
   const trusted = parseSafeInvoice(authenticated[0], rootKind);
   if (trusted.document.getElementsByTagNameNS(DS, 'Signature').length) throw new Error('Referencia autenticada inesperada');
   const expected = parseSafeInvoice(expectedUnsignedXml, rootKind);
-  const canonical = (root: typeof expected.root) => new SignedXml().getCanonXml([LOCAL_SIGNATURE_PROFILE.canonicalizationAlgorithm], root);
+  const canonical = (root: typeof expected.root) => new SignedXml().getCanonXml([profile.canonicalizationAlgorithm], root);
   if (canonical(trusted.root) !== canonical(expected.root)) throw new Error('XML firmado difiere del snapshot');
   const digest = one('DigestValue').textContent ?? '';
-  if (!/^[A-Za-z0-9+/]{43}=$/.test(digest)) throw new Error('Digest inválido');
+  if (!(profile.digestAlgorithm === LOCAL_SIGNATURE_PROFILE.digestAlgorithm ? /^[A-Za-z0-9+/]{43}=$/ : /^[A-Za-z0-9+/]{27}=$/).test(digest)) throw new Error('Digest inválido');
   return digest;
 }
 

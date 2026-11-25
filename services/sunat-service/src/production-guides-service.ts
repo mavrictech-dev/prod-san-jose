@@ -1,7 +1,7 @@
 import { ForbiddenException,NotFoundException,ServiceUnavailableException } from '@nestjs/common';
 import { X509Certificate } from 'node:crypto';
 import type { ProductionGuidesIssued as Issued,ProductionGuidesSnapshot as Snapshot,ProductionGuidesGrant as Grant,ProductionGuidesOwnerPort,ProductionGuidesVerifier,ProductionGuidesReadPort,ProductionGuidesReference09,ProductionGuidesArtifactKind as Kind } from '@factuez/contracts/production-guides';
-import { buildProductionGuidesXml,validateProductionGuidesSnapshot,productionGuidesHash as hash,productionGuidesBytesHash as bytesHash,productionGuidesExact as exact,productionGuidesUuid } from '@factuez/sunat-core/dist/production-guides';
+import { buildProductionGuidesXml,validateProductionGuidesSnapshot,productionGuidesSafeMessage,productionGuidesHash as hash,productionGuidesBytesHash as bytesHash,productionGuidesExact as exact,productionGuidesUuid } from '@factuez/sunat-core/dist/production-guides';
 import { parseSafeInvoice,verifyLocalSignedInvoice } from './infrastructure/crypto/xml-signer.service';
 import { productionTransportXml } from './infrastructure/sunat/production-transport-zip';
 import { verifyGuideCdrEvidence } from './application/guide-cdr-evidence';
@@ -63,12 +63,13 @@ export class ProductionGuidesService implements ProductionGuidesReadPort {
  private async poll(j:ProductionGuidesJob){
   const o=this.enabled(),{s,g}=await this.own(j);const response=await o.transport.ticket(g,j.ticket!);
   if(response.state==='PENDING')return j;
-  if(response.state==='FAILED_NO_CDR')return this.store.finish(j.documentId,j.ticket!,{state:'FAILED_NO_CDR'},[]);
+  if(response.state==='FAILED_NO_CDR')return this.store.finish(j.documentId,j.ticket!,{state:'FAILED_NO_CDR',...(response.functionalError?{functionalError:response.functionalError}:{})},[]);
   if(!response.cdrZip)throw Error('GRE_CDR_MISSING');
-  const zip=Buffer.from(response.cdrZip),expected={issuerRuc:s.issuer.ruc,documentType:s.documentType,fullNumber:`${s.series}-${s.number}`,requestXmlSha256:j.result.xmlSha256!,requestZipSha256:j.result.zipSha256!,issuedAt:(s.body as any).issueDate,receivedAt:o.now?.()??new Date().toISOString(),source:'EXTERNAL_CDR' as const};
+  const zip=Buffer.from(response.cdrZip),expected={issuerRuc:s.issuer.ruc,documentType:s.documentType,fullNumber:`${s.series}-${s.number}`,requestXmlSha256:j.result.xmlSha256!,requestZipSha256:j.result.zipSha256!,issuedAt:(s.body as any).issueDate,receivedAt:o.now?.()??new Date().toISOString(),source:o.transport.source==='SUNAT_OFFICIAL'?'EXTERNAL_CDR' as const:'LOCAL_EMULATOR' as const};
   const evidence=await verifyGuideCdrEvidence(expected,zip,o.cdr),xml=productionTransportXml(zip,evidence.cdrFileName,true).xml;
   const base=evidence.cdrFileName.slice(0,-4);
-  return this.store.finish(j.documentId,j.ticket!,{state:evidence.status,cdrZipSha256:evidence.cdrZipSha256,officialCdrVerified:o.transport.source==='SUNAT_OFFICIAL'},[
+  const description=productionGuidesSafeMessage(evidence.description),notes=evidence.notes.map(n=>productionGuidesSafeMessage(n)).filter((n):n is string=>n!==undefined);
+  return this.store.finish(j.documentId,j.ticket!,{state:evidence.status,cdrZipSha256:evidence.cdrZipSha256,officialCdrVerified:o.transport.source==='SUNAT_OFFICIAL',responseCode:evidence.responseCode,...(description?{description}:{}),notes:[...notes],...(evidence.qrUrl?{qrUrl:evidence.qrUrl}:{})},[
    {kind:'cdr-xml',artifact:{name:evidence.cdrFileName,mediaType:'application/xml',sha256:bytesHash(xml),bytes:xml}},
    {kind:'cdr-zip',artifact:{name:base+'.zip',mediaType:'application/zip',sha256:bytesHash(zip),bytes:zip}}],{...evidence,source:o.transport.source,ticket:j.ticket,requestHashesBoundByCdr:false});
  }
@@ -109,7 +110,22 @@ export class ProductionGuidesService implements ProductionGuidesReadPort {
   if(kind.startsWith('cdr-')){const c=await this.store.artifact(j.documentId,'cdr-zip'),x=await this.store.artifact(j.documentId,'cdr-xml');if(c.sha256!==j.result.cdrZipSha256||!productionTransportXml(c.bytes,x.name,true).xml.equals(x.bytes)||!await this.enabled().cdr.verify(x.bytes))throw Error('GRE_CDR_ORIGINAL_INVALID');}
   return a;
  }
- async pdf(e:Issued){const j=await this.readable(e);await this.originals(j);if(j.result.officialCdrVerified){await this.artifact(e,'cdr-zip');}const pdf=await this.enabled().pdf(e.snapshot,j.result,j.manifest!);if(!Buffer.isBuffer(pdf)||pdf.length>8*1024*1024||pdf.subarray(0,5).toString()!=='%PDF-')throw Error('GRE_PDF_INVALID');return pdf;}
+ async pdf(e:Issued){
+  const j=await this.readable(e);await this.originals(j);let result={...j.result};
+  if(['ACCEPTED','ACCEPTED_WITH_OBSERVATIONS','REJECTED'].includes(result.state)){
+   const cdr=await this.store.artifact(j.documentId,'cdr-zip'),s=j.event.snapshot;
+   const evidence=await verifyGuideCdrEvidence({issuerRuc:s.issuer.ruc,documentType:s.documentType,fullNumber:`${s.series}-${s.number}`,requestXmlSha256:result.xmlSha256!,requestZipSha256:result.zipSha256!,issuedAt:(s.body as any).issueDate,receivedAt:j.evidence.receivedAt,source:result.source==='SUNAT_OFFICIAL'?'EXTERNAL_CDR':'LOCAL_EMULATOR'},cdr.bytes,this.enabled().cdr);
+   const notes=evidence.notes.map(n=>productionGuidesSafeMessage(n)).filter(n=>n!==undefined);
+   if(evidence.cdrZipSha256!==result.cdrZipSha256||evidence.status!==result.state||
+    result.qrUrl!==undefined&&result.qrUrl!==evidence.qrUrl||
+    result.responseCode!==undefined&&result.responseCode!==evidence.responseCode||
+    result.description!==undefined&&result.description!==productionGuidesSafeMessage(evidence.description)||
+    result.notes!==undefined&&hash(result.notes)!==hash(notes))throw Error('GRE_PDF_CDR_CHANGED');
+   delete result.qrUrl;
+   if(result.officialCdrVerified&&evidence.qrUrl)result.qrUrl=evidence.qrUrl;
+  }else delete result.qrUrl;
+  const pdf=await this.enabled().pdf(e.snapshot,result,j.manifest!);if(!Buffer.isBuffer(pdf)||pdf.length>8*1024*1024||pdf.subarray(0,5).toString()!=='%PDF-')throw Error('GRE_PDF_INVALID');return pdf;
+ }
  /** Opt-in bounded worker tick; main owns scheduling/queue lifecycle and signed-event delivery. */
  async tick(limit=20){const result=[];for(const row of await this.store.pending(limit)){try{result.push(await this.process(row.documentId));}catch{result.push({documentId:row.documentId,state:'REQUIRES_REVIEW'});}}return result;}
 }

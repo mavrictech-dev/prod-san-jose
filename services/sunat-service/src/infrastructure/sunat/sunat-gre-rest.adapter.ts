@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { unzipSync } from 'fflate';
 import { DOMParser } from '@xmldom/xmldom';
+import { productionGuidesSolUsername } from '../../production-guides-sol-user';
 import type { SignedPackage, SubmissionReceipt, SunatSubmissionPort, TicketStatus } from '../../domain/ports/sunat-adapter.port';
 export const GRE_OFFICIAL = Object.freeze({
   security: 'https://api-seguridad.sunat.gob.pe/v1/clientessol',
@@ -44,7 +45,8 @@ export class SunatGreRestAdapter implements SunatSubmissionPort {
   private enabled() {
     const c = this.config;
     if (process.env.GRE_EXTERNAL_TRANSMISSION_ENABLED !== 'true' || !c.enabled || c.environment !== 'PRODUCTION') throw new GreRestError('TRANSMISION_DESHABILITADA');
-    if (!validRuc(c.ruc) || !UUID.test(c.clientId) || !/^[A-Za-z0-9]{1,30}$/.test(c.solUser) || !secret(c.solPassword) || !secret(c.clientSecret) || !Number.isSafeInteger(c.credentialRevision) || c.credentialRevision < 1) throw new GreRestError('CONFIGURACION_INVALIDA');
+    try { productionGuidesSolUsername(c.ruc, c.solUser); } catch { throw new GreRestError('CONFIGURACION_INVALIDA'); }
+    if (!validRuc(c.ruc) || !UUID.test(c.clientId) || !secret(c.solPassword) || !secret(c.clientSecret) || !Number.isSafeInteger(c.credentialRevision) || c.credentialRevision < 1) throw new GreRestError('CONFIGURACION_INVALIDA');
     if (!c.readiness.certificateTrusted || !c.readiness.xsdValidated || !c.readiness.fiscalRulesValidated) throw new GreRestError('GATES_FISCALES_PENDIENTES');
     if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') throw new GreRestError('TLS_INSEGURO');
   }
@@ -58,7 +60,7 @@ export class SunatGreRestAdapter implements SunatSubmissionPort {
   }
   private async obtainToken() {
     const c = this.config;
-    const form = new URLSearchParams({ grant_type: 'password', scope: GRE_OFFICIAL.scope, client_id: c.clientId, client_secret: c.clientSecret, username: `${c.ruc}${c.solUser}`, password: c.solPassword });
+    const form = new URLSearchParams({ grant_type: 'password', scope: GRE_OFFICIAL.scope, client_id: c.clientId, client_secret: c.clientSecret, username: productionGuidesSolUsername(c.ruc, c.solUser), password: c.solPassword });
     let response: Response;
     try { response = await fetch(`${GRE_OFFICIAL.security}/${c.clientId}/oauth2/token/`, { method: 'POST', redirect: 'error', headers: { 'content-type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form, signal: AbortSignal.timeout(15000) }); }
     catch { throw new GreRestError('TOKEN_NO_DISPONIBLE'); }

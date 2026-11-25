@@ -48,3 +48,7 @@ __pycache__/
 /.installation/
 
 /.qa/
+
+# Reviewed public CA/SUNAT certificates only; private PEM material remains ignored.
+!infra/deployment/windows-test/public-pki/issuer-roots.pem
+!infra/deployment/windows-test/public-pki/cdr-signers.pem

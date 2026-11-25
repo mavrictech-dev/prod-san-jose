@@ -1,7 +1,7 @@
 import {isHydrocarbonProfile,isPrivateGuideProfile,validateHydrocarbonCargo} from './production-guides-hydrocarbon';
 export * from './production-guides-hydrocarbon';
 import { createHash, sign, verify, type KeyObject } from 'node:crypto';
-import type { ProductionGuidesSnapshot as Snapshot, ProductionGuidesReference09, ProductionGuidesSeal, ProductionGuidesSigner, ProductionGuidesVerifier } from '@factuez/contracts/production-guides';
+import type { ProductionGuidesSnapshot as Snapshot, ProductionGuidesReference09, ProductionGuidesResult, ProductionGuidesSeal, ProductionGuidesSigner, ProductionGuidesVerifier } from '@factuez/contracts/production-guides';
 import { boundedSupplementJson } from './fiscal-supplement-command';
 import { fiscalRuc, fiscalSnapshotSha256 as hash, fiscalTimestamp, fiscalXml as esc } from './fiscal-note';
 import { validateNumberedGuideInput, NUMBERED_GUIDE_INPUT_SCHEMA_VERSION } from './numbered-guide-profile';
@@ -21,6 +21,52 @@ export function productionGuidesExact(v: unknown, keys: string[]): asserts v is 
 }
 export function productionGuidesUuid(v: unknown): asserts v is string {
  if (typeof v !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(v)) throw Error('GRE_INVALID_UUID');
+}
+/** Publish plain functional text only; never promote HTML, exception traces or credential diagnostics. */
+export function productionGuidesSafeMessage(value: unknown): string | undefined {
+ if (typeof value !== 'string' || !value || value !== value.trim() || value.length > 2048 ||
+  !/^[\p{L}\p{N} .,;:()\[\]¿?¡!°ºª%+/_='"\-]+$/u.test(value) ||
+  /(?:password|contrase[nñ]a|clave|secret|token|bearer|username|usuario\s*sol|client[_ ]?id|exception|stack|trace|java\.|node:|https?:|[A-Za-z0-9+/=_-]{80})/i.test(value)) return undefined;
+ return value.slice(0,500).trimEnd();
+}
+/** Narrow interoperable SUNAT GRE consultation URL. Never requested by the backend. */
+export function productionGuidesQrUrl(value: unknown): value is string {
+ if (typeof value !== 'string' || value.length > 2048 ||
+  !/^https:\/\/e-factura\.sunat\.gob\.pe\/v1\/contribuyente\/gre\/comprobantes\/descargaqr\?hashqr=[A-Za-z0-9%+/_=-]+$/.test(value)) return false;
+ try {
+  const u = new URL(value), params = [...u.searchParams.entries()];
+  return u.origin === 'https://e-factura.sunat.gob.pe' && u.pathname === '/v1/contribuyente/gre/comprobantes/descargaqr' &&
+   !u.username && !u.password && !u.port && !u.hash && params.length === 1 && params[0][0] === 'hashqr' && /^[A-Za-z0-9+/_=-]{1,1800}$/.test(params[0][1]);
+ } catch { return false; }
+}
+/** Validates signed status envelopes at producer and Billing boundaries; optional metadata remains v1-compatible. */
+export function validateProductionGuidesResult(raw: unknown): ProductionGuidesResult {
+ const r = boundedSupplementJson(raw) as ProductionGuidesResult;
+ const required = ['documentId','snapshotSha256','state','revision','source','officialCdrVerified','authorizedForTransfer'];
+ const optional = ['ticket','xmlSha256','zipSha256','cdrZipSha256','responseCode','description','notes','functionalError','qrUrl'];
+ productionGuidesExact(r, [...required, ...optional.filter(k => Object.hasOwn(r, k))]);
+ productionGuidesUuid(r.documentId);
+ const cdr = ['ACCEPTED','ACCEPTED_WITH_OBSERVATIONS','REJECTED'].includes(r.state);
+ if (!Number.isSafeInteger(r.revision) || r.revision < 0 || !['RESERVED','PREPARED','POSTING','UNKNOWN','TICKET','ACCEPTED','ACCEPTED_WITH_OBSERVATIONS','REJECTED','FAILED_NO_CDR'].includes(r.state) ||
+  !['SUNAT_OFFICIAL','LOCAL_SYNTHETIC'].includes(r.source) || typeof r.officialCdrVerified !== 'boolean' || r.authorizedForTransfer !== false ||
+  r.officialCdrVerified && (r.source !== 'SUNAT_OFFICIAL' || !cdr)) throw Error('GRE_RESULT_INVALID');
+ for (const key of ['snapshotSha256','xmlSha256','zipSha256','cdrZipSha256'] as const)
+  if ((key === 'snapshotSha256' || Object.hasOwn(r, key)) && (typeof r[key] !== 'string' || !/^[a-f0-9]{64}$/.test(r[key]!))) throw Error('GRE_RESULT_INVALID');
+ if (r.ticket !== undefined) productionGuidesUuid(r.ticket);
+ if (cdr && (!r.xmlSha256 || !r.zipSha256 || !r.cdrZipSha256)) throw Error('GRE_RESULT_INVALID');
+ if ((r.responseCode !== undefined || r.description !== undefined || r.notes !== undefined) && !cdr) throw Error('GRE_RESULT_INVALID');
+ if (r.responseCode !== undefined && (typeof r.responseCode !== 'string' || !/^\d{1,8}$/.test(r.responseCode) || (r.responseCode === '0') !== (r.state !== 'REJECTED'))) throw Error('GRE_RESULT_INVALID');
+ if (r.description !== undefined && productionGuidesSafeMessage(r.description) !== r.description) throw Error('GRE_RESULT_INVALID');
+ if (r.notes !== undefined && (!Array.isArray(r.notes) || r.notes.length > 50 || r.notes.some(n => productionGuidesSafeMessage(n) !== n))) throw Error('GRE_RESULT_INVALID');
+ if (r.functionalError !== undefined) {
+  const f = r.functionalError;
+  productionGuidesExact(f, ['code','message'].filter(k => Object.hasOwn(f, k)));
+  if (r.state !== 'FAILED_NO_CDR' || !Object.keys(f).length ||
+   f.code !== undefined && (typeof f.code !== 'string' || !/^\d{1,8}$/.test(f.code)) ||
+   f.message !== undefined && productionGuidesSafeMessage(f.message) !== f.message) throw Error('GRE_RESULT_INVALID');
+ }
+ if (r.qrUrl !== undefined && (!r.officialCdrVerified || !['ACCEPTED','ACCEPTED_WITH_OBSERVATIONS'].includes(r.state) || !productionGuidesQrUrl(r.qrUrl))) throw Error('GRE_RESULT_INVALID');
+ return r;
 }
 /** Separate production envelope and UBL renderer; existing pure validators retain their limited profiles. */
 export function validateProductionGuidesSnapshot(raw: unknown): Snapshot {

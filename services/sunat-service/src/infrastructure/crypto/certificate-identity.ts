@@ -1,9 +1,16 @@
 /** Sólo atributos de identidad, nunca CN ni búsqueda libre por substring.
  * NTRPE-/VATPE-: organizationIdentifier ETSI EN 319 412-1, §5.1.4.
+ * OU exact "FACTURA ELECTRONICA RUC 12345678901": observed Llama.pe interoperability profile.
+ * This identity candidate never proves CA trust, revocation or SUNAT registration.
  * Identificar el RUC no verifica confianza PKI ni registro en SUNAT.
  */
 export function certificateRucCandidates(attributes: ReadonlyArray<{ type?: string; value?: unknown }>): string[] {
   return [...new Set(attributes.flatMap(attribute => {
+    if (attribute.type === '2.5.4.11') {
+      // No trim/case folding/substring matching. Keep conflicting RUC candidates for the trust gate.
+      const organizationalUnit = typeof attribute.value === 'string' ? /^FACTURA ELECTRONICA RUC ([0-9]{11})$/.exec(attribute.value) : null;
+      return organizationalUnit && organizationalUnit[0] === attribute.value ? [organizationalUnit[1]] : [];
+    }
     if (!['2.5.4.5', '2.5.4.97'].includes(attribute.type ?? '')) return [];
     const value = String(attribute.value ?? '').trim();
     const local = /^(?:(?:RUC|RUCPE)[: -]?)?(\d{11})$/i.exec(value);

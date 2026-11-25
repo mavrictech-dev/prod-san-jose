@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CdrSignatureTrustService } from '../services/sunat-service/src/infrastructure/crypto/cdr-signature-trust.service';
 import { CertificateTrustService, type CertificateTrustResult } from '../services/sunat-service/src/infrastructure/crypto/certificate-trust.service';
-import { XmlSignerService, parseSafeInvoice, verifyLocalSignedInvoice } from '../services/sunat-service/src/infrastructure/crypto/xml-signer.service';
+import { XmlSignerService, parseSafeInvoice, verifyLocalSignedInvoice, verifyPinnedSunatCdrSignature, SUNAT_CDR_SIGNATURE_PROFILE } from '../services/sunat-service/src/infrastructure/crypto/xml-signer.service';
 
 const serviceRequire = createRequire(new URL('../services/sunat-service/package.json', import.meta.url));
 const forge: typeof import('node-forge') = serviceRequire('node-forge');
@@ -371,4 +371,66 @@ describe('CdrSignatureTrustService: XMLDSig real con confianza PKI simulada sól
     expect(Buffer.from(invalid.toString('utf8')).equals(invalid)).toBe(false);
     await expect(service.verify(invalid)).resolves.toBe(false);
   });
+});
+
+// Interoperability uses only ephemeral keys and synthetic document content.
+describe('SUNAT CDR exact SHA512/with-comments tuple and standard CDATA',()=>{
+ function observedTupleXml(){
+  const p12=forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(signer.pkcs12.toString('binary')),false,PASSWORD);
+  const bag=(p12.getBags({bagType:forge.pki.oids.pkcs8ShroudedKeyBag})[forge.pki.oids.pkcs8ShroudedKeyBag]??[])[0];
+  const unsigned=unsignedXml.replace('CDR FICTICIO UNIT TEST','<![CDATA[CDR FICTICIO UNIT TEST]]>');
+  const builder=new SignedXml({privateKey:forge.pki.privateKeyToPem(bag.key!),publicCert:signer.certificatePem,...SUNAT_CDR_SIGNATURE_PROFILE});
+  builder.addReference({xpath:'/*',isEmptyUri:true,transforms:[DS+'enveloped-signature',SUNAT_CDR_SIGNATURE_PROFILE.canonicalizationAlgorithm],digestAlgorithm:SUNAT_CDR_SIGNATURE_PROFILE.digestAlgorithm});
+  builder.computeSignature(unsigned,{location:{reference:"/*/*[local-name()='UBLExtensions']/*[local-name()='UBLExtension']/*[local-name()='ExtensionContent']",action:'append'}});
+  return {xml:builder.getSignedXml(),unsigned};
+ }
+ it('verifies the exact incoming CDR tuple while local outgoing verification stays SHA256',async()=>{
+  const {xml,unsigned}=observedTupleXml();expect(verifyPinnedSunatCdrSignature(xml,signer.certificatePem,unsigned)).toMatch(/^[A-Za-z0-9+/]{27}=$/);
+  await expect(service.verify(Buffer.from(xml))).resolves.toBe(true);
+  expect(()=>verifyLocalSignedInvoice(xml,signer.certificatePem,unsigned,'ApplicationResponse')).toThrow('Perfil XMLDSig');
+ });
+ it('requires authenticated body digest even when SignedInfo remains signed correctly',async()=>{
+  const {xml}=observedTupleXml();await expect(service.verify(Buffer.from(xml.replace('CDR FICTICIO UNIT TEST','CHANGED SYNTHETIC RESPONSE')))).resolves.toBe(false);
+ });
+ it.each(['http://www.w3.org/2001/04/xmldsig-more#rsa-sha256','http://www.w3.org/2000/09/xmldsig#rsa-sha1'])('rejects mixed or downgraded tuple %s',async algorithm=>{
+  const {xml}=observedTupleXml();await expect(service.verify(Buffer.from(xml.replace(SUNAT_CDR_SIGNATURE_PROFILE.signatureAlgorithm,algorithm)))).resolves.toBe(false);
+ });
+ it('allows CDATA text only in CDR parsing and continues rejecting DTD/entity/comment markup',()=>{
+  const xml=unsignedXml.replace('CDR FICTICIO UNIT TEST','<![CDATA[CDR FICTICIO UNIT TEST]]>');
+  expect(()=>parseSafeInvoice(xml,'ApplicationResponse')).not.toThrow();
+  for(const unsafe of ['<!DOCTYPE x>','<!ENTITY x "x">','<!-- x -->'])expect(()=>parseSafeInvoice(xml.replace('<cbc:UBLVersionID>',unsafe+'<cbc:UBLVersionID>'),'ApplicationResponse')).toThrow();
+  expect(()=>parseSafeInvoice(xml.replaceAll('ApplicationResponse','Invoice'),'Invoice')).toThrow();
+ });
+});
+
+describe('pinned institutional SUNAT identity without a subject RUC',()=>{
+ let fixtureSequence=0;
+ async function institution(commonName='SUPERINT. NAC. DE ADUANAS Y DE ADMINISTRACION TRIBUTARIA'){
+  const sequence=++fixtureSequence;const root=certificateFixture('8101'),leaf=certificateFixture('8102',undefined,root);
+  leaf.certificate.setSubject([{name:'countryName',value:'PE'},{name:'organizationName',value:'SUPERINTENDENCIA NACIONAL DE ADUANAS Y DE ADMINISTRACION TRIBUTARIA - SUNAT'},{name:'commonName',value:commonName}]);
+  leaf.certificate.sign(root.privateKey,forge.md.sha256.create());const pem=forge.pki.certificateToPem(leaf.certificate);
+  const signerPin=await publicPin(`institution-signer-${sequence}.pem`,pem+root.certificatePem),roots=await publicPin(`institution-roots-${sequence}.pem`,root.certificatePem),crls=await publicPin(`institution-crl-${sequence}.pem`,'-----BEGIN X509 CRL-----\nAA==\n-----END X509 CRL-----\n');
+  configurePin(signerPin);vi.stubEnv('SUNAT_TRUST_STORE_FILE',roots.file);vi.stubEnv('SUNAT_TRUST_STORE_SHA256',roots.hash);vi.stubEnv('SUNAT_CRL_BUNDLE_FILE',crls.file);vi.stubEnv('SUNAT_CRL_BUNDLE_SHA256',crls.hash);
+  const x509=new X509Certificate(pem),metadata={fingerprint:x509.fingerprint256.replaceAll(':','').toLowerCase(),expiresAt:new Date(x509.validTo),selfSigned:false,certificatePem:pem,chainPems:[root.certificatePem],digitalSignature:true,subjectRucCandidates:[] as string[]};
+  const authority=new CertificateTrustService();
+  // Unit boundary only: OpenSSL chain/CRL is stubbed; pin parsing and exact subject policy are real.
+  const verifier=vi.fn(async()=>{});(authority as any).verify=verifier;return {authority,metadata,signerPin,verifier};
+ }
+ it('requires the live external pin and exact CA-attested subject without relaxing issuer RUC checks',async()=>{
+  const {authority,metadata,verifier}=await institution();
+  await expect(authority.evaluatePinnedSunatCdr(metadata)).resolves.toMatchObject({identityMatched:true,chainValid:true,revocation:'VERIFIED_OFFLINE_CRL'});expect(verifier).toHaveBeenCalledTimes(2);
+  await expect(authority.evaluate(metadata,SUNAT_RUC)).resolves.toMatchObject({identityMatched:false,chainValid:false});
+ });
+ it('rejects a changed pin before invoking the chain verifier',async()=>{
+  const {authority,metadata,verifier}=await institution();vi.stubEnv('SUNAT_CDR_SIGNER_CERT_SHA256','a'.repeat(64));
+  await expect(authority.evaluatePinnedSunatCdr(metadata)).resolves.toMatchObject({identityMatched:false,chainValid:false});expect(verifier).not.toHaveBeenCalled();
+ });
+ it('rejects a CN substring instead of the exact institutional identity',async()=>{
+  const {authority,metadata,verifier}=await institution('SUNAT AUTOMATICALLY TRUSTED');
+  await expect(authority.evaluatePinnedSunatCdr(metadata)).resolves.toMatchObject({identityMatched:false,chainValid:false});expect(verifier).not.toHaveBeenCalled();
+ });
+ it('does not override conflicting RUC identity evidence',async()=>{
+  const {authority,metadata,verifier}=await institution();metadata.subjectRucCandidates=[OTHER_RUC];
+  await expect(authority.evaluatePinnedSunatCdr(metadata)).resolves.toMatchObject({identityMatched:false,chainValid:false});expect(verifier).not.toHaveBeenCalled();
+ });
 });

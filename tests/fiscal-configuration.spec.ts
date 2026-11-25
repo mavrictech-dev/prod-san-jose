@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { createRequire } from "node:module";
-import { generateKeyPairSync, randomBytes } from "node:crypto";
+import { generateKeyPairSync, randomBytes, X509Certificate } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,6 +10,8 @@ import { SecretVault } from "../services/sunat-service/src/infrastructure/crypto
 import { inspectCertificate, MAX_CERTIFICATE_BYTES } from "../services/sunat-service/src/infrastructure/crypto/certificate-inspector";
 import { ConfigurationGuard } from "../services/sunat-service/src/auth/configuration.guard";
 import { FiscalConfigurationService } from "../services/sunat-service/src/application/fiscal-configuration.service";
+import { storedPublicCertificate } from "../services/sunat-service/src/infrastructure/crypto/public-certificate";
+import { FiscalConfigurationController } from "../services/sunat-service/src/fiscal-configuration.controller";
 const serviceRequire = createRequire(new URL("../services/sunat-service/package.json", import.meta.url));
 const forge: typeof import("../services/sunat-service/node_modules/node-forge") = serviceRequire("node-forge");
 let key: ReturnType<typeof forge.pki.privateKeyFromPem>;
@@ -181,5 +184,58 @@ describe("configuración por emisor sin transmisión", () => {
     await expect(f.service.status("1", "QA", "Bearer QA.token")).rejects.toThrow("ambiente inválido");
     const view = await f.service.status("1", "PRODUCTION", "Bearer QA.token");
     expect(view).toMatchObject({ environment: "PRODUCTION", revision: 0, solConfigured: false, greConfigured: false, fiscalTransmission: false });
+  });
+});
+
+
+describe("descarga autenticada del certificado publico", () => {
+  it("exporta DER de la huella guardada, sin clave y con AAD y buffers borrados", async () => {
+    const original = p12({ reverseChain: true }), fingerprint = inspectCertificate(original, password).fingerprint;
+    const opened: Buffer[] = [], open = vi.fn((cipher: string) => { const b = cipher === 'p12' ? Buffer.from(original) : Buffer.from(password); opened.push(b); return b; });
+    const findUnique = vi.fn(async () => ({ certificateCipher: 'p12', certificatePasswordCipher: 'password', certificateFingerprint: fingerprint }));
+    const service = new FiscalConfigurationService({ sunatCredentials: {findUnique} } as never, {open} as never, {} as never);
+    vi.stubGlobal('fetch',vi.fn(async () => new Response(JSON.stringify({companies:[{id:1,ruc:'20000000001'}]}))));
+    const file = await service.publicCertificate('1','PRODUCTION','Bearer QA.token');
+    const certificate = new X509Certificate(file.bytes);
+    expect(certificate.raw).toEqual(file.bytes);mkdirSync("output/gre-repair",{recursive:true});writeFileSync("output/gre-repair/synthetic-public.cer",file.bytes);
+    expect(certificate.fingerprint256.replaceAll(':','').toLowerCase()).toBe(fingerprint);
+    expect(file.fileName).toBe('20000000001-PRODUCTION-publico.cer');
+    expect(file.bytes.toString()).not.toContain('PRIVATE KEY');expect(file.bytes.equals(original)).toBe(false);
+    expect(opened.every(b=>b.every(byte=>byte===0))).toBe(true);
+    expect(open.mock.calls.map(call=>call[0])).toEqual(['p12','password']);
+    expect(findUnique).toHaveBeenCalledWith({where:{issuerRuc_environment:{issuerRuc:'20000000001',environment:'PRODUCTION'}}});
+    expect(open.mock.calls[0][1]).toEqual({ruc:'20000000001',environment:'PRODUCTION',field:'certificate'});
+  });
+  it('permite diagnosticar un certificado vencido sin activarlo',()=>{
+    const original=p12({expired:true});
+    // Public bag extraction does not require a valid signing period.
+    const archive=forge.pkcs12.pkcs12FromAsn1(forge.asn1.fromDer(original.toString('binary')),false,password);
+    const cert=archive.getBags({bagType:forge.pki.oids.certBag})[forge.pki.oids.certBag]![0].cert!;
+    const x509=new X509Certificate(forge.pki.certificateToPem(cert));
+    expect(new X509Certificate(storedPublicCertificate(original,password,x509.fingerprint256.replaceAll(':','').toLowerCase())).raw).toEqual(x509.raw);
+  });
+  it('rechaza otra huella, contrase?a incorrecta y P12 invalido con mensaje seguro',()=>{
+    const original=p12(),fp=inspectCertificate(original,password).fingerprint;
+    for(const [bytes,pass,fingerprint] of [[original,password,'a'.repeat(64)],[original,'INCORRECT_SECRET',fp],[Buffer.from('bad'),password,fp]] as const)
+      expect(()=>storedPublicCertificate(bytes,pass,fingerprint)).toThrow(/^PUBLIC_CERTIFICATE_UNAVAILABLE$/);
+  });
+  it('no abre el vault para empresa ajena, ambiente invalido o Identity/Billing rechazado',async()=>{
+    const open=vi.fn(),findUnique=vi.fn();const service=new FiscalConfigurationService({sunatCredentials:{findUnique}} as never,{open} as never,{} as never);
+    vi.stubGlobal('fetch',vi.fn(async()=>new Response(JSON.stringify({companies:[{id:1,ruc:'20000000001'}]}))));
+    await expect(service.publicCertificate('2','PRODUCTION','Bearer QA')).rejects.toThrow('Emisor no disponible');
+    await expect(service.publicCertificate('1','WRONG','Bearer QA')).rejects.toThrow('ambiente');
+    vi.stubGlobal('fetch',vi.fn(async()=>new Response('{}',{status:403})));
+    await expect(service.publicCertificate('1','PRODUCTION','Bearer QA')).rejects.toThrow('Inicie');
+    expect(open).not.toHaveBeenCalled();expect(findUnique).not.toHaveBeenCalled();
+  });
+  it('conserva guard, ruta exacta, no-store, nosniff y attachment CER',async()=>{
+    const guards=Reflect.getMetadata('__guards__',FiscalConfigurationController);expect(guards).toContain(ConfigurationGuard);
+    const method=FiscalConfigurationController.prototype.publicCertificate;
+    expect(Reflect.getMetadata('path',method)).toBe(':companyId/:environment/public-certificate');
+    const headers=Reflect.getMetadata('__headers__',method);
+    expect(headers).toEqual(expect.arrayContaining([{name:'Cache-Control',value:'private, no-store'},{name:'X-Content-Type-Options',value:'nosniff'}]));
+    const controller=new FiscalConfigurationController({publicCertificate:async()=>({bytes:Buffer.from('DER'),fileName:'20000000001-BETA-publico.cer'})} as never);
+    const file=await controller.publicCertificate('1','BETA',{headers:{authorization:'Bearer QA'}});
+    expect(file.getHeaders()).toMatchObject({type:'application/pkix-cert',disposition:'attachment; filename="20000000001-BETA-publico.cer"',length:3});
   });
 });

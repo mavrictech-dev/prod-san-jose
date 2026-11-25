@@ -1,3 +1,4 @@
+import forge from 'node-forge';
 import { Injectable } from '@nestjs/common';
 import { constants } from 'node:fs';
 import { open, realpath, lstat, mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
@@ -57,11 +58,35 @@ export class CertificateTrustService {
   protected verify: OfflineVerifyPort = verifyWithOpenSsl;
 
   async evaluate(metadata: InspectedSigningCertificate, expectedRuc: string, now = new Date()): Promise<CertificateTrustResult> {
+    const identityMatched=/^\d{11}$/.test(expectedRuc)&&metadata.subjectRucCandidates.length===1&&metadata.subjectRucCandidates[0]===expectedRuc;
+    return this.evaluateIdentityAndChain(metadata,identityMatched,now);
+  }
+  /** CDR-only institutional identity for an explicitly pinned SUNAT certificate
+   * whose CA-attested subject has no RUC attribute. Never used for issuer signing.
+   * The live pinned file, full certificate bytes and exact subject must all match;
+   * caller-supplied metadata, a CN substring or KeyInfo cannot establish this binding. */
+  async evaluatePinnedSunatCdr(metadata: InspectedSigningCertificate, now = new Date()): Promise<CertificateTrustResult> {
+    let identityMatched=false;
+    try {
+      const pinned=await loadPinnedPublicFile(process.env.SUNAT_CDR_SIGNER_CERT_FILE,process.env.SUNAT_CDR_SIGNER_CERT_SHA256);
+      const pem=pinned.text.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/)?.[0];
+      if(!pem)throw Error();
+      const cert=new X509Certificate(pem),candidate=new X509Certificate(metadata.certificatePem);
+      const attrs=forge.pki.certificateFromPem(pem).subject.attributes;
+      const exact=(oid:string,value:string)=>{const found=attrs.filter(a=>a.type===oid);return found.length===1&&found[0].value===value;};
+      identityMatched=metadata.subjectRucCandidates.length===0&&cert.raw.equals(candidate.raw)&&
+        cert.fingerprint256.replaceAll(':','').toLowerCase()===metadata.fingerprint&&
+        exact('2.5.4.6','PE')&&exact('2.5.4.10','SUPERINTENDENCIA NACIONAL DE ADUANAS Y DE ADMINISTRACION TRIBUTARIA - SUNAT')&&
+        exact('2.5.4.3','SUPERINT. NAC. DE ADUANAS Y DE ADMINISTRACION TRIBUTARIA');
+    } catch { /* An absent or changed pin remains an identity failure. */ }
+    return this.evaluateIdentityAndChain(metadata,identityMatched,now);
+  }
+  private async evaluateIdentityAndChain(metadata: InspectedSigningCertificate, identityMatched: boolean, now: Date): Promise<CertificateTrustResult> {
     const result: CertificateTrustResult = { profile: 'OFFLINE-PINNED-ROOTS-CRL-v1', chainValid: false, identityMatched: false,
       revocation: 'PENDING', trustStoreSha256: null, certificateFingerprint: metadata.fingerprint, checkedAt: now.toISOString(), blockers: [] };
     const block = (code: string) => { if (!result.blockers.includes(code)) result.blockers.push(code); };
     if (this.active >= 2) { block('CERTIFICATE_VERIFIER_BUSY'); return result; }
-    if (!/^\d{11}$/.test(expectedRuc) || metadata.subjectRucCandidates.length !== 1 || metadata.subjectRucCandidates[0] !== expectedRuc) block('CERTIFICATE_RUC_NOT_MATCHED');
+    if (!identityMatched) block('CERTIFICATE_RUC_NOT_MATCHED');
     else result.identityMatched = true;
     if (metadata.selfSigned) block('SELF_SIGNED_LEAF_NOT_ALLOWED');
     if (!metadata.digitalSignature) block('DIGITAL_SIGNATURE_USAGE_REQUIRED');

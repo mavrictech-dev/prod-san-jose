@@ -19,6 +19,8 @@ import { DemoBootstrapService } from './application/demo-bootstrap.service';
 import { IssuanceQueryService } from './application/issuance-query.service';
 import { DocumentsController } from './documents.controller';
 import { StationsController } from './stations.controller';
+import { GuideOperationalSettingsController } from './guide-operational-settings.controller';
+import { GuideOperationalSettingsService } from './application/guide-operational-settings.service';
 import { StationAdminService } from './application/station-admin.service';
 import { ProductAdminService } from './application/product-admin.service';
 import { ProductsController } from './products.controller';
@@ -37,7 +39,7 @@ import { FinancialLedgerCandidateService } from './application/financial-ledger-
 
 @Module({
   imports: [ScheduleModule.forRoot()],
-  controllers: [NativeB2bWriteController,NativeB2bReadController,NativeB2bBillingPrivateController,...PRODUCTION_GUIDES_BILLING_CONTROLLERS,CatalogTaxController,...PRODUCTION_NOTES_BILLING_CONTROLLERS, DocumentsController, StationsController, ProductsController, ClientIntakeController, PrintSettingsController, HealthController],
+  controllers: [NativeB2bWriteController,NativeB2bReadController,NativeB2bBillingPrivateController,...PRODUCTION_GUIDES_BILLING_CONTROLLERS,CatalogTaxController,...PRODUCTION_NOTES_BILLING_CONTROLLERS, DocumentsController, StationsController, GuideOperationalSettingsController, ProductsController, ClientIntakeController, PrintSettingsController, HealthController],
   providers: [{provide:'NATIVE_GRE_ASSEMBLY',inject:[PrismaService,NativeB2bBillingAuthority],useFactory:productionGuidesBillingHost},
     {provide:ProductionGuidesOwner,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.owner},
     {provide:ProductionGuidesBillingRuntime,inject:['NATIVE_GRE_ASSEMBLY'],useFactory:(a:any)=>a.runtime??{}},
@@ -47,6 +49,7 @@ import { FinancialLedgerCandidateService } from './application/financial-ledger-
     ...PRODUCTION_NOTES_BILLING_PROVIDERS,
     PrismaService,NativeB2bBillingAuthority,NativeB2bReads,NativeB2bCommands,
     StationAdminService,
+    GuideOperationalSettingsService,
     ProductAdminService,
     PrintBrandingService,
     IssueDocumentService,

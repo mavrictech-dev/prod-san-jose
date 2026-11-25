@@ -4,10 +4,10 @@ import {NativeB2bBillingAuthority,type NativeServiceContext} from './native-b2b-
 import type {ProductionGuidesServiceActor as ServiceActor,ProductionGuidesScope} from '@factuez/contracts/production-guides';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { allowsResource, type AccessScope } from '@factuez/contracts';
+import { allowsResource, reviewGuideDeclarations, validateGuideSettingsWrite, type AccessScope } from '@factuez/contracts';
 import type { ProductionGuidesIssued as Issued, ProductionGuidesGrant as Grant, ProductionGuidesSnapshot as Snapshot, ProductionGuidesSigner, ProductionGuidesVerifier, ProductionGuidesReadPort, ProductionGuidesStatusEvent, ProductionGuidesArtifactKind } from '@factuez/contracts/production-guides';
 const PRODUCTION_GUIDES_ISSUED = 'billing.production-guides.issued.v1' as const;
-import { productionGuidesHash as hash, productionGuidesExact as exact, productionGuidesUuid as uuid, validateProductionGuidesSnapshot, PRODUCTION_GUIDES_XSD_SHA256 } from '@factuez/sunat-core/dist/production-guides';
+import { productionGuidesHash as hash, productionGuidesExact as exact, productionGuidesUuid as uuid, validateProductionGuidesSnapshot, validateProductionGuidesResult, PRODUCTION_GUIDES_XSD_SHA256 } from '@factuez/sunat-core/dist/production-guides';
 export interface ProductionGuidesRaw { $queryRawUnsafe<T=unknown>(sql:string,...args:any[]):Promise<T>; $executeRawUnsafe(sql:string,...args:any[]):Promise<number> }
 export interface ProductionGuidesBillingDb extends ProductionGuidesRaw { $transaction<T>(work:(tx:ProductionGuidesRaw)=>Promise<T>,options?:any):Promise<T> }
 export type ProductionGuidesActor=({userId:string;service?:never;principalId?:never}|{userId?:never;service:ServiceActor;principalId:string})&{scope:AccessScope};
@@ -78,7 +78,17 @@ export class ProductionGuidesOwner {
   const series=schema?(await this.series(pointId,actor)).series:[];
   if(!series.length)blockers.push('Configure una serie T para 09 o V para 31');
   if(!series.some(s=>s.grant?.enabled&&Date.parse(s.grant.expiresAt)>Date.parse(this.clock())))blockers.push('Concesión vigente por actor/serie/perfil pendiente');
-  return {implemented:true,installed:!!this.options,enabled:this.options?.enabled()===true,ready:blockers.length===0,blockers,companyId:n.companyId,issuerRuc:n.ruc,branchId:n.branchId,pointId,pointRevision:n.masterRevision,establishmentCode:n.establishmentCode,environment:n.environment,profiles:['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'],series,fiscal,b2b:{installed:!!this.options?.authority,contract:'SERVICE PRODUCTION con alcance y concesión vigente por aplicación, revisión, serie y perfil'}};
+  const declarations=await this.declarationReview(n.companyId,fiscal?.catalogue??null);
+  return {implemented:true,installed:!!this.options,enabled:this.options?.enabled()===true,ready:blockers.length===0,blockers,companyId:n.companyId,issuerRuc:n.ruc,branchId:n.branchId,pointId,pointRevision:n.masterRevision,establishmentCode:n.establishmentCode,environment:n.environment,profiles:['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'],series,fiscal,declarations,b2b:{installed:!!this.options?.authority,contract:'SERVICE PRODUCTION con alcance y concesión vigente por aplicación, revisión, serie y perfil'}};
+ }
+ private async declarationReview(companyId:number,catalogue:Parameters<typeof reviewGuideDeclarations>[1]){
+  const ready=(await this.db.$queryRawUnsafe<any[]>(`SELECT to_regclass('"GuideOperationalSettings"') IS NOT NULL AS ready`))[0]?.ready;
+  if(!ready)return {status:'STORAGE_PENDING',revision:0,fiscalTransmission:false,blockers:['Almacenamiento de declaraciones pendiente; el catálogo nativo conserva la autoridad.']};
+  const row=(await this.db.$queryRawUnsafe<any[]>('SELECT "settings","revision" FROM "GuideOperationalSettings" WHERE "companyId"=$1',companyId))[0];
+  if(!row)return {status:'NOT_CONFIGURED',revision:0,fiscalTransmission:false,blockers:['Declaraciones del emisor pendientes; configure y contraste con el catálogo revisado.']};
+  const valid=validateGuideSettingsWrite({expectedRevision:row.revision,settings:row.settings});
+  if(!valid.ok)return {status:'REVIEW_PENDING',revision:row.revision,fiscalTransmission:false,blockers:['Declaraciones guardadas requieren revisión.']};
+  return {...reviewGuideDeclarations(valid.value.settings,catalogue),revision:row.revision};
  }
  async list(pointId:string,cursor:string|undefined,actor:ProductionGuidesActor){
   const n=await this.point(pointId,actor);if(cursor)uuid(cursor);
@@ -104,7 +114,7 @@ export class ProductionGuidesOwner {
  }
  /** Append-only CAS. Exposed only through SUNAT_CONFIGURE + native scope guard. No default grant. */
  async configure(seriesId:string,raw:unknown,actor:ProductionGuidesActor){
-  const options=this.enabled();if(actor.service)throw new ForbiddenException('ADMIN_SESSION_REQUIRED');
+  const options=this.enabled();if(actor.service||actor.scope.kind!=='GLOBAL')throw new ForbiddenException('ADMIN_GLOBAL_SESSION_REQUIRED');
   exact(raw,['expectedVersion','actorId','enabled','profiles','expectedCredentialRevision','expiresAt',...((raw as any)?.actorKind==='SERVICE'?['actorKind','expectedClientRevision']:[])]);const value=structuredClone(raw) as any;
   let service:ServiceActor|undefined;
   if(value.actorKind==='SERVICE'){uuid(value.actorId);if(!Number.isSafeInteger(value.expectedClientRevision)||value.expectedClientRevision<1)throw new BadRequestException('INVALID_CLIENT');service={kind:'SERVICE',clientId:value.actorId,revision:value.expectedClientRevision,environment:'PRODUCTION'};value.actorId=nativeServicePrincipalId(value.actorId);}
@@ -194,9 +204,10 @@ export class ProductionGuidesOwner {
  async artifact(id:string,kind:ProductionGuidesArtifactKind,actor:ProductionGuidesActor){if(!['signed-xml','submission-zip','cdr-xml','cdr-zip'].includes(kind))throw new BadRequestException();const e=await this.load(id,actor);return this.enabled().sunat.artifact(e,kind);}
  async pdf(id:string,actor:ProductionGuidesActor){const e=await this.load(id,actor);return this.enabled().sunat.pdf(e);}
  async applyStatus(event:ProductionGuidesStatusEvent){
+  event=structuredClone(event);exact(event,['eventId','eventType','result','seal']);
   const options=this.enabled(),{seal,...payload}=event;
   if(event.eventType!=='sunat.production-guides.status.v1'||!options.statusVerifier.verify(payload,seal,'STATUS'))throw new ForbiddenException('Evento de estado inválido');
-  const result=event.result;uuid(event.eventId);uuid(result.documentId);
+  const result=validateProductionGuidesResult(event.result);uuid(event.eventId);uuid(result.documentId);
   if(!Number.isSafeInteger(result.revision)||result.revision<1||!['RESERVED','PREPARED','POSTING','UNKNOWN','TICKET','ACCEPTED','ACCEPTED_WITH_OBSERVATIONS','REJECTED','FAILED_NO_CDR'].includes(result.state)||result.authorizedForTransfer!==false||result.source!=='SUNAT_OFFICIAL'&&result.officialCdrVerified)throw new BadRequestException('Estado inválido');
   return this.db.$transaction(async tx=>{
    const row=(await tx.$queryRawUnsafe<any[]>('SELECT * FROM "ProductionGuidesReservation" WHERE "documentId"=$1::uuid FOR UPDATE',result.documentId))[0];

@@ -9,3 +9,6 @@ migration/fixtures/history-bundle/** -text
 *.png binary
 *.webp binary
 *.ico binary
+
+# Exact public certificate bytes are pinned by the fiscal PKI manifest.
+infra/deployment/windows-test/public-pki/*.pem -text

@@ -19,3 +19,5 @@ export * from './production-batches';
 export * from './catalog-tax';
 export * from './catalog-gre-openapi';
 export * from './api-problem';
+export * from './guide-operational-settings';
+export * from './guide-declaration-review';

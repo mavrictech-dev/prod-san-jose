@@ -5,6 +5,7 @@ import { parseSafeInvoice } from '../infrastructure/crypto/xml-signer.service';
 import { parseCdrZip } from '../infrastructure/sunat/cdr-parser';
 import { CAC_NS, CBC_NS, children, type safeXml } from '../infrastructure/sunat/safe-xml';
 import { betaCdrCrc32, betaCdrZipMetadata } from './beta-summary-acceptance';
+import { productionGuidesQrUrl } from '@factuez/sunat-core/dist/production-guides';
 
 export type GuideCdrExpected = {
   issuerRuc: string; documentType: '09' | '31'; fullNumber: string;
@@ -25,6 +26,8 @@ export type GuideCdrEvidence = Readonly<{
   responseCode: string; status: 'ACCEPTED' | 'ACCEPTED_WITH_OBSERVATIONS' | 'REJECTED'; description: string; notes: readonly string[];
   signatureTrusted: true; cryptographicReceiptVerified: true; bindingComplete: true;
   officialCdrVerified: false; transmissionAuthorized: false; authorizedForTransfer: false;
+  /** Interoperability profile, extracted only after trusted signature and identity/date binding. */
+  qrUrl?: string;
 }>;
 function deny(code: GuideCdrEvidenceErrorCode): never { throw new GuideCdrEvidenceError(code); }
 const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -117,11 +120,23 @@ export async function verifyGuideCdrEvidence(expected: GuideCdrExpected, cdrZip:
   try {
     if (JSON.stringify(expected) !== original || !cdrZip.equals(zip) || !verificationBytes.equals(parsed.xml)) deny('GUIDE_CDR_INPUT_CHANGED');
   } catch { deny('GUIDE_CDR_INPUT_CHANGED'); }
+  let qrUrl: string | undefined;
+  if (snapshot.source === 'EXTERNAL_CDR' && parsed.status !== 'REJECTED') {
+    // This XPath shape is an interoperability profile, not a guaranteed SUNAT schema contract.
+    // Ambiguous/malicious QR metadata never discards an otherwise valid signed receipt.
+    const { root } = parseSafeInvoice(parsed.xml.toString('utf8'), 'ApplicationResponse');
+    const reference = one(one(root, CAC_NS, 'DocumentResponse'), CAC_NS, 'DocumentReference');
+    const descriptions: Element[] = [];
+    for (let n = reference.firstChild; n; n = n.nextSibling)
+      if (n.nodeType === 1 && (n as Element).localName === 'DocumentDescription') descriptions.push(n as Element);
+    const node = descriptions[0], value = node?.textContent;
+    if (descriptions.length === 1 && node.namespaceURI === CBC_NS && !node.getElementsByTagName('*').length && productionGuidesQrUrl(value)) qrUrl = value;
+  }
   return Object.freeze({ profile: 'LOCAL_GUIDE_CDR_REVIEW_V1', source: snapshot.source ?? 'LOCAL_EMULATOR',
     issuerRuc: snapshot.issuerRuc, documentType: snapshot.documentType, fullNumber: snapshot.fullNumber,
     issuedAt: snapshot.issuedAt, receivedAt: snapshot.receivedAt, requestXmlSha256: snapshot.requestXmlSha256, requestZipSha256: snapshot.requestZipSha256,
     requestHashesBoundByCdr: false, cdrFileName: fileName, cdrZipSha256: hash(zip), cdrXmlSha256: hash(parsed.xml),
     responseCode: parsed.code, status: parsed.status, description: parsed.description, notes: Object.freeze([...parsed.notes]),
     signatureTrusted: true, cryptographicReceiptVerified: true, bindingComplete: true,
-    officialCdrVerified: false, transmissionAuthorized: false, authorizedForTransfer: false });
+    officialCdrVerified: false, transmissionAuthorized: false, authorizedForTransfer: false, ...(qrUrl ? { qrUrl } : {}) });
 }

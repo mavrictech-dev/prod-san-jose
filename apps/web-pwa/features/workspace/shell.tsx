@@ -66,6 +66,7 @@ const menu = [
   { href: '/notes', title: 'Notas de crédito/débito', icon: FileText, permission: 'sunat.configure', group: 'Documentos' },
   { href: '/guides', title: 'Guías de remisión', icon: FileText, permission: 'document.view', group: 'Documentos' },
   { href: '/mail-settings', title: 'Correo corporativo', icon: KeyRound, permission: 'document.email', group: 'Administración' },
+  { href: '/guide-settings', title: 'Configuración de guías', icon: FileText, permission: 'setup.manage', group: 'Administración' },
   {
     href: "/dashboard",
     title: "Resumen",
@@ -385,7 +386,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           <DialogHeader>
             <DialogTitle>Hay datos sin guardar</DialogTitle>
             <DialogDescription>
-              {pathname === '/shadow-lab' ? 'Las anotaciones y motivos del laboratorio están sólo en memoria. Descárgalos antes de salir; continuar los descarta sin modificar documentos fiscales.' : <>Los borradores no enviados se descartarán. Una solicitud de
+              {pathname === '/guide-settings' ? 'Los cambios sin guardar se descartarán. Si hay un guardado en curso, consulte los datos de esta empresa al volver antes de reenviarlos.' : pathname === '/shadow-lab' ? 'Las anotaciones y motivos del laboratorio están sólo en memoria. Descárgalos antes de salir; continuar los descarta sin modificar documentos fiscales.' : <>Los borradores no enviados se descartarán. Una solicitud de
               emisión enviada sin respuesta conserva su clave en esta pestaña;
               salir no la cancela. ¿Deseas continuar?</>}
             </DialogDescription>

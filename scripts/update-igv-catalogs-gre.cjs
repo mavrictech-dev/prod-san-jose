@@ -5,13 +5,16 @@ const {randomUUID}=require('node:crypto');
 const allowed=new Set(['identity-service','billing-service','sunat-service']);
 function migrations(root,service){
  const sql=name=>readFileSync(join(root,'services',service,'prisma',name),'utf8');
+ const declarationSql=name=>{const text=sql(name),start=text.indexOf('BEGIN;'),end=text.lastIndexOf('COMMIT;');if(start<0||end<=start)throw Error('REVIEWED_DECLARATION_DDL_REQUIRED');return text.slice(start+6,end);};
  if(service==='identity-service')return [{id:'20261124_native_b2b_v1',sql:sql('updates/20261124_native_b2b_v1.sql'),tables:['b2b_production_record']}];
  return service==='billing-service'?[
   {id:'20261123_catalog_tax_v1',sql:sql('updates/20261123_catalog_tax_v1.sql')},
   {id:'20261123_counter_environment_v1',sql:sql('updates/20261123_counter_environment_v1.sql')},
   {id:'20261123_native_gre_billing_v1',sql:sql('production-guides.sql'),tables:['ProductionGuidesGrant','ProductionGuidesReservation','ProductionGuidesOwnerStatus']},
   {id:'20261124_gre_hydrocarbon_v1',sql:sql('updates/20261124_gre_hydrocarbon_v1.sql')},
-  {id:'20261124_native_b2b_v1',sql:sql('updates/20261124_native_b2b_v1.sql'),tables:['b2b_production_record']}
+  {id:'20261124_native_b2b_v1',sql:sql('updates/20261124_native_b2b_v1.sql'),tables:['b2b_production_record']},
+  {id:'20261125_guide_declarations_v1',sql:declarationSql('guide-operational-settings.sql')},
+  {id:'20261125_guide_fuel_declarations_v1',sql:declarationSql('guide-fuel-settings.sql')}
  ]:[{id:'20261123_native_gre_sunat_v1',sql:sql('production-guides.sql'),tables:['ProductionGuidesJob','ProductionGuidesArtifact','ProductionGuidesStatusOutbox']},{id:'20261123_tax_profiles_v1',sql:sql('updates/20261123_tax_profiles_v1.sql')},{id:'20261123_gre_catalogue_v1',sql:sql('updates/20261123_gre_catalogue_v1.sql'),tables:['ProductionGuidesCatalogue']}];
 }
 async function update(pool,{root,service,apply=false}){

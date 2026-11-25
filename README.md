@@ -15,7 +15,13 @@ $ops = '.\infra\deployment\windows-test\Operate-Production.ps1'
 
 Backup verifica la restauración de las cinco bases y conserva originales, volúmenes, claves y configuración con ACL privada. Un respaldo sólo local no protege de pérdida del disco; revisar que el destino externo esté en otro disco o fuera del equipo. Ver [operación, activación y recuperación](api-contracts/WINDOWS_OPERACION_RECUPERACION.md).
 
-El estado de la máquina, los gates del servidor y la aceptación fiscal por RUC se informan por separado. Sin instalación o transporte disponible el estado es desconocido; contenedores sanos no prueban activación. **GRE regulado/combustibles continúa no soportado**: la entrada «Production» no cambia los perfiles admitidos.
+El estado de la máquina, los gates del servidor y la aceptación fiscal por RUC se informan por separado. Sin instalación o transporte disponible el estado es desconocido; contenedores sanos no prueban activación. Las GRE 09 de las familias de combustible implementadas requieren catálogo, registros, rutas y concesiones revisados. GRE 31 de combustible, GNV móvil y GRE-BF continúan fuera del alcance habilitado. La entrada «Production» no amplía los perfiles admitidos.
+
+## Correcciones GRE y preparación de confianza pública
+
+La actualización del 25/11/2026 conserva la integración nativa y agrega lectura de RUC OU, interoperabilidad SOL/CDR y declaraciones por emisor. La firma saliente continúa SHA-256. El verificador del CDR mantiene firma, digest del contenido, identidad y revocación obligatorios.
+
+Para una instalación existente, después de obtener esta revisión y antes de activar envíos, `infra/deployment/windows-test/Prepare-FiscalPki.ps1` prepara los archivos públicos revisados y descarga/verifica las CRL vigentes. No modifica claves fiscales/JWT/vault ni activa transmisiones. Las CRL caducan y requieren renovación y actualización consistente de pins; no hay renovación desatendida automática en este cambio. Ver [correcciones, alcance y secuencia](api-contracts/CORRECCION_GRE_CERTIFICADOS_20261125.md).
 
 ## Actualización de IGV catálogos y guías
 
