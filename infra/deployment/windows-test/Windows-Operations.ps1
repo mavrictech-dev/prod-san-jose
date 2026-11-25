@@ -418,6 +418,11 @@ try {
   # Writers stay quiesced from backup through migrations; failed migration leaves them stopped.
   foreach($service in @('identity-service','billing-service','sunat-service')){Phase ('MIGRATE_'+$service);Compose @('run','--rm','--no-deps','--entrypoint','node',$service,'scripts/update-igv-catalogs-gre.cjs',$service,'--apply')|Out-Null}
   Compose @('up','--detach','--no-build','--wait','--wait-timeout','300')|Out-Null
+  # Kong reads its bind-mounted declarative routes only on startup; Compose
+  # does not recreate a container when only that file's contents changed.
+  Phase 'RELOAD_OWNED_GATEWAY'
+  Compose @('restart','kong')|Out-Null
+  Compose @('up','--detach','--no-deps','--no-build','--wait','--wait-timeout','180','kong')|Out-Null
   Write-Json (Join-Path $state 'last-update.json') @{version=1;status='APPLIED';backup=$verified;finishedUtc=[DateTime]::UtcNow.ToString('o');fiscalAcceptance='NOT_ESTABLISHED'}
   Write-Host ('UPDATE_APPLIED: '+$verified+'; inspect Status and authenticated per-RUC readiness before operation.')
   }catch{Write-Json (Join-Path $state 'last-update.json') @{version=1;status='FAILED';backup=$verified;failedUtc=[DateTime]::UtcNow.ToString('o');action='Review backup operations.log and migration/service state before restarting writers.'};throw}
