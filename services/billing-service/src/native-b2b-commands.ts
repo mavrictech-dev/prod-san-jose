@@ -14,10 +14,19 @@ export function nativeOperationId(key:string){const b=createHash('sha256').updat
 @Injectable()
 export class NativeB2bCommands implements OnModuleInit {
  private readonly store:NativeB2bPrismaStore;
+ private activeWrites=0;
  constructor(private readonly db:PrismaService,private readonly authority:NativeB2bBillingAuthority,private readonly issue:IssueDocumentService,private readonly notes:ProductionNotesOwnerService,private readonly guides:ProductionGuidesOwner){this.store=new NativeB2bPrismaStore(db);}
  async onModuleInit(){if(process.env.NATIVE_B2B_ENABLED!=='true')return;nativeB2bConfig();const [r]=await this.db.$queryRawUnsafe<any[]>("SELECT to_regclass('b2b_production_record') IS NOT NULL AS ready");if(!r?.ready)throw Error('NATIVE_B2B_BILLING_SCHEMA_REQUIRED');}
  context(actor:ProductionActor,n:NativeBinding,authorization:string,id:string):NativeServiceContext{return {userId:null,createdByActor:{kind:'SERVICE',clientId:actor.clientId,revision:actor.revision,environment:'PRODUCTION',subjectId:null,userAuthRevision:null},scope:{kind:'ASSIGNED',branchIds:[n.branchId],emissionPointIds:[n.pointId],series:[n.seriesId]},productionBinding:{environment:'PRODUCTION',issuerId:n.companyId,issuerRuc:n.issuerRuc,branchId:n.branchId,pointId:n.pointId,seriesId:n.seriesId,series:n.series,documentType:n.documentType},operationId:id,idempotencyKey:`b2b-production:${actor.clientId}:${id}`,correlationId:id,authorization};}
  async execute(authorization:string,raw:unknown,key:unknown,kind:'documents'|'notes'|'guides',originalId?:string){
+  // Keep connections free for the fiscal owner's authenticated callbacks while
+  // native producers hold their counter transaction. Saturation is rejected
+  // before journaling or reserving; retrying the same key remains safe.
+  if(this.activeWrites>=2)throw new HttpException({code:'NATIVE_ISSUANCE_BUSY',message:'Hay dos emisiones en proceso en este servidor. Reintente conservando la misma clave y el mismo contenido; esta solicitud todavía no se registró.'},429);
+  this.activeWrites++;
+  try{return await this.executeAccepted(authorization,raw,key,kind,originalId);}finally{this.activeWrites--;}
+ }
+ private async executeAccepted(authorization:string,raw:unknown,key:unknown,kind:'documents'|'notes'|'guides',originalId?:string){
   if(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).sort().join(',')!=='binding,payload')deny(400,'INVALID_BODY');
   const envelope=raw as {binding:ProductionBinding;payload:any},b=binding(envelope.binding),v=envelope.payload;
   if(!v||typeof v!=='object'||Array.isArray(v))deny(400,'INVALID_NATIVE_PAYLOAD');

@@ -108,6 +108,15 @@ async function main(){await withNativeCorrection(async({pool,client:db})=>{
    serviceEnabled=false;await assert.rejects(()=>guides.current(event));serviceEnabled=true;
    assert.equal((await db.seriesCounter.findUnique({where:{id:n.seriesId}})).nextNumber,2n);
   });
+  await check('DIFFERENT_KEY_BURST_BOUNDED_BEFORE_ACCEPTANCE_AND_RETRYABLE',async()=>{
+   const old=authority.fiscal;authority.fiscal=async(...args)=>{await new Promise(r=>setTimeout(r,50));return old(...args);};
+   const before=(await db.seriesCounter.findUnique({where:{id:seriesIds['01'].id}})).nextNumber;
+   const results=await Promise.allSettled(Array.from({length:8},(_,i)=>commands.execute(authorization,{binding:bind('01'),payload:invoice},'burst_'+i,'documents')));
+   const accepted=results.filter(r=>r.status==='fulfilled'),busy=results.filter(r=>r.status==='rejected');assert.equal(accepted.length,2);assert.equal(busy.length,6);assert.ok(busy.every(r=>r.reason.getStatus()===429&&r.reason.getResponse().code==='NATIVE_ISSUANCE_BUSY'));
+   assert.equal((await db.seriesCounter.findUnique({where:{id:seriesIds['01'].id}})).nextNumber,before+2n);
+   const retry=await commands.execute(authorization,{binding:bind('01'),payload:invoice},'burst_7','documents');assert.ok(retry.documentId);assert.equal((await db.seriesCounter.findUnique({where:{id:seriesIds['01'].id}})).nextNumber,before+3n);
+   authority.fiscal=old;
+  });
   assert.ok(fiscalCalls>=2);
  }finally{await idDb.$disconnect();await idPool.end();}
 });console.log(JSON.stringify({result:'PASS',groups,officialSunatCalls:0,customerDatabasesTouched:0}));}
