@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { CollaborationLogos, SanJoseLogo } from "./brand";
 import { usePathname, useRouter } from "next/navigation";
+import {fiscalContextMessage} from './gre-environment';
 import {
   Building2,
   Fuel,
@@ -335,7 +336,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
               className="hidden border-amber-200 bg-amber-50 text-amber-900 sm:flex"
             >
               <FlaskConical className="mr-1 size-3" />
-              {selectedCompany ? `${selectedCompany.environment} · ${selectedCompany.source === 'SYNTHETIC' ? 'Laboratorio QA' : 'Negocio'}` : 'Consolidado autorizado'}
+              {pathname==='/guides'?`Ventas ${selectedCompany?.environment??'sin selección'} · GRE PRODUCTION`:selectedCompany ? `${selectedCompany.environment} · ${selectedCompany.source === 'SYNTHETIC' ? 'Laboratorio QA' : 'Negocio'}` : 'Consolidado autorizado'}
             </Badge>
             <Button
               variant="ghost"
@@ -348,11 +349,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs leading-relaxed text-amber-900 sm:px-7">
-          {selectedCompany?.environment === 'PRODUCTION'
-            ? 'Producción · El estado fiscal de cada comprobante se confirma con su CDR.'
-            : selectedCompany?.environment === 'BETA'
-              ? 'Ambiente de pruebas Beta · Sin validez tributaria.'
-              : 'Vista consolidada de las empresas y sedes autorizadas.'}
+          {fiscalContextMessage(pathname,selectedCompany?.environment)}
           {catalogSource !== 'BUSINESS' && <> {CATALOG_VIEW_LABELS[catalogSource]} · Incluye datos de pruebas.</>}
 
         </div>

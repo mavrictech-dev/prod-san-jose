@@ -35,7 +35,7 @@ export default function SunatSettingsPage() {
       description="Administra el certificado digital y los accesos de cada empresa." />
     <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-card p-4">
       <div><p className="text-sm font-medium">{company?.legalName ?? "Seleccione un emisor"}</p>
-        <p className="text-xs text-muted-foreground">RUC {company?.ruc ?? "—"} · Ambiente real del emisor: {company?.environment??'sin seleccionar'}</p><p className="text-xs text-muted-foreground">El selector sólo elige el almacén de credenciales. La autorización de cada servicio se configura por separado.</p></div>
+        <p className="text-xs text-muted-foreground">RUC {company?.ruc ?? "—"} · Ambiente de ventas: {company?.environment??'sin seleccionar'}</p><p className="text-xs text-muted-foreground">El selector sólo elige el almacén de credenciales. La autorización de cada servicio se configura por separado.</p><p className="mt-2 text-xs text-muted-foreground">GRE nativa usa credenciales PRODUCTION del mismo RUC, con su activación, catálogo, serie y concesión propios en Emisión GRE. Puede conservar ventas BETA: no copie credenciales a Beta ni active facturas 01/03 para habilitar GRE.</p></div>
       <Select value={environment} onValueChange={setEnvironment} disabled={dirty}>
         <SelectTrigger className="w-52" aria-label="Ambiente de credenciales"><SelectValue /></SelectTrigger>
         <SelectContent><SelectItem value="BETA">Beta / pruebas</SelectItem><SelectItem value="PRODUCTION">Producción</SelectItem></SelectContent>

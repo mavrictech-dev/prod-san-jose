@@ -12,6 +12,14 @@ import { PrismaService } from "../infrastructure/prisma.service";
 export class IssuanceQueryService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Visibility is not fiscal authorization. Sales guards remain in their owner;
+   * native GRE independently uses only its PRODUCTION counters and live grants. */
+  private catalogEnvironment() {
+    const gre = process.env.NATIVE_GRE_ENABLED === 'true' && process.env.NATIVE_GRE_WORKERS_ENABLED === 'true';
+    return process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED === 'true' || gre
+      ? { in: ['BETA', 'PRODUCTION'] as ('BETA' | 'PRODUCTION')[] } : 'BETA' as const;
+  }
+
   pointWhere(
     scope: AccessScope,
     branchId?: string,
@@ -22,7 +30,7 @@ export class IssuanceQueryService {
     if (branchId && !allowsResource(scope, branchId))
       throw new ForbiddenException("Sede no autorizada");
     return {
-      ...(activeOnly ? { active: true, branch: { active: true }, company: { active: true, environment: process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED === 'true' ? { in: ['BETA', 'PRODUCTION'] } : 'BETA' } } : {}),
+      ...(activeOnly ? { active: true, branch: { active: true }, company: { active: true, environment: this.catalogEnvironment() } } : {}),
       ...(scope.kind === "ASSIGNED"
         ? {
             id: { in: scope.emissionPointIds },
@@ -34,8 +42,7 @@ export class IssuanceQueryService {
   }
 
   async catalog(scope: AccessScope) {
-    const environment = process.env.BILLING_PRODUCTION_ISSUANCE_ENABLED === 'true'
-      ? { in: ['BETA', 'PRODUCTION'] as ('BETA' | 'PRODUCTION')[] } : 'BETA' as const;
+    const environment = this.catalogEnvironment();
     const [companies, branches, points, products] = await Promise.all([
       this.prisma.companySettings.findMany({
         where:
