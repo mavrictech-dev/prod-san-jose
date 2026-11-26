@@ -1,0 +1,22 @@
+import {describe,it,expect} from 'vitest';
+import {emptyGreAdministration,validateGreAdministration} from '../packages/contracts/src/gre-administration';
+import {mergeGreAdministration,sameGreValue} from '../apps/web-pwa/features/workspace/gre-administration-merge';
+const id=(n:number)=>'00000000-0000-4000-8000-'+String(n).padStart(12,'0');
+const vehicle={id:id(1),active:true,plate:'ABC123',registration:'REG000001'};
+describe('administrative draft strict contract',()=>{
+ it('accepts empty sections and independent complete vehicle/driver/route records',()=>{
+  expect(validateGreAdministration(emptyGreAdministration()).vehicles).toEqual([]);
+  for(const group of [{vehicles:[vehicle]},{drivers:[{id:id(2),active:false,identityType:'4',identityNumber:'000000001',firstName:'CONDUCTOR',lastName:'SINTÉTICO',license:'SYNTHETIC'}]},{routes:[{id:id(3),active:true,name:'RUTA SINTÉTICA',origin:{ubigeo:'150101',address:'PARTIDA'},destination:{ubigeo:'150102',address:'LLEGADA'}}]}])expect(()=>validateGreAdministration({...emptyGreAdministration(),...group})).not.toThrow();
+ });
+ for(const [name,change]of [
+  ['unknown-field',(v:any)=>v.companyId=2],['wrong-version',(v:any)=>v.version='unversioned'],['missing-array',(v:any)=>delete v.routes],['boolean-string',(v:any)=>v.vehicles[0].active='false'],['numeric-plate',(v:any)=>v.vehicles[0].plate=123456],['invalid-uuid',(v:any)=>v.vehicles[0].id='not-a-uuid'],['duplicate-id',(v:any)=>v.vehicles.push({...vehicle,plate:'XYZ999'})],['duplicate-plate',(v:any)=>v.vehicles.push({...vehicle,id:id(2)})],['control-character',(v:any)=>v.vehicles[0].registration='SECRET\nINJECTED'],['oversized-field',(v:any)=>v.vehicles[0].registration='x'.repeat(2049)],['more-than-100',(v:any)=>v.goodsCodes=Array.from({length:101},(_,i)=>'CODE-'+i)],['numeric-goods',(v:any)=>v.goodsCodes=[123]],['duplicate-goods',(v:any)=>v.goodsCodes=['SKU','SKU']],['numeric-place',(v:any)=>v.routes=[{id:id(3),active:true,name:'RUTA',origin:{ubigeo:150101,address:'PARTIDA'},destination:{ubigeo:'150102',address:'LLEGADA'}}]],
+ ]as const)it('rejects '+name,()=>{const v:any={...emptyGreAdministration(),vehicles:[{...vehicle}]};change(v);expect(()=>validateGreAdministration(v)).toThrow();});
+ it('rejects equivalent routes even under another ID/name and inactive status',()=>{const route={id:id(3),active:true,name:'RUTA A',origin:{ubigeo:'150101',address:'PARTIDA'},destination:{ubigeo:'150102',address:'LLEGADA'}};expect(()=>validateGreAdministration({...emptyGreAdministration(),routes:[route,{...route,id:id(4),name:'RUTA B',active:false}]})).toThrow();});
+});
+describe('concurrent editor reconciliation',()=>{
+ const base={...emptyGreAdministration(),vehicles:[vehicle]};
+ it('preserves remote additions and local edits without blind overwrites',()=>{const local={...base,vehicles:[{...vehicle,registration:'LOCAL'}]},remote={...base,drivers:[{id:id(2),active:true,identityType:'1' as const,identityNumber:'00000001',firstName:'REMOTE',lastName:'SYNTHETIC',license:'SYNTHETIC'}]};const merged=mergeGreAdministration(base,local,remote);expect(merged.conflicts).toEqual([]);expect(merged.value.drivers).toEqual(remote.drivers);expect(merged.value.vehicles[0].registration).toBe('LOCAL');});
+ it('requires an explicit choice for concurrent changes of the same row',()=>{const local={...base,vehicles:[{...vehicle,registration:'LOCAL'}]},remote={...base,vehicles:[{...vehicle,registration:'REMOTE'}]};const merge=mergeGreAdministration(base,local,remote);expect(merge.conflicts).toHaveLength(1);expect(merge.conflicts[0].label).toBe('ABC123');const kept=mergeGreAdministration(base,local,remote,{[merge.conflicts[0].key]:'local'});expect(kept.conflicts).toEqual([]);expect(kept.value.vehicles[0].registration).toBe('LOCAL');expect(remote.vehicles[0].registration).toBe('REMOTE');});
+ it('recognizes a write already persisted despite jsonb object key ordering',()=>{const local={...base,vehicles:[{...vehicle,registration:'SAVED'}]},remote={...base,vehicles:[{registration:'SAVED',plate:vehicle.plate,active:true,id:vehicle.id}]};expect(sameGreValue(local,remote)).toBe(true);expect(mergeGreAdministration(base,local,remote).conflicts).toEqual([]);});
+ it('requires explicit reconciliation of concurrent goods selection',()=>{const merge=mergeGreAdministration(base,{...base,goodsCodes:['LOCAL']},{...base,goodsCodes:['REMOTE']});expect(merge.conflicts).toEqual([{key:'goods',label:'Selección de bienes'}]);});
+});

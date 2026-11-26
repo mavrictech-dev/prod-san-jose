@@ -14,7 +14,7 @@ const extras={
  ALTER TABLE "FiscalDispatchAuthorization" ADD CONSTRAINT "FiscalDispatchAuthorization_environment_check" CHECK ("environment"='PRODUCTION');
  ALTER TABLE "FiscalDispatchAuthorization" ADD CONSTRAINT "FiscalDispatchAuthorization_enabled_registration_check" CHECK (NOT "enabled" OR "registrationAttestedAt" IS NOT NULL);
  ALTER TABLE "FiscalDispatchAuthorization" ADD CONSTRAINT "FiscalDispatchAuthorization_version_positive" CHECK ("version">0 AND "credentialRevision">=0);
- `+body(load('services/sunat-service/prisma/production-notes-schema.sql'))+load('services/sunat-service/prisma/production-guides.sql')+load('services/sunat-service/prisma/updates/20261123_tax_profiles_v1.sql')+load('services/sunat-service/prisma/updates/20261123_gre_catalogue_v1.sql'),
+ `+body(load('services/sunat-service/prisma/production-notes-schema.sql'))+load('services/sunat-service/prisma/production-guides.sql')+load('services/sunat-service/prisma/updates/20261123_tax_profiles_v1.sql')+load('services/sunat-service/prisma/updates/20261123_gre_catalogue_v1.sql')+load('services/sunat-service/prisma/updates/20261126_gre_administration_v1.sql'),
  'mailer-worker':body(load('services/mailer-worker/prisma/smtp-configuration.qa.sql'))+body(load('services/mailer-worker/prisma/corporate-mail-runtime.candidate.sql'))+body(load('services/mailer-worker/prisma/corporate-document-runtime.deploy.sql')),
  'received-documents-service':'',
 };

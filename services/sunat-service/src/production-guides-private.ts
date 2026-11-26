@@ -9,7 +9,7 @@ export const PRODUCTION_GUIDES_GRANT_EVIDENCE='PRODUCTION_GUIDES_GRANT_EVIDENCE'
 export type ProductionGuidesGrantEvidence=(scope:ProductionGuidesScope,profiles:Grant['profiles'],revision:number)=>Promise<Pick<Grant,'credentialRevision'|'certificateFingerprint'|'rulesSha256'|'xsdSha256'>>;
 export class ProductionGuidesBillingPrivateClient {
  constructor(private readonly http:ProductionGuidesPrivateHttp){}
- catalogueSource(scope:{companyId:number;issuerRuc:string}){return this.http.post<{goods:{code:string;description:string;unitCode:string;greGoodsFamily?:string}[]}>('/internal/production-guides/billing/catalogue-source',scope);}
+ catalogueSource(scope:{companyId:number;issuerRuc:string}){return this.http.post<{goods:{code:string;description:string;unitCode:string;greGoodsFamily?:string}[];branches?:{id:string;name:string;establishmentCode:string}[]}>('/internal/production-guides/billing/catalogue-source',scope);}
  current(event:Issued){return this.http.post<Grant>('/internal/production-guides/billing/current',event);}
  currentGrant(grant:Grant){return this.http.post<Grant>('/internal/production-guides/billing/grant-current',grant);}
  referenceOwner(requester:Snapshot){return this.http.post<Issued>('/internal/production-guides/billing/reference-owner',requester);}

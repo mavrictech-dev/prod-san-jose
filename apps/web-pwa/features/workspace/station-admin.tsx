@@ -34,6 +34,8 @@ function StationAdminScope({ products }: { products: ReactNode }) {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [filter, setFilter] = useState('active');
+  const [section,setSection]=useState('branches');
+  useEffect(()=>{const requested=new URLSearchParams(window.location.search).get('section');if(requested==='products'||requested==='product-masters')setSection(requested);},[]);
   const [companyFilter, setCompanyFilter] = useState(headerCompany || 'all');
   const [branchFilter, setBranchFilter] = useState(headerBranch || 'all');
   const [search, setSearch] = useState('');
@@ -127,7 +129,7 @@ function StationAdminScope({ products }: { products: ReactNode }) {
       action={<div className="flex flex-wrap gap-2"><Button variant="outline" disabled={loading || busy || !catalog} onClick={() => open({ kind: 'issuer', mode: 'create' })}><Plus className="size-4" />Nuevo emisor RUC</Button>
         <Button disabled={loading || busy || !companies.some(c => c.active)} onClick={() => open({ kind: 'branch', mode: 'create' })}><Plus className="size-4" />Nueva sede</Button></div>} />
     {notice && <div role="status" className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</div>}
-    <Tabs defaultValue="branches">
+    <Tabs value={section} onValueChange={setSection}>
       <TabsList style={{height:'auto'}} className="mb-5 h-auto max-w-full flex-wrap"><TabsTrigger value="issuers">Emisores RUC</TabsTrigger><TabsTrigger value="branches">Sedes, puntos y series</TabsTrigger><TabsTrigger value="tax-policy">Política tributaria y GRE</TabsTrigger><TabsTrigger value="product-masters">Categorías y unidades</TabsTrigger><TabsTrigger value="products">Catálogo de productos</TabsTrigger></TabsList>
       <div className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4">
         <div className="min-w-40 flex-1 space-y-2"><Label htmlFor="master-search">Buscar maestros</Label><div className="relative"><Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input id="master-search" className="pl-9" value={search} placeholder="RUC, sede, punto o serie…" onChange={e => setSearch(e.target.value)} /></div></div>

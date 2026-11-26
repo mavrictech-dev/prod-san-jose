@@ -48,7 +48,7 @@ export class ProductionGuidesOwner {
   if(!Number.isSafeInteger(scope.companyId)||!/^\d{11}$/.test(scope.issuerRuc))throw new BadRequestException();
   this.businessRuc(scope.issuerRuc);
   const owner=(await this.db.$queryRawUnsafe<any[]>('SELECT id FROM "CompanySettings" WHERE id=$1 AND ruc=$2 AND active',scope.companyId,scope.issuerRuc))[0];if(!owner)throw new NotFoundException();
-  const goods=await this.db.$queryRawUnsafe<any[]>('SELECT p.sku AS code,p.description,p."unitCode",p."greGoodsFamily" FROM "FuelProduct" p JOIN "ProductCategory" c ON c.id=p."categoryId" JOIN "ProductUnit" u ON u.code=p."unitCode" WHERE p.active AND c.active AND u.active ORDER BY p.sku');return {goods};
+  const goods=await this.db.$queryRawUnsafe<any[]>('SELECT p.sku AS code,p.description,p."unitCode",p."greGoodsFamily" FROM "FuelProduct" p JOIN "ProductCategory" c ON c.id=p."categoryId" JOIN "ProductUnit" u ON u.code=p."unitCode" WHERE p.active AND c.active AND u.active ORDER BY p.sku');const branches=await this.db.$queryRawUnsafe<any[]>('SELECT id,name,"establishmentCode" FROM "Branch" WHERE "companyId"=$1 AND active ORDER BY name',scope.companyId);return {goods,branches};
  }
  private checkGrant(g:Grant|undefined,n:any,actor:string,profile:string){
   if(!g||!g.enabled||g.actorId!==actor||hash(this.scope(n))!==hash(Object.fromEntries(Object.keys(this.scope(n)).map(k=>[k,(g as any)[k]])))||!g.profiles.includes(profile as any)||Date.parse(g.expiresAt)<=Date.parse(this.clock()))throw new ForbiddenException('Concesión GRE vigente requerida');
@@ -129,6 +129,7 @@ export class ProductionGuidesOwner {
    await tx.$executeRawUnsafe('SELECT pg_advisory_xact_lock(hashtextextended($1,0))','production-guides-grant:'+seriesId+':'+value.actorId);
    const n=await this.native(tx,seriesId,actor,true), prior=await this.grant(tx,seriesId,value.actorId);
    if((prior?.version??0)!==value.expectedVersion)throw new ConflictException('Concesión cambió');
+   if(value.enabled&&value.profiles.some((p:string)=>(p==='GRE31_PUBLIC_SINGLE09_V1')!==n.series.startsWith('V')))throw new BadRequestException({code:'GRE_GRANT_PROFILE_SERIES_MISMATCH',message:'El perfil no corresponde al tipo de serie: T para GRE 09 y V para GRE 31'});
    const live=value.enabled?await this.live(value.actorId,service,this.scope(n)):undefined;
    if(value.enabled&&(!live?.active||!live.canIssue||!allowsResource(live.scope,n.branchId,n.pointId,n.seriesCounterId)))throw new ForbiddenException('Actor de concesión sin alcance vigente');
    const pins=value.enabled?await options.sunat.grantEvidence(this.scope(n),value.profiles,value.expectedCredentialRevision):prior;

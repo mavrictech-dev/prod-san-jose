@@ -39,6 +39,8 @@ export function validateKong(kong){
   ['/api/v1/setup/sunat/1/PRODUCTION/dispatch','sunat-service','POST'],
   ['/api/v1/setup/sunat/1/PRODUCTION/notes/authorization','sunat-service','POST'],
   ...['GET','POST','OPTIONS'].map(method=>['/api/v1/setup/sunat/1/PRODUCTION/guides/catalogue','sunat-service',method]),
+  ...['GET','PUT','OPTIONS'].map(method=>['/api/v1/setup/sunat/1/PRODUCTION/guides/administration','sunat-service',method]),
+  ...['publish','import'].flatMap(action=>['POST','OPTIONS'].map(method=>['/api/v1/setup/sunat/1/PRODUCTION/guides/administration/'+action,'sunat-service',method])),
   ['/api/v1/fiscal-artifacts/1/original/XML','sunat-service','GET'],['/api/v1/fiscal-evidence/1','sunat-service','GET'],
   ['/api/v1/mail-settings/1/document-activation','mailer-worker','POST'],['/api/v1/mail-settings/1/send-document','mailer-worker','POST'],
   ['/api/v1/received-documents','received-documents-service','GET'],['/socket.io/','realtime-service','GET'],['/login','web-pwa','GET'],
@@ -51,6 +53,11 @@ export function validateKong(kong){
   '/api/v1/notes-qa/1','/api/v1/gre-qa','/api/v1/setup/company','/api/v1/products','/api/v1/customers','/api/v1/daily-summaries',
  ];for(const url of deniedPaths)for(const method of ['GET','POST'])need(target(url,method)==='DENIED','KONG_PRIVATE_LAB_OR_NONEXISTENT_ROUTE_EXPOSED:'+url);
  need(target('/b2b/oauth/token','GET')==='DENIED','OAUTH_TOKEN_IS_POST_ONLY');
+ const administration=routes.find(r=>r.name==='core-fiscal-guides-administration'),actions=routes.find(r=>r.name==='core-fiscal-guides-administration-actions');
+ need(administration?.svc==='sunat-service'&&administration.paths.join(',')==='~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/administration$'&&administration.methods.join(',')==='GET,PUT,OPTIONS','EXACT_GRE_ADMINISTRATION_ROUTE');
+ need(actions?.svc==='sunat-service'&&actions.paths.join(',')==='~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/administration/(?:publish|import)$'&&actions.methods.join(',')==='POST,OPTIONS','EXACT_GRE_ADMINISTRATION_ACTIONS');
+ for(const url of ['/api/v1/setup/sunat/0/PRODUCTION/guides/administration','/api/v1/setup/sunat/01/PRODUCTION/guides/administration','/api/v1/setup/sunat/1/BETA/guides/administration','/api/v1/setup/sunat/1/PRODUCTION/guides/administration/private','/api/v1/setup/sunat/1/PRODUCTION/guides/administration/publish/extra'])for(const method of ['GET','PUT','POST','DELETE'])need(target(url,method)==='DENIED','GRE_ADMINISTRATION_EXACT_PATHS_REQUIRED');
+ for(const [url,methods] of [['/api/v1/setup/sunat/1/PRODUCTION/guides/administration',['POST','PATCH','DELETE']],['/api/v1/setup/sunat/1/PRODUCTION/guides/administration/publish',['GET','PUT','DELETE']]])for(const method of methods)need(target(url,method)==='DENIED','GRE_ADMINISTRATION_METHOD_DENIED');
  const catalogueRoute=routes.find(r=>r.name==='core-fiscal-guides-catalogue');
  need(catalogueRoute?.svc==='sunat-service'&&catalogueRoute.paths.length===1&&catalogueRoute.paths[0]==='~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/catalogue$'&&catalogueRoute.methods.join(',')==='GET,POST,OPTIONS','EXACT_GUARDED_GRE_CATALOGUE_ROUTE');
  for(const url of ['/api/v1/setup/sunat/0/PRODUCTION/guides/catalogue','/api/v1/setup/sunat/-1/PRODUCTION/guides/catalogue','/api/v1/setup/sunat/01/PRODUCTION/guides/catalogue','/api/v1/setup/sunat/1/BETA/guides/catalogue','/api/v1/setup/sunat/1/PRODUCTION/guides/catalogue/extra','/api/v1/setup/sunat/1/PRODUCTION/guides/catalogue-source','/internal/production-guides/sunat/readiness','/internal/production-guides/billing/catalogue-source','/internal/production-guides/identity/current','/api/v1/production-guides-owner'])for(const method of ['GET','POST','OPTIONS'])need(target(url,method)==='DENIED','GRE_CATALOGUE_MUST_NOT_WIDEN_GATEWAY');

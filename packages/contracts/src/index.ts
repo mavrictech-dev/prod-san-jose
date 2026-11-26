@@ -13,6 +13,7 @@ export * from './received-automation';
 export * from './production-notes';
 
 export * from './production-guides';
+export * from './gre-administration';
 
 export * from './production-batches';
 

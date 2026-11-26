@@ -1,3 +1,3 @@
 "use client";
-import { GuideOperationalSettingsPage } from '../../../features/workspace/guide-operational-settings';
-export default function GuideSettingsPage() { return <GuideOperationalSettingsPage />; }
+import {GreAdministrationCenter} from "../../../features/workspace/gre-administration-context";
+export default function Page(){return <GreAdministrationCenter/>;}

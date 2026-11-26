@@ -209,6 +209,39 @@
           ],
           "strip_path": false,
           "regex_priority": 210
+        },
+        {
+          "name": "core-fiscal-guides-administration",
+          "paths": [
+            "~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/administration$"
+          ],
+          "methods": [
+            "GET",
+            "PUT",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 220
+        },
+        {
+          "name": "core-fiscal-guides-administration-actions",
+          "paths": [
+            "~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/administration/(?:publish|import)$"
+          ],
+          "methods": [
+            "POST",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 220
         }
       ]
     },

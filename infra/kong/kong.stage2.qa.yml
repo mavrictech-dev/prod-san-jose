@@ -22,6 +22,38 @@ services:
   - name: sunat-service
     url: http://sunat-service:3003
     routes:
+      - name: gre-private-paths-denied
+        paths: ["~/internal/production-guides(?:/|$)", "~/api/v1/production-guides-owner(?:/|$)"]
+        strip_path: false
+        regex_priority: 1000
+        plugins:
+          - name: request-termination
+            config:
+              status_code: 404
+              content_type: application/json
+              body: '{"code":"GRE_PRIVATE_ROUTE_DENIED"}'
+      - name: fiscal-gre-administration
+        paths: ["~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/administration$"]
+        methods: [GET, PUT, OPTIONS]
+        protocols: [http, https]
+        strip_path: false
+        regex_priority: 220
+      - name: fiscal-gre-administration-actions
+        paths: ["~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/administration/(?:publish|import)$"]
+        methods: [POST, OPTIONS]
+        protocols: [http, https]
+        strip_path: false
+        regex_priority: 220
+      - name: fiscal-gre-administration-denied
+        paths: ["~/api/v1/setup/sunat/[^/]+/[^/]+/guides/administration"]
+        strip_path: false
+        regex_priority: 219
+        plugins:
+          - name: request-termination
+            config:
+              status_code: 404
+              content_type: application/json
+              body: '{"code":"GRE_ADMINISTRATION_ROUTE_DENIED"}'
       - name: fiscal-public-certificate
         paths: ["~/api/v1/setup/sunat/[1-9][0-9]*/(?:BETA|PRODUCTION)/public-certificate$"]
         methods: [GET, OPTIONS]

@@ -23,9 +23,14 @@ function sql(db,body,allow=false){return docker(['exec','-i',name,'psql','-X','-
   assert.notEqual(sql(db,"SET ROLE isolated_other_owner; SET factuez.schema_target='"+db+"';\n"+files[i],true).status,0,'Wrong owner must refuse DDL');
   sql(db,"SET factuez.schema_target='"+db+"';\n"+files[i]);
   const names=sql(db,"SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;").stdout.trim().split('\n');assert.ok(names.length>3);
-  const data=sql(db,'SELECT '+names.map(n=>'(SELECT count(*) FROM "'+n+'")').join('+')+';').stdout.trim();assert.equal(data,'0','No seed, user, RUC, grant or document may be installed');
+  // Public reference units and checksum ledger are installed metadata, not business seeds.
+  const metadata=new Set(['FactuezSchemaUpdate',...(services[i]==='billing-service'?['ProductUnit']:[])]),business=names.filter(n=>!metadata.has(n));
+  const data=sql(db,'SELECT '+business.map(n=>'(SELECT count(*) FROM "'+n+'")').join('+')+';').stdout.trim();assert.equal(data,'0','No business seed, user, RUC, grant or document may be installed');
+  const updates=require('../scripts/update-igv-catalogs-gre.cjs'),expected=['identity-service','billing-service','sunat-service'].includes(services[i])?updates.migrations(root,services[i]):[];if(expected.length){const rows=sql(db,'SELECT id||\'|\'||sha256 FROM "FactuezSchemaUpdate" ORDER BY id;').stdout.trim().split('\n');assert.deepEqual(rows,expected.map(m=>m.id+'|'+createHash('sha256').update(m.sql).digest('hex')).sort(),'Ledger must match source checksums');}
+  if(services[i]==='billing-service')assert.deepEqual(sql(db,'SELECT code FROM "ProductUnit" ORDER BY code;').stdout.trim().split('\n'),['GLL','HUR','KGM','LTR','M3','NIU','ZZ'],'Only reviewed reference units are seeded');
+  if(services[i]==='sunat-service')assert(names.includes('ProductionGuidesAdministrationDraft'),'New draft table included in offline install');
   assert.notEqual(sql(db,"SET factuez.schema_target='"+db+"';\n"+files[i],true).status,0,'Existing database must refuse reinstall');
-  checks.push({service:services[i],tables:names.length,rows:0,unconfirmedTargetRejected:true,wrongOwnerRejected:true,reinstallRejected:true});
+  checks.push({service:services[i],tables:names.length,businessRows:0,checksumLedgerVerified:expected.length,unconfirmedTargetRejected:true,wrongOwnerRejected:true,reinstallRejected:true});
  }
  console.log(JSON.stringify({result:'PASS',scope:'NEW isolated schema installation',checks,externalRequests:0,existingDataTouched:false,publishedPorts:0}));
  }catch(e){console.error('NEW_CORE_SCHEMA_REHEARSAL_FAILED '+e.message);process.exitCode=1;}

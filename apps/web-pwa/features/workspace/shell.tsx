@@ -67,7 +67,7 @@ const menu = [
   { href: '/notes', title: 'Notas de crédito/débito', icon: FileText, permission: 'sunat.configure', group: 'Documentos' },
   { href: '/guides', title: 'Guías de remisión', icon: FileText, permission: 'document.view', group: 'Documentos' },
   { href: '/mail-settings', title: 'Correo corporativo', icon: KeyRound, permission: 'document.email', group: 'Administración' },
-  { href: '/guide-settings', title: 'Configuración de guías', icon: FileText, permission: 'setup.manage', group: 'Administración' },
+  { href: '/guide-settings', title: 'Administración GRE', icon: FileText, permission: 'setup.manage', group: 'Administración' },
   {
     href: "/dashboard",
     title: "Resumen",
@@ -179,7 +179,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
                 <SidebarMenu>
                   {menu
                     .filter(
-                      (item) => item.group === group && can(item.permission) && (item.href !== '/integrations' || integrationsAllowed) && (item.href !== '/shadow-lab' || user.scope.kind === 'GLOBAL' && user.roles.includes('ADMIN')),
+                      (item) => item.group === group && (can(item.permission) || item.href === '/guide-settings' && can('sunat.configure')) && (item.href !== '/integrations' || integrationsAllowed) && (item.href !== '/shadow-lab' || user.scope.kind === 'GLOBAL' && user.roles.includes('ADMIN')),
                     )
                     .map((item) => (
                       <SidebarMenuItem key={item.href}>
@@ -248,7 +248,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           />
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="min-w-0 bg-background">
+      <SidebarInset className="min-w-0 bg-background" onClickCapture={event=>{if(!pathname.endsWith('/guide-settings/declarations')||!dirty||event.ctrlKey||event.metaKey)return;const a=(event.target as HTMLElement).closest('a[href]') as HTMLAnchorElement|null;if(!a||a.target==='_blank'||a.origin!==location.origin)return;event.preventDefault();event.stopPropagation();confirm(()=>{setDirty(false);router.push(a.pathname+a.search+a.hash);});}}>
         <header className="flex min-h-18 flex-wrap items-center gap-3 border-b bg-card px-4 py-3 sm:px-7">
           <SidebarTrigger aria-label="Abrir o cerrar menú" />
           <span className="hidden text-sm text-muted-foreground sm:block">
@@ -336,7 +336,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
               className="hidden border-amber-200 bg-amber-50 text-amber-900 sm:flex"
             >
               <FlaskConical className="mr-1 size-3" />
-              {pathname==='/guides'?`Ventas ${selectedCompany?.environment??'sin selección'} · GRE PRODUCTION`:selectedCompany ? `${selectedCompany.environment} · ${selectedCompany.source === 'SYNTHETIC' ? 'Laboratorio QA' : 'Negocio'}` : 'Consolidado autorizado'}
+              {pathname==='/guides'||pathname.startsWith('/guide-settings')?`Ventas ${selectedCompany?.environment??'sin selección'} · GRE PRODUCTION`:selectedCompany ? `${selectedCompany.environment} · ${selectedCompany.source === 'SYNTHETIC' ? 'Laboratorio QA' : 'Negocio'}` : 'Consolidado autorizado'}
             </Badge>
             <Button
               variant="ghost"
@@ -361,7 +361,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
             />
           ) : !catalog ? (
             <Loading />
-          ) : current && (!can(current.permission) || current.href === '/integrations' && !integrationsAllowed) ? (
+          ) : current && (!can(current.permission) && !(current.href==='/guide-settings'&&can('sunat.configure')) || current.href === '/integrations' && !integrationsAllowed) ? (
             <Empty
               title="Acceso no autorizado"
               description="Tu cuenta no tiene permiso para este módulo."
@@ -383,7 +383,7 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
           <DialogHeader>
             <DialogTitle>Hay datos sin guardar</DialogTitle>
             <DialogDescription>
-              {pathname === '/guide-settings' ? 'Los cambios sin guardar se descartarán. Si hay un guardado en curso, consulte los datos de esta empresa al volver antes de reenviarlos.' : pathname === '/shadow-lab' ? 'Las anotaciones y motivos del laboratorio están sólo en memoria. Descárgalos antes de salir; continuar los descarta sin modificar documentos fiscales.' : <>Los borradores no enviados se descartarán. Una solicitud de
+              {pathname.startsWith('/guide-settings') ? 'Los cambios sin guardar se descartarán. Si hay un guardado en curso, consulte los datos de esta empresa al volver antes de reenviarlos.' : pathname === '/shadow-lab' ? 'Las anotaciones y motivos del laboratorio están sólo en memoria. Descárgalos antes de salir; continuar los descarta sin modificar documentos fiscales.' : <>Los borradores no enviados se descartarán. Una solicitud de
               emisión enviada sin respuesta conserva su clave en esta pestaña;
               salir no la cancela. ¿Deseas continuar?</>}
             </DialogDescription>
