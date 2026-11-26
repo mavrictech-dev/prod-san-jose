@@ -5,6 +5,9 @@ $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 $state=Join-Path $repo '.installation/windows-test'
 if(-not(Test-Path -LiteralPath (Join-Path $state 'prepared.marker'))){throw 'Existing installation required.'}
 if(Test-Path -LiteralPath (Join-Path $state 'operations.lock')){throw 'Another installation operation is in progress.'}
+$lock=$null;$lockPath=Join-Path $state 'operations.lock'
+try{
+try{$lock=[IO.File]::Open($lockPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)}catch{throw 'Another installation operation owns operations.lock.'}
 if(Test-Path -LiteralPath (Join-Path $state 'build.lock')){throw 'Complete the current build before preparing public PKI.'}
 $reviewed=Join-Path $PSScriptRoot 'public-pki'
 $verifier=Join-Path $repo 'scripts/verify-public-fiscal-pki.cjs'
@@ -33,4 +36,5 @@ foreach($name in $names){
 Copy-Item -LiteralPath (Join-Path $staging 'verification.json') -Destination (Join-Path $pki 'last-verification.json')
 Write-Host ('PUBLIC_PKI_PREPARED; CRL expires UTC: '+$report.crlExpiresAt)
 Write-Host 'Existing vault/JWT/fiscal private keys retained. No transmission activated.'
-if($ReplaceReviewedPublicFiles){Write-Host 'Public files refreshed. Reapply the reviewed server gates to update the matching runtime hashes; old pins remain fail-closed until that deployment.'}
+Write-Host 'Run Operate-Production.ps1 -Action ApplyFiscalPki to verify and apply the public pins without enabling transmission. Renewal is an explicit operator action.'
+}finally{if($lock){$lock.Dispose();Remove-Item -LiteralPath $lockPath -Force}}

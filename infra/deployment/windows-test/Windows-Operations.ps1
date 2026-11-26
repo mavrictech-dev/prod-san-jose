@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
- [ValidateSet('Status','Backup','VerifyBackup','RestoreBackup','Update','RecordRelease','CheckImages')][string]$Action='Status',
+ [ValidateSet('Status','Backup','VerifyBackup','RestoreBackup','Update','RecordRelease','CheckImages','ApplyFiscalPki')][string]$Action='Status',
  [string]$BackupPath='', [string]$ExternalDestination='', [switch]$ExternalDestinationReviewed,
  [string]$RecoveryPath='', [string]$RecoveryProject='', [string]$ReadinessSessionFile='',
  [string]$InstallationPath='', [string]$ComposePath='', [string]$ProjectName='factuez-san-jose-test',
@@ -63,6 +63,71 @@ function Assert-Installation {
  if($ProjectName -ne 'factuez-san-jose-test' -and (-not $SyntheticScope -or $ProjectName -notmatch '^factuez-qa-[a-f0-9]{12}$')){throw 'Existing stable project required; synthetic override requires a unique factuez-qa scope.'}
  foreach($file in @('prepared.marker','public.env','secrets')){if(-not(Test-Path -LiteralPath (Join-Path $state $file))){throw 'Installation state missing. Locate the existing installation; never Prepare/reset to repair it.'}}
  if(-not(Test-Path -LiteralPath $compose -PathType Leaf)){throw 'Compose file missing.'}
+}
+function Apply-FiscalPki {
+ # Called only with the existing installation operation lock held. Public inputs only
+ # are mounted into the offline verifier; it cannot access configuration or secrets.
+ $envPath=Join-Path $state 'public.env'
+ $original=[IO.File]::ReadAllBytes($envPath)
+ try{$strictUtf8=New-Object Text.UTF8Encoding($false,$true);$text=$strictUtf8.GetString($original)}catch{throw 'PUBLIC_ENV_ENCODING_INVALID'}
+ if($text.Contains([char]0) -or $text.StartsWith([string][char]0xfeff,[StringComparison]::Ordinal)){throw 'PUBLIC_ENV_ENCODING_INVALID'}
+ # An offline PKI change must not start a fiscal sender during recreation.
+ foreach($gate in @('NATIVE_GRE_WORKERS_ENABLED','SUNAT_PRODUCTION_WORKFLOW_ENABLED')){
+  $matches=[regex]::Matches($text,('(?m)^[ \t]*(?:export[ \t]+)?'+$gate+'[ \t]*=([^\r\n]*)'))
+  $inherited=[Environment]::GetEnvironmentVariable($gate)
+  if($matches.Count -gt 1 -or ($matches.Count -eq 1 -and $matches[0].Groups[1].Value -cne 'false') -or ($inherited -and $inherited -cne 'false')){throw 'FISCAL_PKI_REQUIRES_TRANSMISSION_DISABLED'}
+ }
+ $pki=Join-Path $state 'pki'
+ $entries=@(@('issuer-roots.pem','SUNAT_TRUST_STORE_SHA256'),@('crls.pem','SUNAT_CRL_BUNDLE_SHA256'),@('cdr-signers.pem','SUNAT_CDR_SIGNER_CERT_SHA256'))
+ foreach($entry in $entries){$f=Get-Item -LiteralPath (Join-Path $pki $entry[0]) -ErrorAction SilentlyContinue;if(-not $f -or $f.PSIsContainer -or $f.Length -eq 0 -or $f.Length -gt 1048576 -or ($f.Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'FISCAL_PKI_PUBLIC_INPUT_MISSING_OR_INVALID'}}
+ $work=Join-Path $state ('pki-apply-'+$run)
+ $current=Join-Path $work 'current';$verified=Join-Path $work 'verified'
+ New-Item -ItemType Directory -Path $current,$verified|Out-Null
+ foreach($entry in $entries){Copy-Item -LiteralPath (Join-Path $pki $entry[0]) -Destination (Join-Path $current $entry[0])}
+ $reviewed=Join-Path $PSScriptRoot 'public-pki';$verifier=Join-Path $root 'scripts/verify-public-fiscal-pki.cjs'
+ foreach($p in @($work,$reviewed,$verifier)){Assert-MountPath $p}
+ Docker @('run','--rm','--pull','never','--network','none','--user','0:0','--mount',"type=bind,source=$work,target=/public",'--mount',"type=bind,source=$reviewed,target=/reviewed,readonly",'--mount',"type=bind,source=$verifier,target=/verify-public-fiscal-pki.cjs,readonly",'--entrypoint','node','factuez-windows-test/sunat-service:local','/verify-public-fiscal-pki.cjs','--installed','/public/current','/reviewed','/public/verified')|Out-Null
+ $report=Read-Json (Join-Path $verified 'verification.json')
+ if($report.verified -ne $true -or [DateTime]::Parse($report.crlExpiresAt).ToUniversalTime() -le [DateTime]::UtcNow){throw 'FISCAL_PKI_CURRENT_VERIFICATION_REQUIRED'}
+ foreach($entry in $entries){
+  $hash=$report.hashes.($entry[0])
+  if($hash -notmatch '^[a-f0-9]{64}$' -or (Get-FileHash -LiteralPath (Join-Path $pki $entry[0]) -Algorithm SHA256).Hash.ToLowerInvariant() -cne $hash){throw 'FISCAL_PKI_INPUT_CHANGED'}
+  $inherited=[Environment]::GetEnvironmentVariable($entry[1])
+  if($inherited -and $inherited -cne $hash){throw 'FISCAL_PKI_INHERITED_PIN_CONFLICT'}
+  $pattern='(?m)^'+$entry[1]+'=[^\r\n]*'
+  $matches=[regex]::Matches($text,$pattern)
+  $definitions=[regex]::Matches($text,('(?m)^[ \t]*(?:export[ \t]+)?'+$entry[1]+'[ \t]*=[^\r\n]*'))
+  if($definitions.Count -ne $matches.Count){throw 'FISCAL_PKI_AMBIGUOUS_PIN'}
+  if($matches.Count -gt 1){throw 'FISCAL_PKI_DUPLICATE_PIN'}
+  if($matches.Count -eq 1){$text=[regex]::Replace($text,$pattern,($entry[1]+'='+$hash))}
+  else{$newline=if($text.Contains("`r`n")){"`r`n"}else{"`n"};if($text.Length -and -not $text.EndsWith("`n")){$text+=$newline};$text+=$entry[1]+'='+$hash+$newline}
+ }
+ # Do not silently change the installed image while applying public trust.
+ $ids=Compose @('ps','--all','--quiet','sunat-service')
+ if(-not $ids -or @($ids.Trim() -split '\s+').Count -ne 1){throw 'FISCAL_PKI_INSTALLED_SUNAT_REQUIRED'}
+ $installed=@((Docker @('inspect',$ids.Trim()))|ConvertFrom-Json)[0]
+ $tag=(Docker @('image','inspect','--format','{{.Id}}','factuez-windows-test/sunat-service:local')).Trim()
+ if((Image $installed) -cne $tag){throw 'FISCAL_PKI_INSTALLED_IMAGE_CHANGED'}
+ $temporary=Join-Path $state ('public.env.'+$run+'.pending');$backup=Join-Path $state ('public.env.'+$run+'.previous')
+ $replaced=$false;$recreating=$false
+ try {
+  [IO.File]::WriteAllBytes($temporary,$utf8.GetBytes($text))
+  if([Convert]::ToBase64String([IO.File]::ReadAllBytes($envPath)) -cne [Convert]::ToBase64String($original)){throw 'FISCAL_PKI_PUBLIC_ENV_CHANGED'}
+  [IO.File]::Replace($temporary,$envPath,$backup);$replaced=$true
+  # Recheck immediately before handing off. Any earlier failure restores exact bytes.
+  foreach($entry in $entries){if((Get-FileHash -LiteralPath (Join-Path $pki $entry[0]) -Algorithm SHA256).Hash.ToLowerInvariant() -cne $report.hashes.($entry[0])){throw 'FISCAL_PKI_INPUT_CHANGED'}}
+  if([DateTime]::Parse($report.crlExpiresAt).ToUniversalTime() -le [DateTime]::UtcNow){throw 'FISCAL_PKI_CRL_EXPIRED'}
+  $recreating=$true
+  Compose @('up','--detach','--no-deps','--no-build','--pull','never','--force-recreate','--wait','--wait-timeout','180','sunat-service')|Out-Null
+  Remove-Item -LiteralPath $backup -Force
+  Write-Host ('FISCAL_PKI_APPLIED; CRL expires UTC: '+$report.crlExpiresAt)
+  foreach($entry in $entries){Write-Host ($entry[1]+'='+$report.hashes.($entry[0]))}
+  Write-Host 'Transmission gates retained. Invoice readiness 01/03 and GRE readiness require separate review; no fiscal acceptance established.'
+ }catch{
+  if($replaced -and -not $recreating){[IO.File]::Replace($backup,$envPath,$null)}
+  if($recreating){throw 'FISCAL_PKI_PINS_APPLIED_RECREATE_FAILED: public pins retained; review SUNAT service state and repeat ApplyFiscalPki. No gates changed.'}
+  throw
+ }finally{if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary -Force}}
 }
 function Image($Container){if($Container.Image -notmatch '^sha256:[a-f0-9]{64}$'){throw 'Immutable image identity required.'};$Container.Image}
 function Volume($Name){
@@ -410,6 +475,7 @@ try {
  if($Action -eq 'RecordRelease'){
   $release=Build-Evidence;Write-Json (Join-Path $state 'build-release.json') $release;return
  }
+ if($Action -eq 'ApplyFiscalPki'){Apply-FiscalPki;return}
  if($Action -eq 'Update'){Assert-BuiltRelease}
  $verified=Backup -LeaveStopped:($Action -eq 'Update')
  if($Action -eq 'Update'){

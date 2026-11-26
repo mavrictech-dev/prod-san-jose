@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth','RepairGre','CheckUpdate','Update','ProvisionGre','EnableGre','DisableGre','EnableB2B','DisableB2B','EnableProduction','DisableProduction')][string]$Action='Status', [string]$TransmissionConfirmation='')
+param([ValidateSet('Build','Prepare','Start','Status','Stop','DisableBootstrap','RepairAccess','RepairAuth','RepairGre','CheckUpdate','Update','ProvisionGre','ApplyFiscalPki','EnableGre','DisableGre','EnableB2B','DisableB2B','EnableProduction','DisableProduction')][string]$Action='Status', [string]$TransmissionConfirmation='')
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
@@ -43,7 +43,7 @@ function Assert-WebAccess {
  throw 'Containers started but http://127.0.0.1:8091/login is not accessible. Run Status and check Kong port publication. Do not repeat Prepare.'
 }
 if($env:OS -ne 'Windows_NT'){throw 'Windows 11 required for this launcher.'}
-if($Action -in @('Status','Update')) {
+if($Action -in @('Status','Update','ApplyFiscalPki')) {
  & (Join-Path $PSScriptRoot 'Windows-Operations.ps1') -Action $Action
  return
 }
