@@ -145,6 +145,23 @@
           "regex_priority": 200
         },
         {
+          "name": "core-fiscal-guides-catalogue",
+          "paths": [
+            "~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/catalogue$"
+          ],
+          "methods": [
+            "GET",
+            "POST",
+            "OPTIONS"
+          ],
+          "protocols": [
+            "http",
+            "https"
+          ],
+          "strip_path": false,
+          "regex_priority": 210
+        },
+        {
           "name": "core-fiscal-notes-authorization",
           "paths": [
             "~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/notes/authorization$"

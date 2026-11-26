@@ -29,7 +29,7 @@ export function validateKong(kong){
    .sort((a,b)=>(b.regex_priority??0)-(a.regex_priority??0))[0];
   return match?.plugins?.some(p=>p.name==='request-termination')?'DENIED':match?.svc;
  };
- for(const [url,svc,method]of [
+ const publicCases=[
   ['/b2b/oauth/token','identity-service','POST'],['/api/v1/b2b/production-applications','identity-service','GET'],['/b2b/v1/issuers','billing-service','GET'],['/b2b/v1/documents','billing-service','POST'],['/b2b/v1/documents/00000000-0000-4000-8000-000000000001/artifacts/xml','billing-service','GET'],
   ['/api/v1/auth/browser-session/login','identity-service','POST'],['/api/v1/users','identity-service','GET'],['/api/v1/roles','identity-service','GET'],
   ['/api/v1/documents/catalog/issuance','billing-service','GET'],['/api/v1/documents/1/production-notes','billing-service','POST'],
@@ -38,18 +38,23 @@ export function validateKong(kong){
   ['/api/v1/setup/sunat/1/PRODUCTION/readiness/validate','sunat-service','POST'],
   ['/api/v1/setup/sunat/1/PRODUCTION/dispatch','sunat-service','POST'],
   ['/api/v1/setup/sunat/1/PRODUCTION/notes/authorization','sunat-service','POST'],
+  ...['GET','POST','OPTIONS'].map(method=>['/api/v1/setup/sunat/1/PRODUCTION/guides/catalogue','sunat-service',method]),
   ['/api/v1/fiscal-artifacts/1/original/XML','sunat-service','GET'],['/api/v1/fiscal-evidence/1','sunat-service','GET'],
   ['/api/v1/mail-settings/1/document-activation','mailer-worker','POST'],['/api/v1/mail-settings/1/send-document','mailer-worker','POST'],
   ['/api/v1/received-documents','received-documents-service','GET'],['/socket.io/','realtime-service','GET'],['/login','web-pwa','GET'],
- ])need(target(url,method)===svc,'KONG_MISSING_REAL_ROUTE:'+url);
- for(const url of [
+ ];for(const [url,svc,method]of publicCases)need(target(url,method)===svc,'KONG_MISSING_REAL_ROUTE:'+url);
+ const deniedPaths=[
   '/b2b/v1/me','/internal/b2b/introspect','/api/v1/b2b-admin/status',
   '/api/v1/setup/sunat/1/PRODUCTION/admission','/api/v1/setup/sunat/1/PRODUCTION/notes/admission',
   '/api/v1/setup/sunat/1/PRODUCTION/notes/original-evidence',
   '/api/v1/stations/client-intake','/api/v1/mail-qa/1','/api/v1/fiscal-circuit-qa/1','/api/v1/local-xml-validation/1','/api/v1/fiscal-batch-qa',
   '/api/v1/notes-qa/1','/api/v1/gre-qa','/api/v1/setup/company','/api/v1/products','/api/v1/customers','/api/v1/daily-summaries',
- ])for(const method of ['GET','POST'])need(target(url,method)==='DENIED','KONG_PRIVATE_LAB_OR_NONEXISTENT_ROUTE_EXPOSED:'+url);
+ ];for(const url of deniedPaths)for(const method of ['GET','POST'])need(target(url,method)==='DENIED','KONG_PRIVATE_LAB_OR_NONEXISTENT_ROUTE_EXPOSED:'+url);
  need(target('/b2b/oauth/token','GET')==='DENIED','OAUTH_TOKEN_IS_POST_ONLY');
+ const catalogueRoute=routes.find(r=>r.name==='core-fiscal-guides-catalogue');
+ need(catalogueRoute?.svc==='sunat-service'&&catalogueRoute.paths.length===1&&catalogueRoute.paths[0]==='~/api/v1/setup/sunat/[1-9][0-9]*/PRODUCTION/guides/catalogue$'&&catalogueRoute.methods.join(',')==='GET,POST,OPTIONS','EXACT_GUARDED_GRE_CATALOGUE_ROUTE');
+ for(const url of ['/api/v1/setup/sunat/0/PRODUCTION/guides/catalogue','/api/v1/setup/sunat/-1/PRODUCTION/guides/catalogue','/api/v1/setup/sunat/01/PRODUCTION/guides/catalogue','/api/v1/setup/sunat/1/BETA/guides/catalogue','/api/v1/setup/sunat/1/PRODUCTION/guides/catalogue/extra','/api/v1/setup/sunat/1/PRODUCTION/guides/catalogue-source','/internal/production-guides/sunat/readiness','/internal/production-guides/billing/catalogue-source','/internal/production-guides/identity/current','/api/v1/production-guides-owner'])for(const method of ['GET','POST','OPTIONS'])need(target(url,method)==='DENIED','GRE_CATALOGUE_MUST_NOT_WIDEN_GATEWAY');
+ for(const method of ['PUT','PATCH','DELETE'])need(target('/api/v1/setup/sunat/1/PRODUCTION/guides/catalogue',method)==='DENIED','GRE_CATALOGUE_METHOD_DENIED');
  for(const url of ['/prefix/api/v1/documents','/prefix/internal/b2b/introspect','/prefix/b2b/oauth/token'])need(target(url)==='web-pwa','KONG_REGEX_MUST_BE_START_ANCHORED');
  for(const [file,text]of [
   ['services/billing-service/src/products.controller.ts',"api/v1/stations/products"],
@@ -59,7 +64,7 @@ export function validateKong(kong){
   ['services/sunat-service/src/production-dispatch.controller.ts',"api/v1/setup/sunat"],
   ['services/mailer-worker/src/corporate-document-controller.ts',"api/v1/mail-settings"],
  ])need(readFileSync(path.join(repo,file),'utf8').includes(text),'KONG_ROUTE_CONTROLLER_EVIDENCE_MISSING');
- return {kongRoutesChecked:routes.length,realRoutes:18,deniedPaths:18,externalNetwork:false};
+ return {kongRoutesChecked:routes.length,realRoutes:publicCases.length,deniedPaths:deniedPaths.length,greCatalogue:{publishedMethods:3,deniedPathMethods:30,deniedMethods:3},externalNetwork:false};
 }
 
 export function validate(model,{resolved=false}={}){
@@ -169,7 +174,10 @@ function selfTest(){
  assert.throws(()=>validate(resolvePublicVariables({...fixture,CORE_KONG_IMAGE:'kong:latest'}),{resolved:true}));
  const badKong=JSON.parse(readFileSync(path.join(here,'kong.yml'),'utf8'));badKong.services.find(s=>s.name==='billing-service').routes[0].paths.push('~/api/v1/products(?:/|$)');assert.throws(()=>validateKong(badKong));
  const invalidPrefix=JSON.parse(readFileSync(path.join(here,'kong.yml'),'utf8'));invalidPrefix.services[0].routes[0].paths=['~^/api/v1/auth'];assert.throws(()=>validateKong(invalidPrefix),/KONG_REGEX_PATH_PREFIX_REQUIRED/);
- return {selfTestsPassed:18,kong:validateKong(JSON.parse(readFileSync(path.join(here,'kong.yml'),'utf8'))),externalNetwork:false,containers:false,fixtureImages:'TEST_ONLY_NOT_APPROVED_NOT_EXECUTED'};
+ for(const mutate of [r=>r.paths=['~/api/v1/setup/sunat/.*'],r=>r.paths=['~/api/v1/setup/sunat/[0-9]+/PRODUCTION/guides/catalogue$'],r=>r.methods.push('PUT'),r=>r.methods=['POST']]){
+  const gre=JSON.parse(readFileSync(path.join(here,'kong.yml'),'utf8')),route=gre.services.find(s=>s.name==='sunat-service').routes.find(r=>r.name==='core-fiscal-guides-catalogue');mutate(route);assert.throws(()=>validateKong(gre));
+ }
+ return {selfTestsPassed:22,kong:validateKong(JSON.parse(readFileSync(path.join(here,'kong.yml'),'utf8'))),externalNetwork:false,containers:false,fixtureImages:'TEST_ONLY_NOT_APPROVED_NOT_EXECUTED'};
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{
