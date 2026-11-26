@@ -11,8 +11,8 @@ async function probe(c,remote,route,body){
   let done=false;const finish=value=>{if(!done){done=true;tls.key.fill(0);resolve(value);}};
   const input=Buffer.from(JSON.stringify(body));
   const q=https.request(new URL(route,u),{method:'POST',...tls,rejectUnauthorized:true,minVersion:'TLSv1.2',headers:{'Content-Type':'application/json','Content-Length':input.length}},s=>{
-   const peer=s.socket.getPeerCertificate(),pinMatched=s.socket.authorized===true&&peer.fingerprint256?.replaceAll(':','').toLowerCase()===remote.serverFingerprint;
-   s.resume();s.on('end',()=>finish({code:pinMatched?'HTTP_RESPONSE':'SERVER_PIN_MISMATCH',tlsAuthorized:s.socket?.authorized===true,pinMatched,status:s.statusCode}));
+   const peer=s.socket.getPeerCertificate(),tlsAuthorized=s.socket.authorized===true,pinMatched=tlsAuthorized&&peer.fingerprint256?.replaceAll(':','').toLowerCase()===remote.serverFingerprint;
+   s.resume();s.on('end',()=>finish({code:pinMatched?'HTTP_RESPONSE':'SERVER_PIN_MISMATCH',tlsAuthorized,pinMatched,status:s.statusCode}));
   });q.on('error',e=>finish({code:allowedErrors.has(e.code)?e.code:'TRANSPORT_FAILED'}));q.setTimeout(6000,()=>{finish({code:'ETIMEDOUT'});q.destroy();});q.end(input);
  });
 }
@@ -24,5 +24,5 @@ async function main(){
  if(c.identity)result.identity=await probe(c,c.identity,'/internal/production-guides/identity/current',{userId:'INVALID_SYNTHETIC_PROBE'});
  console.log(JSON.stringify(result));
 }
-if(require.main===module)main().catch(()=>{console.log(JSON.stringify({code:'GRE_DIAGNOSTIC_BLOCKED'}));process.exitCode=1;});
+if(require.main===module||(module.id==='[stdin]'&&process.argv[1]==='-'))main().catch(()=>{console.log(JSON.stringify({code:'GRE_DIAGNOSTIC_BLOCKED'}));process.exitCode=1;});
 module.exports={probe};
