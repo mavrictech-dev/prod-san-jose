@@ -35,7 +35,7 @@ export function createProductionGuidesSunat(input:ProductionGuidesSunatAssemblyI
  service=new ProductionGuidesService(store,{enabled,owner:{current:e=>billing.current(e),reference09:s=>service.reference09(s)},referenceOwner:s=>billing.referenceOwner(s),ownerVerifier:createProductionGuidesVerifier(input.ownerPublicKeys),crypto,transport,cdr,pdf:renderProductionGuidesPdf,now:input.now});
  const grantEvidence:ProductionGuidesGrantEvidence=async(scope,profiles,revision)=>{
   if(!enabled())throw Error('GRE_DISABLED');productionGuidesExact(scope,['companyId','issuerRuc','branchId','pointId','seriesCounterId','establishmentCode']);
-  const c=await readCatalogue(scope.issuerRuc);if(!c||c.companyId!==scope.companyId||!profiles.length||profiles.some(p=>!['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'].includes(p)))throw Error('GRE_PROFILE_OR_OWNER_UNCONFIGURED');
+  const c=await readCatalogue(scope.issuerRuc);if(!c||c.companyId!==scope.companyId||!profiles.length||profiles.some(p=>!['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1','GRE09_HYDROCARBON_PRIVATE02_V1'].includes(p)))throw Error('GRE_PROFILE_OR_OWNER_UNCONFIGURED');
   if(profiles.some(p=>p.startsWith('GRE09_HYDROCARBON_')))await officialGreRulesConfigured();
   const binding=await secrets.configuration(scope.issuerRuc,revision);await crypto.readyGrant(binding);
   if(!await cdr.configured())throw Error('GRE_CDR_TRUST_UNAVAILABLE');

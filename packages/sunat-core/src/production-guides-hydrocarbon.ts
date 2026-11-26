@@ -1,4 +1,4 @@
-import type { HydrocarbonCargo, HydrocarbonApproval } from '@factuez/contracts/production-guides';
+import type { HydrocarbonCargo, HydrocarbonApproval,HydrocarbonPurchaseCargo,HydrocarbonGuideCargo,PurchaseFuelFamily } from '@factuez/contracts/production-guides';
 import { fiscalRuc, fiscalSnapshotSha256 } from './fiscal-note';
 
 export const HYDROCARBON_RULES = Object.freeze({
@@ -28,8 +28,22 @@ export const HYDROCARBON_SPECIAL_DISTRICTS = Object.freeze([
  '210303','210309','211209','211205','211207','211210','211201','211208',
  '100606','100604','100601','100605','100602','100505','100702','100905','100902','100901','100403',
 ]);
-export const isHydrocarbonProfile=(p:string)=>p==='GRE09_HYDROCARBON_PRIVATE04_V1'||p==='GRE09_HYDROCARBON_PUBLIC01_V1';
-export const isPrivateGuideProfile=(p:string)=>p==='GRE09_PRIVATE04_V1'||p==='GRE09_HYDROCARBON_PRIVATE04_V1';
+export const isPurchaseGuideProfile=(p:string)=>p==='GRE09_HYDROCARBON_PRIVATE02_V1';
+export const isHydrocarbonProfile=(p:string)=>p==='GRE09_HYDROCARBON_PRIVATE04_V1'||p==='GRE09_HYDROCARBON_PUBLIC01_V1'||isPurchaseGuideProfile(p);
+export const isPrivateGuideProfile=(p:string)=>p==='GRE09_PRIVATE04_V1'||p==='GRE09_HYDROCARBON_PRIVATE04_V1'||isPurchaseGuideProfile(p);
+export const PURCHASE_FUEL_FAMILIES:readonly PurchaseFuelFamily[]=['DIESEL','GASOHOL_REGULAR','GASOHOL_PREMIUM'];
+export function hydrocarbonItemFamily(h:HydrocarbonGuideCargo,code:string){return h.schemaVersion==='factuez.gre-hydrocarbon.v2'?h.items.find(i=>i.code===code)?.family:h.family;}
+export function hydrocarbonItemScop(h:HydrocarbonGuideCargo,code:string){return h.schemaVersion==='factuez.gre-hydrocarbon.v2'?h.items.find(i=>i.code===code)?.scopCode:h.scopCode;}
+export function validateHydrocarbonPurchaseCargo(raw:unknown,items:readonly {code:string}[]):HydrocarbonPurchaseCargo{
+ const h=raw as HydrocarbonPurchaseCargo;
+ if(!h||Object.keys(h).sort().join(',')!==['schemaVersion','items','handoverDate','senderRegistration','carrierRegistration','vehicleAuthorization'].sort().join(',')||h.schemaVersion!=='factuez.gre-hydrocarbon.v2'||h.handoverDate!==null||h.carrierRegistration!==null||!Array.isArray(h.items)||h.items.length<1||h.items.length>100||h.items.length!==items?.length)throw Error('Compra requiere metadatos v2 por producto y SCOP');
+ hydrocarbonText(h.senderRegistration);hydrocarbonText(h.vehicleAuthorization);
+ const seen=new Set<string>();for(const i of h.items){
+  if(!i||Object.keys(i).sort().join(',')!=='code,family,scopCode'||typeof i.code!=='string'||!i.code||seen.has(i.code)||!items.some(p=>p.code===i.code)||!PURCHASE_FUEL_FAMILIES.includes(i.family)||typeof i.scopCode!=='string'||!/^(?!0{11}$)[0-9]{11}$/.test(i.scopCode))throw Error('Cada producto de compra requiere familia inequívoca y SCOP de 11 dígitos; no se admiten duplicados ni bienes ajenos');
+  seen.add(i.code);
+ }
+ return structuredClone(h);
+}
 export function hydrocarbonText(v:unknown):asserts v is string {
  if(typeof v!=='string'||v.length<3||v.length>50||v.trim()!==v||/[\x00-\x1f\x7f]/.test(v))throw Error('Complete el registro o autorización de hidrocarburos (3 a 50 caracteres)');
 }
@@ -46,6 +60,11 @@ export function validateHydrocarbonCargo(raw:unknown,privateTransport:boolean):H
 export function validateHydrocarbonApproval(raw:HydrocarbonApproval){
  const a=raw;
  const keys=['branchId','profile','family','routeSha256','routeUbigeos','geography','documentRegime','senderRegistration','carrierRuc','carrierLegalName','mtcRegistration','carrierRegistration','vehiclePlate','vehicleAuthorization','scopRequired','sourceUrl','sourceSha256','validUntil'];
+ if(isPurchaseGuideProfile(a?.profile)){
+  keys.push('supplier');const supplier=(a as any).supplier;
+  if(!PURCHASE_FUEL_FAMILIES.includes(a.family as PurchaseFuelFamily)||a.scopRequired!==true||!supplier||Object.keys(supplier).sort().join(',')!=='legalName,ruc'||typeof supplier.legalName!=='string'||supplier.legalName.trim()!==supplier.legalName||supplier.legalName.length<3||supplier.legalName.length>200||/[\x00-\x1f\x7f]/.test(supplier.legalName))throw Error('Compra exige proveedor explícito, SCOP y familias diésel/gasohol revisadas');
+  fiscalRuc(supplier.ruc,'supplier.ruc');
+ }
  if(!a||Object.keys(a).sort().join(',')!==keys.sort().join(',')||!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(a.branchId)||!isHydrocarbonProfile(a.profile)||a.documentRegime!=='ORDINARY_GRE'||!['OUTSIDE_SPECIAL_ZONE','SPECIAL_ZONE'].includes(a.geography)||!/^https:\/\/(?:[a-z0-9-]+\.)*(?:sunat|osinergmin)\.gob\.pe\//.test(a.sourceUrl)||!/^[a-f0-9]{64}$/.test(a.sourceSha256)||!/^[a-f0-9]{64}$/.test(a.routeSha256)||!Array.isArray(a.routeUbigeos)||a.routeUbigeos.length<2||a.routeUbigeos.length>100||a.routeUbigeos.some(u=>!/^\d{6}$/.test(u)||u==='000000')||!Number.isFinite(Date.parse(a.validUntil))||typeof a.scopRequired!=='boolean')throw Error('Revisión de hidrocarburos incompleta: sede, ruta completa, régimen, evidencia oficial y vigencia requeridos');
  validateHydrocarbonCargo({schemaVersion:'factuez.gre-hydrocarbon.v1',family:a.family,handoverDate:isPrivateGuideProfile(a.profile)?null:'2026-11-24',scopCode:isPrivateGuideProfile(a.profile)?null:'10000000001',senderRegistration:a.senderRegistration,carrierRegistration:a.carrierRegistration,vehicleAuthorization:a.vehicleAuthorization},isPrivateGuideProfile(a.profile));
  if(a.family!=='GLP'&&(a.geography==='SPECIAL_ZONE'||a.routeUbigeos.some(u=>HYDROCARBON_SPECIAL_DISTRICTS.includes(u)||u.startsWith('17'))))throw Error('Ruta de diésel/gasohol con régimen o controles especiales: requiere revisión documental externa; perfil ordinario no habilitado');

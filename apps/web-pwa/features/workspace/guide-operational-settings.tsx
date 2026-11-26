@@ -177,14 +177,14 @@ function GuideSettingsForm({ company }: { company: Company }) {
                     return <fieldset key={p.routeId} className="grid min-w-0 gap-4 rounded-lg border p-4 md:grid-cols-2"><legend className="px-1 text-sm font-medium">{draft.routes.find(r=>r.id===p.routeId)?.name??'Ruta eliminada; actualice el perfil'}</legend>
                       {select('Régimen del traslado',p.regime,`${prefix}.regime`,{PENDING_REVIEW:'Pendiente de determinar',ORDINARY_GRE:'GRE ordinaria',GRE_BF:'GRE de bienes fiscalizados'},regime=>patch({regime:regime as typeof p.regime}))}
                       {select('Modalidad de transporte',p.transportMode,`${prefix}.transportMode`,{'01':'Público (transportista contratado)','02':'Privado'},transportMode=>patch({transportMode:transportMode as typeof p.transportMode}))}
-                      {select('Motivo del traslado',p.reasonCode,`${prefix}.reasonCode`,{'01':'Venta','04':'Entre establecimientos de la empresa'},reasonCode=>patch({reasonCode:reasonCode as typeof p.reasonCode}))}
+                      {select('Motivo del traslado',p.reasonCode,`${prefix}.reasonCode`,{'01':'Venta','02':'Compra (privado)','04':'Entre establecimientos de la empresa'},reasonCode=>patch({reasonCode:reasonCode as typeof p.reasonCode}))}
                       {select('SCOP por operación',p.scop,`${prefix}.scop`,{PENDING_REVIEW:'Pendiente de determinar',REQUIRED:'Requerido en cada traslado',NOT_APPLICABLE:'No corresponde (requiere otro perfil)'},scop=>patch({scop:scop as typeof p.scop}))}
                     </fieldset>;
                   })}
                 </>}
                 <div role="status" className="min-w-0 rounded-lg border bg-muted/30 p-4 text-sm"><p className="font-medium">{fuelSummary.status==='READY_FOR_TECHNICAL_REVIEW'?'Datos completos para revisión técnica':'Perfil pendiente de completar'}</p>
                   {fuelSummary.blockers.length>0&&<ul className="mt-2 list-inside list-disc">{fuelSummary.blockers.map((b,i)=><li key={i}>{b}</li>)}</ul>}
-                  {fuelSummary.profiles.length>0&&<><p className="mt-2">Perfiles existentes para revisión técnica (sin concesión):</p>{fuelSummary.profiles.map(p=><p key={p} className="break-words text-xs">{{GRE09_HYDROCARBON_PRIVATE04_V1:'Remitente: 09 privada, requiere habilitación por sede, combustible, ruta, vehículo y registros',GRE09_HYDROCARBON_PUBLIC01_V1:'Remitente: 09 pública, requiere habilitación por sede, combustible, ruta y transportista'}[p]??p}</p>)}</>}
+                  {fuelSummary.profiles.length>0&&<><p className="mt-2">Perfiles existentes para revisión técnica (sin concesión):</p>{fuelSummary.profiles.map(p=><p key={p} className="break-words text-xs">{{GRE09_HYDROCARBON_PRIVATE02_V1:'Compra privada: diésel y gasoholes, proveedor tercero y SCOP por producto; habilitaci?n y concesi?n nuevas',GRE09_HYDROCARBON_PRIVATE04_V1:'Remitente: 09 privada, requiere habilitación por sede, combustible, ruta, vehículo y registros',GRE09_HYDROCARBON_PUBLIC01_V1:'Remitente: 09 pública, requiere habilitación por sede, combustible, ruta y transportista'}[p]??p}</p>)}</>}
                   <p className="mt-2">Guardar no habilita la emisión. Las rutas que requieren GRE de bienes fiscalizados deben tramitarse por ese sistema de SUNAT.</p>
                 </div>
               </>}

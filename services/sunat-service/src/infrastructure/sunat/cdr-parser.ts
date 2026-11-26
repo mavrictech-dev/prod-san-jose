@@ -13,7 +13,7 @@ export function parseCdrZip(zip: Buffer, expected: { fileName: string; issuerRuc
     if (++xmlEntries !== 1 || entry.name !== expected.fileName || entry.originalSize > 2 * 1024 * 1024 || entry.originalSize === 0) throw new Error('CDR ZIP inesperado'); return true;
   } });
   if (xmlEntries !== 1 || Object.keys(files).length !== 1) throw new Error('CDR ZIP ambiguo');
-  const xml = Buffer.from(files[expected.fileName]); const root = safeXml(xml.toString('utf8'));
+  const xml = Buffer.from(files[expected.fileName]); const root = safeXml(xml.toString('utf8'),2 * 1024 * 1024,true);
   if (root.namespaceURI !== RESPONSE_NS || root.localName !== 'ApplicationResponse') throw new Error('CDR raíz inválida');
   if (leaf(child(child(root, CAC_NS, 'ReceiverParty'), CAC_NS, 'PartyIdentification'), CBC_NS, 'ID', 11) !== expected.issuerRuc) throw new Error('CDR de otro RUC');
   const documentResponse = child(root, CAC_NS, 'DocumentResponse');

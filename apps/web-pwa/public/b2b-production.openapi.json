@@ -2304,6 +2304,350 @@
               "profile",
               "body"
             ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "seriesCounterId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "profile": {
+                "type": "string",
+                "const": "GRE09_HYDROCARBON_PRIVATE02_V1"
+              },
+              "body": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "issueDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "transferDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "sender": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "ruc": {
+                        "type": "string",
+                        "pattern": "^[0-9]{11}$"
+                      },
+                      "legalName": {
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "ruc",
+                      "legalName"
+                    ]
+                  },
+                  "recipient": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "ruc": {
+                        "type": "string",
+                        "pattern": "^[0-9]{11}$"
+                      },
+                      "legalName": {
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "ruc",
+                      "legalName"
+                    ]
+                  },
+                  "origin": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "ubigeo": {
+                        "type": "string",
+                        "pattern": "^[0-9]{6}$"
+                      },
+                      "address": {
+                        "type": "string",
+                        "maxLength": 300
+                      },
+                      "establishmentCode": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}$"
+                      }
+                    },
+                    "required": [
+                      "ubigeo",
+                      "address",
+                      "establishmentCode"
+                    ]
+                  },
+                  "destination": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "ubigeo": {
+                        "type": "string",
+                        "pattern": "^[0-9]{6}$"
+                      },
+                      "address": {
+                        "type": "string",
+                        "maxLength": 300
+                      },
+                      "establishmentCode": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}$"
+                      }
+                    },
+                    "required": [
+                      "ubigeo",
+                      "address",
+                      "establishmentCode"
+                    ]
+                  },
+                  "grossWeight": {
+                    "type": "string",
+                    "pattern": "^[0-9]+(\\.[0-9]{1,3})?$"
+                  },
+                  "weightUnit": {
+                    "type": "string",
+                    "enum": [
+                      "KGM",
+                      "TNE"
+                    ]
+                  },
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "maxLength": 64
+                        },
+                        "description": {
+                          "type": "string",
+                          "maxLength": 250
+                        },
+                        "quantity": {
+                          "type": "string",
+                          "pattern": "^[0-9]+(\\.[0-9]{1,6})?$"
+                        },
+                        "unitCode": {
+                          "type": "string",
+                          "enum": [
+                            "GLL",
+                            "LTR"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "description",
+                        "quantity",
+                        "unitCode"
+                      ]
+                    }
+                  },
+                  "regulatedGoods": {
+                    "type": "boolean",
+                    "const": true
+                  },
+                  "reasonCode": {
+                    "type": "string",
+                    "const": "02"
+                  },
+                  "transport": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "const": "02"
+                      },
+                      "vehicle": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "plate": {
+                            "type": "string"
+                          },
+                          "registration": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "plate",
+                          "registration"
+                        ]
+                      },
+                      "driver": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "identityType": {
+                            "type": "string",
+                            "enum": [
+                              "1",
+                              "4"
+                            ]
+                          },
+                          "identityNumber": {
+                            "type": "string"
+                          },
+                          "firstName": {
+                            "type": "string"
+                          },
+                          "lastName": {
+                            "type": "string"
+                          },
+                          "license": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "identityType",
+                          "identityNumber",
+                          "firstName",
+                          "lastName",
+                          "license"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "mode",
+                      "vehicle",
+                      "driver"
+                    ]
+                  },
+                  "references": {
+                    "type": "array",
+                    "maxItems": 0,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {},
+                      "required": []
+                    }
+                  },
+                  "supplier": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "ruc": {
+                        "type": "string",
+                        "pattern": "^[0-9]{11}$"
+                      },
+                      "legalName": {
+                        "type": "string",
+                        "maxLength": 200
+                      }
+                    },
+                    "required": [
+                      "ruc",
+                      "legalName"
+                    ]
+                  },
+                  "hydrocarbon": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "schemaVersion": {
+                        "type": "string",
+                        "const": "factuez.gre-hydrocarbon.v2"
+                      },
+                      "items": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "properties": {
+                            "code": {
+                              "type": "string",
+                              "maxLength": 40
+                            },
+                            "family": {
+                              "type": "string",
+                              "enum": [
+                                "DIESEL",
+                                "GASOHOL_REGULAR",
+                                "GASOHOL_PREMIUM"
+                              ]
+                            },
+                            "scopCode": {
+                              "type": "string",
+                              "pattern": "^(?!0{11}$)[0-9]{11}$"
+                            }
+                          },
+                          "required": [
+                            "code",
+                            "family",
+                            "scopCode"
+                          ]
+                        }
+                      },
+                      "handoverDate": {
+                        "type": "null"
+                      },
+                      "senderRegistration": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 50
+                      },
+                      "carrierRegistration": {
+                        "type": "null"
+                      },
+                      "vehicleAuthorization": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 50
+                      }
+                    },
+                    "required": [
+                      "schemaVersion",
+                      "items",
+                      "handoverDate",
+                      "senderRegistration",
+                      "carrierRegistration",
+                      "vehicleAuthorization"
+                    ]
+                  }
+                },
+                "required": [
+                  "issueDate",
+                  "transferDate",
+                  "sender",
+                  "recipient",
+                  "origin",
+                  "destination",
+                  "grossWeight",
+                  "weightUnit",
+                  "items",
+                  "regulatedGoods",
+                  "reasonCode",
+                  "transport",
+                  "references",
+                  "supplier",
+                  "hydrocarbon"
+                ]
+              }
+            },
+            "required": [
+              "seriesCounterId",
+              "profile",
+              "body"
+            ]
           }
         ]
       },

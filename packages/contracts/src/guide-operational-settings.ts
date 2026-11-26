@@ -9,7 +9,7 @@ export type GuideProduct = { id: string; name: string; type: typeof GUIDE_PRODUC
 export type GuideLocation = { address: string; ubigeo: string; department: string; province: string; district: string; establishmentCode?: string };
 export type GuideRoute = { id: string; name: string; origin: GuideLocation; destination: GuideLocation };
 export const GUIDE_FUEL_FAMILIES = ['PENDING_REVIEW','DIESEL','GASOHOL','GASOHOL_PREMIUM','GASOHOL_REGULAR','GASOLINE','GLP','OTHER'] as const;
-export type GuideFuelRoute = { routeId: string; regime: 'PENDING_REVIEW'|'ORDINARY_GRE'|'GRE_BF'; transportMode: '01'|'02'; reasonCode: '01'|'04'; scop: 'PENDING_REVIEW'|'REQUIRED'|'NOT_APPLICABLE' };
+export type GuideFuelRoute = { routeId: string; regime: 'PENDING_REVIEW'|'ORDINARY_GRE'|'GRE_BF'; transportMode: '01'|'02'; reasonCode: '01'|'02'|'04'; scop: 'PENDING_REVIEW'|'REQUIRED'|'NOT_APPLICABLE' };
 export type GuideFuelSettings = { version: 'factuez.guide-fuel-settings.v1'; hydrocarbonRegistry?: string; products: { productId: string; family: typeof GUIDE_FUEL_FAMILIES[number] }[]; routes: GuideFuelRoute[] };
 export type GuideOperationalSettings = { role: GuideRole; products: GuideProduct[]; routes: GuideRoute[]; fuelProfile?: GuideFuelSettings };
 export type GuideSettingsWrite = { expectedRevision: number; settings: GuideOperationalSettings };
@@ -103,7 +103,7 @@ export function validateGuideSettingsWrite(input: unknown): GuideSettingsValidat
     });
     references(f.routes,routes.map(r=>r.id),'routes',['routeId','regime','transportMode','reasonCode','scop'],(obj,p)=>{
       fuelProfile!.routes.push({routeId:obj.routeId as string,regime:choice(obj.regime,`${p}.regime`,['PENDING_REVIEW','ORDINARY_GRE','GRE_BF'] as const),
-        transportMode:choice(obj.transportMode,`${p}.transportMode`,['01','02'] as const),reasonCode:choice(obj.reasonCode,`${p}.reasonCode`,['01','04'] as const),scop:choice(obj.scop,`${p}.scop`,['PENDING_REVIEW','REQUIRED','NOT_APPLICABLE'] as const)});
+        transportMode:choice(obj.transportMode,`${p}.transportMode`,['01','02'] as const),reasonCode:choice(obj.reasonCode,`${p}.reasonCode`,['01','02','04'] as const),scop:choice(obj.scop,`${p}.scop`,['PENDING_REVIEW','REQUIRED','NOT_APPLICABLE'] as const)});
     });
   }
   unique(products.map(p => p.name), 'settings.products'); unique(products.map(p => p.commercialCode ?? ''), 'settings.products'); unique(routes.map(r => r.name), 'settings.routes');
@@ -127,14 +127,19 @@ export function summarizeGuideFuelProfile(settings: GuideOperationalSettings) {
     if(!p||p.regime==='PENDING_REVIEW'){blockers.push(`${r.name}: defina si corresponde GRE ordinaria o GRE de bienes fiscalizados.`);continue;}
     if(p.regime==='GRE_BF'){blockers.push(`${r.name}: requiere el sistema GRE de bienes fiscalizados de SUNAT; fuera del envío GRE ordinario de este perfil.`);continue;}
     if(p.scop!=='REQUIRED'){blockers.push(`${r.name}: el perfil disponible requiere SCOP en cada traslado.`);continue;}
-    if(p.transportMode==='02'&&p.reasonCode==='04'){
+    if(p.transportMode==='02'&&p.reasonCode==='02'){
+      if(!r.origin.establishmentCode||!r.destination.establishmentCode){blockers.push(`${r.name}: declare establecimiento del proveedor en origen y del comprador en llegada.`);continue;}
+      if(profile.products.some(f=>!['DIESEL','GASOHOL_REGULAR','GASOHOL_PREMIUM'].includes(f.family))){blockers.push(`${r.name}: Compra privada sólo admite diésel y gasoholes; GLP/GNV requieren otro perfil revisado.`);continue;}
+      if(settings.role!=='TRANSPORTISTA')profiles.add('GRE09_HYDROCARBON_PRIVATE02_V1');
+      else blockers.push(`${r.name}: Compra privada requiere emitir como comprador/remitente.`);
+    }else if(p.transportMode==='02'&&p.reasonCode==='04'){
       if(!r.origin.establishmentCode||!r.destination.establishmentCode||r.origin.establishmentCode===r.destination.establishmentCode){blockers.push(`${r.name}: declare establecimientos SUNAT diferentes para el traslado interno.`);continue;}
       if(settings.role!=='TRANSPORTISTA')profiles.add('GRE09_HYDROCARBON_PRIVATE04_V1');
       else blockers.push(`${r.name}: transporte privado entre establecimientos requiere emitir como remitente.`);
     }else if(p.transportMode==='01'&&p.reasonCode==='01'){
       if(settings.role!=='TRANSPORTISTA')profiles.add('GRE09_HYDROCARBON_PUBLIC01_V1');
       if(settings.role==='TRANSPORTISTA')blockers.push(`${r.name}: GRE 31 de combustible no habilitada; requiere controles equivalentes revisados.`);
-    }else blockers.push(`${r.name}: la combinación disponible es venta con transporte público o traslado interno con transporte privado.`);
+    }else blockers.push(`${r.name}: seleccione venta pública, compra privada o traslado interno privado.`);
   }
   return {status:blockers.length?'INCOMPLETE' as const:'READY_FOR_TECHNICAL_REVIEW' as const,blockers,profiles:[...profiles],fiscalTransmission:false as const};
 }

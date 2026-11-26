@@ -2,7 +2,7 @@
 export const PRODUCTION_GUIDES_VERSION = 'factuez.production-guides.v1' as const;
 export const PRODUCTION_GUIDES_ISSUED = 'billing.production-guides.issued.v1';
 export const PRODUCTION_GUIDES_STATUS = 'sunat.production-guides.status.v1';
-export const PRODUCTION_GUIDES_PROFILES = ['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1'] as const;
+export const PRODUCTION_GUIDES_PROFILES = ['GRE09_PRIVATE04_V1','GRE09_PUBLIC01_V1','GRE31_PUBLIC_SINGLE09_V1','GRE09_HYDROCARBON_PRIVATE04_V1','GRE09_HYDROCARBON_PUBLIC01_V1','GRE09_HYDROCARBON_PRIVATE02_V1'] as const;
 export type ProductionGuidesProfile = typeof PRODUCTION_GUIDES_PROFILES[number];
 export const GRE_GOODS_FAMILIES = ['UNCLASSIFIED','NON_REGULATED','DIESEL','GASOHOL_PREMIUM','GASOHOL_REGULAR','GLP','GNV'] as const;
 export type GreGoodsFamily = typeof GRE_GOODS_FAMILIES[number];
@@ -10,11 +10,22 @@ export type HydrocarbonFamily = Exclude<GreGoodsFamily,'UNCLASSIFIED'|'NON_REGUL
 /** Application metadata, never an invented SUNAT API field or BF document. One cargo family per guide. */
 export type HydrocarbonCargo = {schemaVersion:'factuez.gre-hydrocarbon.v1';family:HydrocarbonFamily;scopCode:string|null;handoverDate:string|null;
  senderRegistration:string;carrierRegistration:string|null;vehicleAuthorization:string|null};
+export type PurchaseFuelFamily = 'DIESEL'|'GASOHOL_REGULAR'|'GASOHOL_PREMIUM';
+/** Only PRIVATE02: exact product codes bind quantities/units in body.items to family and SCOP.
+ * UBL represents the distinct SCOPs as related documents (catalogue 61, code 81).
+ * No proprietary per-line SUNAT fields are invented. Existing cargo v1 is unchanged. */
+export type HydrocarbonPurchaseCargo = {schemaVersion:'factuez.gre-hydrocarbon.v2';
+ items:{code:string;family:PurchaseFuelFamily;scopCode:string}[];
+ handoverDate:null;senderRegistration:string;carrierRegistration:null;vehicleAuthorization:string};
+export type HydrocarbonGuideCargo = HydrocarbonCargo|HydrocarbonPurchaseCargo;
 /** Reviewed per branch, product, exact route and modality. No regional tax exemption is inferred. */
-export type HydrocarbonApproval = {branchId:string;profile:'GRE09_HYDROCARBON_PRIVATE04_V1'|'GRE09_HYDROCARBON_PUBLIC01_V1';
+export type HydrocarbonApprovalV1 = {branchId:string;profile:'GRE09_HYDROCARBON_PRIVATE04_V1'|'GRE09_HYDROCARBON_PUBLIC01_V1';
  family:HydrocarbonFamily;routeSha256:string;routeUbigeos:string[];geography:'OUTSIDE_SPECIAL_ZONE'|'SPECIAL_ZONE';
  documentRegime:'ORDINARY_GRE';senderRegistration:string;carrierRuc:string|null;carrierLegalName:string|null;mtcRegistration:string|null;carrierRegistration:string|null;
  vehiclePlate:string|null;vehicleAuthorization:string|null;scopRequired:boolean;sourceUrl:string;sourceSha256:string;validUntil:string};
+export type HydrocarbonPurchaseApproval = Omit<HydrocarbonApprovalV1,'profile'|'family'> & {
+ profile:'GRE09_HYDROCARBON_PRIVATE02_V1';family:PurchaseFuelFamily;supplier:{ruc:string;legalName:string}};
+export type HydrocarbonApproval = HydrocarbonApprovalV1|HydrocarbonPurchaseApproval;
 export type ProductionGuidesState = 'RESERVED' | 'PREPARED' | 'POSTING' | 'UNKNOWN' | 'TICKET' | 'ACCEPTED' | 'ACCEPTED_WITH_OBSERVATIONS' | 'REJECTED' | 'FAILED_NO_CDR';
 export type ProductionGuidesScope = { companyId: number; issuerRuc: string; branchId: string; pointId: string; seriesCounterId: string; establishmentCode: string };
 export type ProductionGuidesServiceActor = {kind:'SERVICE';clientId:string;revision:number;environment:'PRODUCTION'};

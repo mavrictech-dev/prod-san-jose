@@ -19,6 +19,7 @@ export async function renderProductionGuidesPdf(raw:Snapshot,result:Result):Prom
  for(const note of result.notes??[])text(`Observación: ${note}`,9);
  if(result.functionalError)text(`Error funcional sin CDR${result.functionalError.code?' '+result.functionalError.code:''}${result.functionalError.message?': '+result.functionalError.message:''}`);
  for(const [label,p] of [['Remitente',b.sender],['Destinatario',b.recipient]] as const)text(`${label}: ${p.legalName} — RUC ${p.ruc}`);
+ if(b.supplier)text(`Proveedor: ${b.supplier.legalName} | RUC ${b.supplier.ruc}`);
  text(`Partida: ${b.origin.address} | Ubigeo ${b.origin.ubigeo}${b.origin.establishmentCode?' | Est. '+b.origin.establishmentCode:''}`);
  text(`Llegada: ${b.destination.address} | Ubigeo ${b.destination.ubigeo}${b.destination.establishmentCode?' | Est. '+b.destination.establishmentCode:''}`);
  text(`Peso: ${b.grossWeight} ${b.weightUnit} | Modalidad: ${b.transport?.mode??b.transportMode} | Motivo: ${b.reasonCode??'Servicio de transporte'}`);
@@ -26,7 +27,7 @@ export async function renderProductionGuidesPdf(raw:Snapshot,result:Result):Prom
  const t=b.transport;if(t?.vehicle)text(`Vehículo: ${t.vehicle.plate} | Registro/TUC: ${t.vehicle.tuc??t.vehicle.registration}`);
  if(t?.driver)text(`Conductor: ${t.driver.firstName} ${t.driver.lastName} | Documento ${t.driver.identityNumber} | Licencia ${t.driver.license}`);
  if(b.reference09)text(`GRE remitente: ${b.reference09.issuerRuc} / ${b.reference09.series}-${b.reference09.number}`);
- if(b.hydrocarbon){const h=b.hydrocarbon;text(`Combustible: ${h.family} | R?gimen: GRE ordinaria`);text(`SCOP: ${h.scopCode??'No requerido por revisi?n'} | Registro remitente: ${h.senderRegistration}`);if(h.carrierRegistration)text(`Registro transportista OSINERGMIN: ${h.carrierRegistration}`);if(h.vehicleAuthorization)text(`Autorizaci?n vehículo OSINERGMIN: ${h.vehicleAuthorization}`);}
+ if(b.hydrocarbon){const h=b.hydrocarbon;text(`Combustible: ${h.schemaVersion==='factuez.gre-hydrocarbon.v2'?'Compra de varias familias':h.family} | Régimen: GRE ordinaria`);text(`Registro remitente: ${h.senderRegistration}`);if(h.schemaVersion==='factuez.gre-hydrocarbon.v2'){for(const i of h.items)text(`${i.code}: ${i.family} | SCOP ${i.scopCode}`);}else text(`SCOP: ${h.scopCode??'No requerido por revisión'}`);if(h.carrierRegistration)text(`Registro transportista OSINERGMIN: ${h.carrierRegistration}`);if(h.vehicleAuthorization)text(`Autorización vehículo OSINERGMIN: ${h.vehicleAuthorization}`);}
  text('BIENES',12);for(const [n,i]of b.items.entries())text(`${n+1}. ${i.code} | ${i.description} | ${i.quantity} ${i.unitCode}`);
  text(`XML SHA-256: ${result.xmlSha256??'Pendiente'}`,8);text(`ZIP SHA-256: ${result.zipSha256??'Pendiente'}`,8);
  if(result.ticket)text(`Ticket: ${result.ticket}`,8);if(result.cdrZipSha256)text(`CDR ZIP SHA-256: ${result.cdrZipSha256}`,8);

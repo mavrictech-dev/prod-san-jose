@@ -1,0 +1,17 @@
+import {describe,it,expect} from 'vitest';
+import {guideFormItems,guidePurchaseCargo} from '../apps/web-pwa/features/workspace/production-guides-form';
+import {validateProductionGuidesSnapshot} from '../packages/sunat-core/src/production-guides';
+import {validateGuideSettingsWrite,summarizeGuideFuelProfile} from '../packages/contracts/src/guide-operational-settings';
+import {purchaseSnapshot,purchaseCatalogue} from './production-guides-purchase.fixture';
+describe('guided purchase and saved fuel declarations',()=>{
+ const fixture=()=>{const s=purchaseSnapshot(),b=s.body as any,c=purchaseCatalogue(s);return {s,b,c,rows:b.items.map((i:any,n:number)=>({code:i.code,quantity:i.quantity,approvalIndex:String(n),scopCode:b.hydrocarbon.items[n].scopCode})),context:{branchId:s.scope.branchId,supplier:b.supplier,vehiclePlate:b.transport.vehicle.plate,originUbigeo:b.origin.ubigeo,destinationUbigeo:b.destination.ubigeo}};};
+ it('projects three exact products and separate SCOPs into the fiscal purchase body',()=>{const {s,b,c,rows,context}=fixture();const body={...b,items:guideFormItems(c.goods,rows),hydrocarbon:guidePurchaseCargo(c.goods,rows,c.hydrocarbonApprovals!,context)};expect(validateProductionGuidesSnapshot({...s,body})).toEqual(s);expect(body.hydrocarbon.items.map(i=>i.scopCode)).toEqual(['10000000001','10000000002','10000000002']);});
+ it.each(['scop','approval','supplier','family','vehicle','route','branch','BJ','duplicate','empty'] as const)('blocks incomplete %s locally before final review',kind=>{const {c,rows,context}=fixture();if(kind==='scop')rows[1].scopCode='';if(kind==='approval')rows[1].approvalIndex='';if(kind==='supplier')context.supplier={...context.supplier,ruc:'20000000001'};if(kind==='family')c.goods[1].family='GLP';if(kind==='vehicle')context.vehiclePlate='OTHER1';if(kind==='route')context.destinationUbigeo='170101';if(kind==='branch')context.branchId='other';if(kind==='BJ')c.goods[0].unitCode='BJ';if(kind==='duplicate')rows.push({...rows[0]});if(kind==='empty')rows.length=0;expect(()=>guidePurchaseCargo(c.goods,rows,c.hydrocarbonApprovals!,context)).toThrow();});
+ it('declares Compra without approving grants, BF, GLP or public purchase',()=>{
+  const id='00000000-0000-4000-8000-000000000001',routeId='00000000-0000-4000-8000-000000000002',place={address:'SYNTHETIC',ubigeo:'150101',department:'Lima',province:'Lima',district:'Lima',establishmentCode:'0001'};
+  const d:any={expectedRevision:0,settings:{role:'REMITENTE',products:[{id,name:'SYNTHETIC DIESEL',type:'FUEL',unit:'GLL'}],routes:[{id:routeId,name:'SYNTHETIC PURCHASE',origin:place,destination:{...place,address:'OTHER',ubigeo:'150102'}}],fuelProfile:{version:'factuez.guide-fuel-settings.v1',hydrocarbonRegistry:'RH-SYNTHETIC',products:[{productId:id,family:'DIESEL'}],routes:[{routeId,regime:'ORDINARY_GRE',transportMode:'02',reasonCode:'02',scop:'REQUIRED'}]}}};
+  expect(validateGuideSettingsWrite(d).ok).toBe(true);expect(summarizeGuideFuelProfile(d.settings)).toMatchObject({status:'READY_FOR_TECHNICAL_REVIEW',profiles:['GRE09_HYDROCARBON_PRIVATE02_V1'],fiscalTransmission:false});
+  for(const change of [{regime:'GRE_BF'},{transportMode:'01'},{scop:'NOT_APPLICABLE'}]){const next=structuredClone(d);Object.assign(next.settings.fuelProfile.routes[0],change);expect(summarizeGuideFuelProfile(next.settings).status).toBe('INCOMPLETE');}
+  d.settings.fuelProfile.products[0].family='GLP';expect(summarizeGuideFuelProfile(d.settings).status).toBe('INCOMPLETE');
+ });
+});

@@ -1,7 +1,7 @@
 import type {HydrocarbonApproval,GreGoodsFamily} from '@factuez/contracts/production-guides';
 import {validateOfficialGreXml} from './production-guides-official-rules';
 import {buildProductionGuidesXml} from '@factuez/sunat-core/dist/production-guides';
-import {isHydrocarbonProfile,isPrivateGuideProfile,validateHydrocarbonApproval,hydrocarbonRouteHash,looksLikeFuel,HYDROCARBON_RULES} from '@factuez/sunat-core/dist/production-guides';
+import {isHydrocarbonProfile,isPrivateGuideProfile,isPurchaseGuideProfile,hydrocarbonItemFamily,hydrocarbonItemScop,validateHydrocarbonApproval,hydrocarbonRouteHash,looksLikeFuel,HYDROCARBON_RULES} from '@factuez/sunat-core/dist/production-guides';
 import type { ProductionGuidesGrant as Grant,ProductionGuidesSnapshot as Snapshot } from '@factuez/contracts/production-guides';
 import { productionGuidesHash as hash,productionGuidesBytesHash,validateProductionGuidesSnapshot,PRODUCTION_GUIDES_XSD_SHA256 } from '@factuez/sunat-core/dist/production-guides';
 import { signLocalGuideXml } from './infrastructure/crypto/guide-artifact-crypto';
@@ -51,14 +51,17 @@ export class ProductionGuidesCatalogueRules {
  async validate(snapshot:Snapshot,g:Grant){
   const s=validateProductionGuidesSnapshot(snapshot),b=s.body as any,c=this.#catalogue;
   if(c.version!=='factuez.production-guides.catalogue.v1'||c.companyId!==s.scope.companyId||c.issuerRuc!==s.issuer.ruc||hash(c)!==g.rulesSha256||!/^https:\/\/(?:cpe\.|www\.)?sunat\.gob\.pe\//.test(c.sourceUrl)||!/^[a-f0-9]{64}$/.test(c.sourceSha256))throw Error('GRE_CATALOGUE_PIN_INVALID');
-  if(![b.origin.ubigeo,b.destination.ubigeo].every(x=>c.ubigeos.includes(x))||!c.routes.some(x=>hash(x.origin)===hash(b.origin)&&hash(x.destination)===hash(b.destination))||b.items.some((i:any)=>!c.units.includes(i.unitCode)||!c.goods.some(x=>(isHydrocarbonProfile(s.profile)?x.classification==='HYDROCARBON'&&x.family===b.hydrocarbon.family:x.classification==='NON_REGULATED'&&!looksLikeFuel(x))&&x.code===i.code&&x.description===i.description&&x.unitCode===i.unitCode)))throw Error('GRE_CATALOGUE_NOT_APPROVED');
+  if(![b.origin.ubigeo,b.destination.ubigeo].every(x=>c.ubigeos.includes(x))||!c.routes.some(x=>hash(x.origin)===hash(b.origin)&&hash(x.destination)===hash(b.destination))||b.items.some((i:any)=>!c.units.includes(i.unitCode)||!c.goods.some(x=>(isHydrocarbonProfile(s.profile)?x.classification==='HYDROCARBON'&&x.family===hydrocarbonItemFamily(b.hydrocarbon,i.code):x.classification==='NON_REGULATED'&&!looksLikeFuel(x))&&x.code===i.code&&x.description===i.description&&x.unitCode===i.unitCode)))throw Error('GRE_CATALOGUE_NOT_APPROVED');
   if(isHydrocarbonProfile(s.profile)){
    if(!c.officialRules||hash(c.officialRules)!==hash(HYDROCARBON_RULES))throw Error('Reglas oficiales de hidrocarburos pendientes de revisi?n');
    const h=b.hydrocarbon;
-   const approval=c.hydrocarbonApprovals?.find(a=>a.branchId===s.scope.branchId&&a.profile===s.profile&&a.family===h.family&&a.routeSha256===hydrocarbonRouteHash(b)&&a.senderRegistration===h.senderRegistration&&a.carrierRegistration===h.carrierRegistration&&a.vehicleAuthorization===h.vehicleAuthorization&&(isPrivateGuideProfile(s.profile)?a.vehiclePlate===b.transport.vehicle.plate:a.carrierRuc===b.carrier.ruc&&a.carrierLegalName===b.carrier.legalName&&a.mtcRegistration===b.mtcRegistration));
-   if(!approval)throw Error('Falta autorización de hidrocarburos para la sede, ruta y transporte seleccionados');
-   validateHydrocarbonApproval(approval);
-   if(Date.parse(approval.validUntil)<Math.max(Date.parse(b.transferDate+'T23:59:59-05:00'),Date.parse(s.createdAt),Date.parse(this.clock()))||approval.scopRequired&&h.scopCode===null||approval.routeUbigeos[0]!==b.origin.ubigeo||approval.routeUbigeos.at(-1)!==b.destination.ubigeo)throw Error('Vigencia, recorrido completo o código SCOP pendientes');
+   const families=[...new Set<string>(b.items.map((i:any)=>hydrocarbonItemFamily(h,i.code)))];
+   for(const family of families){
+    const approval=c.hydrocarbonApprovals?.find(a=>a.branchId===s.scope.branchId&&a.profile===s.profile&&a.family===family&&a.routeSha256===hydrocarbonRouteHash(b)&&a.senderRegistration===h.senderRegistration&&a.carrierRegistration===h.carrierRegistration&&a.vehicleAuthorization===h.vehicleAuthorization&&(isPrivateGuideProfile(s.profile)?a.vehiclePlate===b.transport.vehicle.plate&&(!isPurchaseGuideProfile(s.profile)||(a.profile==='GRE09_HYDROCARBON_PRIVATE02_V1'&&hash(a.supplier)===hash(b.supplier))):a.carrierRuc===b.carrier.ruc&&a.carrierLegalName===b.carrier.legalName&&a.mtcRegistration===b.mtcRegistration));
+    if(!approval)throw Error('Falta autorización de hidrocarburos para la sede, ruta y transporte seleccionados');
+    validateHydrocarbonApproval(approval);
+    if(Date.parse(approval.validUntil)<Math.max(Date.parse(b.transferDate+'T23:59:59-05:00'),Date.parse(s.createdAt),Date.parse(this.clock()))||approval.scopRequired&&b.items.some((i:any)=>hydrocarbonItemFamily(h,i.code)===family&&!hydrocarbonItemScop(h,i.code))||approval.routeUbigeos[0]!==b.origin.ubigeo||approval.routeUbigeos.at(-1)!==b.destination.ubigeo)throw Error('Vigencia, recorrido completo o código SCOP pendientes');
+   }
   }
   if(b.transport?.vehicle&&!c.vehicles.some(x=>hash(x)===hash(b.transport.vehicle))||b.transport?.driver&&!c.drivers.some(x=>hash(x)===hash(b.transport.driver)))throw Error('GRE_TRANSPORT_NOT_APPROVED');
  }

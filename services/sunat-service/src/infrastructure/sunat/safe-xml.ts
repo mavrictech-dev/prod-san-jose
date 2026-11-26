@@ -7,8 +7,11 @@ export function escapeXml(value: string) {
   if (typeof value !== 'string' || /[^\u0009\u000a\u000d\u0020-\ud7ff\ue000-\ufffd\u{10000}-\u{10ffff}]/u.test(value)) throw new Error('Texto XML inválido');
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
 }
-export function safeXml(xml: string, maxBytes = 2 * 1024 * 1024) {
-  if (!xml || Buffer.byteLength(xml) > maxBytes || /<!|<\?(?!xml\s)/i.test(xml)) throw new Error('XML no permitido');
+export function safeXml(xml: string, maxBytes = 2 * 1024 * 1024, cdrTextOnly = false) {
+  // Only the CDR adapter opts into standard CDATA text. DTD/entities/comments,
+  // processing instructions, recovery and outgoing-document rules stay closed.
+  const markup=cdrTextOnly&&typeof xml==='string'?xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g,''):xml;
+  if (!xml || Buffer.byteLength(xml) > maxBytes || /<!|<\?(?!xml\s)/i.test(markup)) throw new Error('XML no permitido');
   const doc = new DOMParser({ onError: () => { throw new Error('XML mal formado'); } }).parseFromString(xml, 'application/xml');
   const root = doc.documentElement;
   if (!root) throw new Error('Raíz XML ausente');
