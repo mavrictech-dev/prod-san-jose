@@ -57,14 +57,18 @@ export class ProductionGuidesOwner {
  /** Additive native counter administration: DESPATCH_ADVICE uses T for09 and V for31. No client-set correlativo. */
  async createSeries(raw:unknown,actor:ProductionGuidesActor){
   if(actor.service||actor.scope.kind!=='GLOBAL')throw new ForbiddenException('ADMIN_GLOBAL_SESSION_REQUIRED');
-  this.enabled();exact(raw,['pointId','series','expectedPointRevision']);const v=raw as any;uuid(v.pointId);uuid(this.actorId(actor));
-  if(typeof v.series!=='string'||!/^[TV][A-Z0-9]{3}$/.test(v.series)||!Number.isSafeInteger(v.expectedPointRevision))throw new BadRequestException('Serie GRE invalida');
+  this.enabled();inputField('request','GRE_SERIES_INVALID_REQUEST',()=>exact(raw,['pointId','series','expectedPointRevision']));const v=raw as any;
+  inputField('pointId','GRE_SERIES_INVALID_POINT',()=>uuid(v.pointId));uuid(this.actorId(actor));
+  if(typeof v.series!=='string'||!/^[TV][A-Z0-9]{3}$/.test(v.series)||!Number.isSafeInteger(v.expectedPointRevision)||v.expectedPointRevision<0)throw new BadRequestException('Serie GRE invalida');
   return this.db.$transaction(async tx=>{
    const n=(await tx.$queryRawUnsafe<any[]>(`SELECT p."id",p."companyId",p."branchId",p."masterRevision",c."ruc" FROM "EmissionPoint" p JOIN "Branch" b ON b."id"=p."branchId" AND b."companyId"=p."companyId" JOIN "CompanySettings" c ON c."id"=p."companyId" WHERE p."id"=$1::uuid AND p."active" AND b."active" AND c."active" AND c."environment" IN ('BETA','PRODUCTION') AND b."establishmentCode"~'^[0-9]{4}$' FOR SHARE OF p,b,c`,v.pointId))[0];
    if(!n||!allowsResource(actor.scope,n.branchId,n.id))throw new ForbiddenException('Punto fuera del alcance');
    this.businessRuc(n.ruc);
    if(n.masterRevision!==v.expectedPointRevision)throw new ConflictException('Punto cambio');
-   const id=randomUUID();await tx.$executeRawUnsafe('INSERT INTO "SeriesCounter" ("id","companyId","emissionPointId","documentType","series","environment","updatedAt") VALUES ($1::uuid,$2,$3::uuid,\'DESPATCH_ADVICE\',$4,\'PRODUCTION\',now())',id,n.companyId,n.id,v.series);
+   // The native unique key spans points and environments within the company.
+   // Let PostgreSQL arbitrate concurrent creates; never reuse, move or reset a counter.
+   const id=randomUUID(),inserted=await tx.$queryRawUnsafe<{id:string}[]>('INSERT INTO "SeriesCounter" ("id","companyId","emissionPointId","documentType","series","environment","updatedAt") VALUES ($1::uuid,$2,$3::uuid,\'DESPATCH_ADVICE\',$4,\'PRODUCTION\',now()) ON CONFLICT ("companyId","documentType","series") DO NOTHING RETURNING "id"',id,n.companyId,n.id,v.series);
+   if(!inserted.length)throw new ConflictException({code:'GRE_SERIES_ALREADY_EXISTS',message:'La serie ya existe para esta empresa, incluso en otra sede o ambiente. Revise sus series; no se cambio ningun correlativo.',fieldErrors:{series:'Esta serie ya esta registrada en la empresa. Seleccione otra serie disponible.'}});
    return {id,companyId:n.companyId,pointId:n.id,documentType:'DESPATCH_ADVICE',environment:'PRODUCTION',guideType:v.series[0]==='V'?'31':'09',series:v.series,nextNumber:'1'};
   });
  }

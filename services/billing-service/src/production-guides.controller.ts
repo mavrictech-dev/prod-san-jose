@@ -10,8 +10,8 @@ export class ProductionGuidesBillingController {
  constructor(private readonly owner:ProductionGuidesOwner){}
  private actor(r:AuthenticatedRequest){return {userId:r.user!.sub,scope:r.user!.scope};}
  private administrator(r:AuthenticatedRequest){
-  const u=r.user!;
-  if(u.scope.kind!=='GLOBAL'||!u.roles.includes('ADMIN')||!u.permissions.includes(PermissionCodes.SUNAT_CONFIGURE))throw new ForbiddenException('Se requiere administrador general activo para administrar concesiones GRE');
+  const u=r.user! as typeof r.user & {kind?:string;actorKind?:string;createdByActor?:{kind?:string}};
+  if(!u||u.scope.kind!=='GLOBAL'||!u.roles.includes('ADMIN')||!u.permissions.includes(PermissionCodes.SUNAT_CONFIGURE)||u.kind==='SERVICE'||u.actorKind==='SERVICE'||u.createdByActor?.kind==='SERVICE')throw new ForbiddenException('Se requiere administrador humano general activo para administrar series y concesiones GRE');
   return this.actor(r);
  }
  @Get('capabilities') @RequiredPermissions(PermissionCodes.DOCUMENT_VIEW) @Header('Cache-Control','private, no-store')
