@@ -18,7 +18,7 @@ try {
  $rows=@($answer.stdout -split '\r?\n'|Where-Object{$_.Trim().StartsWith('{')})
  if($rows.Count -ne 1){throw 'PREVIEW_INVALID'}
  $preview=$rows[0]|ConvertFrom-Json
- if($preview.version -cne 'factuez.gre-series-cleanup-preview.v1' -or $preview.issuerRuc -cne '20600979630' -or $preview.preflightOnly -ne $true){throw 'PREVIEW_INVALID'}
+ if($preview.version -cne 'factuez.gre-series-cleanup-preview.v2' -or $preview.issuerRuc -cne '20600979630' -or $preview.preflightOnly -ne $true){throw 'PREVIEW_INVALID'}
  $canonical=$preview|ConvertTo-Json -Depth 10 -Compress
  $hash=[Security.Cryptography.SHA256]::Create()
  try{$sha=([BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($canonical)))).Replace('-','').ToLowerInvariant()}finally{$hash.Dispose()}

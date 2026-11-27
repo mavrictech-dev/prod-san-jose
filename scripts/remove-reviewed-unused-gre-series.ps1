@@ -11,7 +11,7 @@ $stage='explicit-review';$recoveryPath=$null;$writeAttempted=$false;$commitConfi
 try {
  if($Confirmation -cne 'DELETE UNUSED T099 BETA AND T100 PRODUCTION FOR 20600979630' -or $ReviewSha256 -cnotmatch '^[a-f0-9]{64}$'){throw 'REVIEW_REQUIRED'}
  $review=[IO.File]::ReadAllText([IO.Path]::GetFullPath($SnapshotPath))|ConvertFrom-Json
- if($review.status -cne 'preview-only' -or $review.snapshot.version -cne 'factuez.gre-series-cleanup-preview.v1' -or $review.snapshot.issuerRuc -cne '20600979630'){throw 'REVIEW_INVALID'}
+ if($review.status -cne 'preview-only' -or $review.snapshot.version -cne 'factuez.gre-series-cleanup-preview.v2' -or $review.snapshot.issuerRuc -cne '20600979630'){throw 'REVIEW_INVALID'}
  $canonical=$review.snapshot|ConvertTo-Json -Depth 10 -Compress
  $hash=[Security.Cryptography.SHA256]::Create()
  try{$actual=([BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($canonical)))).Replace('-','').ToLowerInvariant()}finally{$hash.Dispose()}
@@ -48,17 +48,17 @@ try {
  if($answer.exitCode -ne 0){
   $code='GRE_CLEANUP_COMMIT_STATUS_UNCONFIRMED';$status='uncertain'
   if($answer.exitCode -eq 3){$status='blocked';$code='GRE_CLEANUP_TRANSACTION_ABORTED'}
-  foreach($allowed in @('GRE_CLEANUP_REVIEW_REQUIRED','GRE_CLEANUP_EXACT_TWO_REQUIRED','GRE_CLEANUP_SNAPSHOT_CHANGED_OR_USED','GRE_CLEANUP_REFERENCES_EXIST','GRE_CLEANUP_HISTORY_EXISTS','GRE_CLEANUP_DELETE_COUNT_MISMATCH')){if($answer.stderr.Contains($allowed)){$code=$allowed;break}}
+  foreach($allowed in @('GRE_CLEANUP_REVIEW_REQUIRED','GRE_CLEANUP_EXACT_TWO_REQUIRED','GRE_CLEANUP_SNAPSHOT_CHANGED_OR_USED','GRE_CLEANUP_REFERENCES_EXIST','GRE_CLEANUP_HISTORY_EXISTS','GRE_CLEANUP_DELETE_COUNT_MISMATCH','GRE_CLEANUP_AUDIT_REVIEW_REQUIRED','GRE_CLEANUP_AUDIT_SNAPSHOT_CHANGED','GRE_CLEANUP_AUDIT_CONTRACT_CHANGED','GRE_CLEANUP_AUDIT_NOT_PRESERVED')){if($answer.stderr.Contains($allowed)){$code=$allowed;break}}
   [pscustomobject]@{status=$status;stage=$stage;code=$code;recoveryPath=$recoveryPath}|ConvertTo-Json -Compress
   exit 1
  }
  $rows=@($answer.stdout -split '\r?\n'|Where-Object{$_.Trim().StartsWith('{')})
  if($rows.Count -ne 1){throw 'COMMITTED_RESULT_REQUIRES_RECONCILIATION'}
  $receipt=$rows[0]|ConvertFrom-Json
- if($receipt.status -cne 'deleted' -or $receipt.issuerRuc -cne '20600979630' -or $receipt.rows.Count -ne 2){throw 'COMMITTED_RESULT_REQUIRES_RECONCILIATION'}
+ if($receipt.status -cne 'deleted' -or $receipt.version -cne 'factuez.gre-series-cleanup-receipt.v2' -or $receipt.issuerRuc -cne '20600979630' -or $receipt.rows.Count -ne 2){throw 'COMMITTED_RESULT_REQUIRES_RECONCILIATION'}
  $commitConfirmed=$true
  [IO.File]::WriteAllText((Join-Path $recoveryPath 'deleted.json'),($receipt|ConvertTo-Json -Depth 10),$utf8)
- [pscustomobject]@{status='deleted';rows=$receipt.rows;recoveryPath=$recoveryPath;backupSha256=$backupSha;reviewSha256=$actual}|ConvertTo-Json -Depth 12 -Compress
+ [pscustomobject]@{status='deleted';version=$receipt.version;rows=$receipt.rows;preservedCreationAudit=$receipt.preservedCreationAudit;recoveryPath=$recoveryPath;backupSha256=$backupSha;reviewSha256=$actual}|ConvertTo-Json -Depth 12 -Compress
 }catch{
  $status='failed';$code='GRE_CLEANUP_NOT_STARTED'
  if($writeAttempted){$status='uncertain';$code='GRE_CLEANUP_COMMIT_STATUS_UNCONFIRMED'}
