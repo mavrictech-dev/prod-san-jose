@@ -1,5 +1,6 @@
 import {isHydrocarbonProfile,isPrivateGuideProfile,isPurchaseGuideProfile,validateHydrocarbonCargo,validateHydrocarbonPurchaseCargo} from './production-guides-hydrocarbon';
 import {validatePurchaseGuide09Body} from './production-guides-purchase';
+export {validatePurchaseGuide09Route} from './production-guides-purchase';
 export * from './production-guides-hydrocarbon';
 import { createHash, sign, verify, type KeyObject } from 'node:crypto';
 import type { ProductionGuidesSnapshot as Snapshot, ProductionGuidesReference09, ProductionGuidesResult, ProductionGuidesSeal, ProductionGuidesSigner, ProductionGuidesVerifier } from '@factuez/contracts/production-guides';
@@ -87,7 +88,7 @@ export function validateProductionGuidesSnapshot(raw: unknown): Snapshot {
  if (purchase && s.documentType==='09') {
   productionGuidesExact(s.issuer,['ruc','legalName']);
   if(!/^T[A-Z0-9]{3}$/.test(s.series)||!/^[1-9][0-9]{0,7}$/.test(s.number))throw Error('GRE_INVALID_NUMBER');
-  s.body=validatePurchaseGuide09Body(structuralBody,s.issuer,s.scope.establishmentCode);
+  s.body=validatePurchaseGuide09Body(structuralBody,s.issuer);
  } else if (isPrivateGuideProfile(s.profile) && s.documentType === '09') {
   const v=validateNumberedGuideInput({...common,schemaVersion:NUMBERED_GUIDE_INPUT_SCHEMA_VERSION,documentType:'09',snapshotSha256:hash(s)});
   if (v.body.origin.establishmentCode !== s.scope.establishmentCode) throw Error('GRE_ESTABLISHMENT_MISMATCH');
@@ -120,7 +121,7 @@ export function buildProductionGuidesXml(raw: unknown, reference?: ProductionGui
  const s=validateProductionGuidesSnapshot(raw), b=s.body as any, carrier=s.documentType==='31', priv=isPrivateGuideProfile(s.profile),purchase=isPurchaseGuideProfile(s.profile);
  if(carrier){if(!reference)throw Error('GRE_REFERENCE_REQUIRED');assertProductionGuidesReference(s,reference);}
  const local=new Date(Date.parse(b.issueDate)-18000000).toISOString(), number=`${s.series}-${s.number}`;
- const address=(a:any,origin=false)=>`<cbc:ID schemeAgencyName="PE:INEI" schemeName="Ubigeos">${a.ubigeo}</cbc:ID>${priv?`<cbc:AddressTypeCode listID="${purchase&&origin?b.supplier.ruc:s.issuer.ruc}" listAgencyName="PE:SUNAT" listName="Establecimientos anexos">${a.establishmentCode}</cbc:AddressTypeCode>`:''}<cac:AddressLine><cbc:Line>${esc(a.address)}</cbc:Line></cac:AddressLine>`;
+ const address=(a:any,origin=false)=>`<cbc:ID schemeAgencyName="PE:INEI" schemeName="Ubigeos">${a.ubigeo}</cbc:ID>${priv&&(!purchase||Object.hasOwn(a,'establishmentCode'))?`<cbc:AddressTypeCode listID="${purchase&&origin?b.supplier.ruc:s.issuer.ruc}" listAgencyName="PE:SUNAT" listName="Establecimientos anexos">${a.establishmentCode}</cbc:AddressTypeCode>`:''}<cac:AddressLine><cbc:Line>${esc(a.address)}</cbc:Line></cac:AddressLine>`;
  const t=b.transport,d=t?.driver,h=b.hydrocarbon;
  const authorization=(number:string)=>`<cac:AgentParty><cac:PartyLegalEntity><cbc:CompanyID schemeID="13" schemeName="Entidad Autorizadora">${esc(number)}</cbc:CompanyID></cac:PartyLegalEntity></cac:AgentParty>`;
  const driver=d?`<cac:DriverPerson><cbc:ID schemeID="${d.identityType}" ${ATTR}>${d.identityNumber}</cbc:ID><cbc:FirstName>${esc(d.firstName)}</cbc:FirstName><cbc:FamilyName>${esc(d.lastName)}</cbc:FamilyName><cbc:JobTitle>Principal</cbc:JobTitle><cac:IdentityDocumentReference><cbc:ID>${d.license}</cbc:ID></cac:IdentityDocumentReference></cac:DriverPerson>`:'';

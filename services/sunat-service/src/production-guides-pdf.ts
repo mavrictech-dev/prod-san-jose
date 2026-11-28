@@ -12,7 +12,7 @@ export async function renderProductionGuidesPdf(raw:Snapshot,result:Result):Prom
  const text=(v:string,size=10)=>{doc.fontSize(size).text(v,{width:515});doc.moveDown(0.35);};
  text(s.documentType==='31'?'GUÍA DE REMISIÓN TRANSPORTISTA':'GUÍA DE REMISIÓN REMITENTE',16);text(`${s.series}-${s.number}`,15);
  text(`${s.issuer.legalName} — RUC ${s.issuer.ruc}`);text(`Emisión: ${b.issueDate} | Inicio del traslado: ${b.transferDate}`);
- text(`Sede: ${s.scope.branchId} | Establecimiento: ${s.scope.establishmentCode}`);
+ text(`Sede emisora: ${s.scope.branchId} | Establecimiento emisor: ${s.scope.establishmentCode}`);
  text(`Estado: ${result.state} | Origen de evidencia: ${result.source}`);
  text(result.officialCdrVerified?'CDR SUNAT con firma y vínculo verificados.':'Sin CDR oficial verificada. Esta representación no acredita autorización de traslado.');
  if(result.responseCode)text(`Respuesta CDR ${result.responseCode}${result.description?': '+result.description:''}`);

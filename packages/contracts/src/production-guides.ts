@@ -27,6 +27,9 @@ export type HydrocarbonPurchaseApproval = Omit<HydrocarbonApprovalV1,'profile'|'
  profile:'GRE09_HYDROCARBON_PRIVATE02_V1';family:PurchaseFuelFamily;supplier:{ruc:string;legalName:string}};
 export type HydrocarbonApproval = HydrocarbonApprovalV1|HydrocarbonPurchaseApproval;
 export type ProductionGuidesState = 'RESERVED' | 'PREPARED' | 'POSTING' | 'UNKNOWN' | 'TICKET' | 'ACCEPTED' | 'ACCEPTED_WITH_OBSERVATIONS' | 'REJECTED' | 'FAILED_NO_CDR';
+/** Compra09/private02 only: a supplied code belongs to supplier at origin, issuer at arrival.
+ * Omit the property when not declared; branch authorization does not select the destination. */
+export type ProductionGuidesPurchaseAddress = {ubigeo:string;address:string;establishmentCode?:string};
 export type ProductionGuidesScope = { companyId: number; issuerRuc: string; branchId: string; pointId: string; seriesCounterId: string; establishmentCode: string };
 export type ProductionGuidesServiceActor = {kind:'SERVICE';clientId:string;revision:number;environment:'PRODUCTION'};
 export type ProductionGuidesSnapshot = {

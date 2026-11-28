@@ -1,9 +1,19 @@
 import {fiscalDate,fiscalDecimal,fiscalLimaDate,fiscalRuc,fiscalTimestamp} from './fiscal-note';
 /** Independent ordinary 09/private02/purchase02 profile; never adapts purchase to reason04.
  * SUNAT pinned XSL 2.0.1: SellerSupplierParty 4375/3448, origin 3411; cat20=02.
- * Narrow support: RUC supplier, buyer=issuer=sender=recipient, explicit establishments,
+ * Narrow support: RUC supplier, buyer=issuer=sender=recipient, optional declared establishments,
  * GLL/LTR only. Other identities, units, third-party delivery and BF remain blocked. */
-export function validatePurchaseGuide09Body(body:unknown,issuer:{ruc:string;legalName:string},establishmentCode:string){
+/** Compra02 addresses are independent of the branch authorizing the series.
+ * Omission means no declared establishment; a present code is never defaulted. */
+export function validatePurchaseGuide09Route(route:{origin:unknown;destination:unknown}){
+ for(const raw of [route.origin,route.destination]){
+  const p=raw as any,keys=['address','ubigeo',...(Object.hasOwn(p??{},'establishmentCode')?['establishmentCode']:[])].sort();
+  if(!p||typeof p!=='object'||Array.isArray(p)||Object.keys(p).sort().join(',')!==keys.join(',')||typeof p.ubigeo!=='string'||!/^(?!000000)[0-9]{6}$/.test(p.ubigeo)||typeof p.address!=='string'||p.address.trim()!==p.address||p.address.length<3||p.address.length>300||/[\x00-\x1f\x7f-\x9f\ud800-\udfff\ufffe\uffff]/u.test(p.address)||Object.hasOwn(p,'establishmentCode')&&(typeof p.establishmentCode!=='string'||!/^[0-9]{4}$/.test(p.establishmentCode)))throw Error('Compra requiere ubigeo y dirección reales; omita el establecimiento si no corresponde o declare cuatro dígitos');
+ }
+ const a=route.origin as any,b=route.destination as any;
+ if(a.ubigeo===b.ubigeo&&a.address===b.address)throw Error('Compra requiere partida del proveedor y llegada diferentes');
+}
+export function validatePurchaseGuide09Body(body:unknown,issuer:{ruc:string;legalName:string}){
  const b=body as any;
  const exact=(v:any,keys:string[])=>{if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).sort().join(',')!==keys.sort().join(','))throw Error('Campos de compra privada inválidos');};
  const text=(v:any,max:number)=>{if(typeof v!=='string'||v.trim()!==v||!v||v.length>max||/[\x00-\x1f\x7f-\x9f\ud800-\udfff\ufffe\uffff]/u.test(v))throw Error('Texto de compra inválido');};
@@ -15,8 +25,7 @@ export function validatePurchaseGuide09Body(body:unknown,issuer:{ruc:string;lega
  if(new Date(b.issueDate).toISOString()!==b.issueDate||b.transferDate<fiscalLimaDate(b.issueDate))throw Error('Fechas de compra inválidas');
  for(const p of [b.sender,b.recipient,b.supplier])party(p);
  if([b.sender,b.recipient].some(p=>p.ruc!==issuer.ruc||p.legalName!==issuer.legalName)||b.supplier.ruc===issuer.ruc)throw Error('Compra requiere comprador/remitente/destinatario emisor y proveedor tercero');
- for(const p of [b.origin,b.destination]){exact(p,['ubigeo','address','establishmentCode']);pattern(p.ubigeo,/^(?!000000)[0-9]{6}$/);pattern(p.establishmentCode,/^[0-9]{4}$/);text(p.address,300);}
- if(b.destination.establishmentCode!==establishmentCode||b.origin.ubigeo===b.destination.ubigeo&&b.origin.address===b.destination.address)throw Error('Compra requiere llegada a la sede autorizada y origen del proveedor diferente');
+ validatePurchaseGuide09Route(b);
  fiscalDecimal(b.grossWeight,3,true,'grossWeight');if(!['KGM','TNE'].includes(b.weightUnit))throw Error('Declare peso bruto en KGM o TNE sin conversiones implícitas');
  const t=b.transport;exact(t,['mode','vehicle','driver']);if(t.mode!=='02')throw Error('Compra sólo admite transporte privado 02');
  exact(t.vehicle,['plate','registration']);pattern(t.vehicle.plate,/^[A-Z0-9]{6,8}$/);pattern(t.vehicle.registration,/^[A-Z0-9]{1,15}$/);
